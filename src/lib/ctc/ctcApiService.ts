@@ -1,8 +1,104 @@
 import { EventEmitter } from 'events';
+import { z } from 'zod';
+
+/**
+ * Zod schemas for CTC API interaction
+ */
+
+// Command schema used for runtime validation and type inference
+export const CTCApiCommandSchema = z.object({
+  Type: z.string(),
+  From: z.string(),
+  To: z.string(),
+  Data: z.record(z.string(), z.unknown()),
+});
+type CTCApiCommand = z.infer<typeof CTCApiCommandSchema>;
+
+// Response schema
+export const CTCApiResponseSchema = z.object({
+  Type: z.string(),
+  From: z.string(),
+  Target: z.string(),
+  Data: z.record(z.string(), z.unknown()),
+});
+type CTCApiResponse = z.infer<typeof CTCApiResponseSchema>;
+
+// Vibration reading schema for validation
+export const VibrationReadingSchema = z.object({
+  ID: z.number(),
+  Serial: z.string(),
+  Time: z.string(),
+  X: z.string(),
+  Y: z.string(),
+  Z: z.string(),
+});
+
+// Temperature reading schema for validation
+export const TemperatureReadingSchema = z.object({
+  ID: z.number(),
+  Serial: z.string(),
+  Time: z.string(),
+  Temp: z.number(),
+});
+
+// Battery reading schema for validation
+export const BatteryReadingSchema = z.object({
+  ID: z.number(),
+  Serial: z.string(),
+  Time: z.string(),
+  Batt: z.number(),
+});
+
+// Sensor data schema for validation
+export const SensorDataSchema = z.object({
+  Serial: z.number(),
+  Connected: z.number(),
+  AccessPoint: z.number(),
+  PartNum: z.string(),
+  ReadRate: z.number(),
+  GMode: z.string(),
+  FreqMode: z.string(),
+  ReadPeriod: z.number(),
+  Samples: z.number(),
+  HwVer: z.string(),
+  FmVer: z.string(),
+});
+
+// Vibration records schema for validation
+export const VibrationRecordsSchema = z.record(z.string(), VibrationReadingSchema);
+type VibrationRecords = z.infer<typeof VibrationRecordsSchema>;
+
+// Temperature records schema for validation
+export const TemperatureRecordsSchema = z.record(z.string(), TemperatureReadingSchema);
+type TemperatureRecords = z.infer<typeof TemperatureRecordsSchema>;
+
+// Battery records schema for validation
+export const BatteryRecordsSchema = z.record(z.string(), BatteryReadingSchema);
+type BatteryRecords = z.infer<typeof BatteryRecordsSchema>;
+
+// Sensor records schema for validation
+export const SensorRecordsSchema = z.record(z.string(), SensorDataSchema);
+type SensorRecords = z.infer<typeof SensorRecordsSchema>;
+
+// Error data schema for validation
+export const ErrorDataSchema = z.object({
+  Attempt: z.string(),
+  Error: z.string(),
+});
+
+// Record options interface
+interface RecordOptions {
+  serials?: number[];
+  start?: string;
+  end?: string;
+  max?: number;
+}
+
+type EventHandler<T = unknown> = (data: T) => void;
 
 /**
  * CTCApiService - Service for interacting with CTC Connect Wireless API via WebSockets
- * 
+ *
  * This service handles:
  * - WebSocket connection to the CTC API
  * - Sending commands to the API
@@ -13,40 +109,46 @@ export class CTCApiService {
   private socket: WebSocket | null = null;
   private isConnected = false;
   private events = new EventEmitter();
-  private pendingRequests = new Map<string, (data: any) => void>();
+  private pendingRequests = new Map<string, (data: Record<string, unknown>) => void>();
   private requestId = 1;
-  
+
   /**
    * Connect to the CTC API WebSocket
    * @param url - WebSocket URL for the CTC API
    */
   public async connect(url: string): Promise<boolean> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       try {
         this.socket = new WebSocket(url);
-        
+
         this.socket.onopen = () => {
           this.isConnected = true;
           console.log('Connected to CTC WebSocket');
           resolve(true);
         };
-        
+
         this.socket.onclose = () => {
           this.isConnected = false;
           console.log('Disconnected from CTC WebSocket');
           this.events.emit('disconnected');
         };
-        
-        this.socket.onerror = (error) => {
+
+        this.socket.onerror = error => {
           console.error('WebSocket error:', error);
           this.events.emit('error', error);
           resolve(false);
         };
-        
-        this.socket.onmessage = (event) => {
+
+        this.socket.onmessage = event => {
           try {
-            const message = JSON.parse(event.data);
-            this.handleMessage(message);
+            const parsedData = JSON.parse(event.data);
+            const result = CTCApiResponseSchema.safeParse(parsedData);
+
+            if (result.success) {
+              this.handleMessage(result.data);
+            } else {
+              console.error('Invalid message format:', result.error);
+            }
           } catch (error) {
             console.error('Error parsing WebSocket message:', error);
           }
@@ -57,7 +159,7 @@ export class CTCApiService {
       }
     });
   }
-  
+
   /**
    * Disconnect from the CTC API WebSocket
    */
@@ -68,40 +170,40 @@ export class CTCApiService {
       this.isConnected = false;
     }
   }
-  
+
   /**
    * Get all dynamic sensors or specific sensors by serial numbers
    * @param serials - Optional array of serial numbers
    * @returns Promise with sensor data
    */
-  public async getDynamicSensors(serials: number[] = []): Promise<any> {
+  public async getDynamicSensors(serials: number[] = []): Promise<SensorRecords> {
     const command = {
       Type: 'GET_DYN',
       From: 'UI',
       To: 'SERV',
       Data: {
-        Serials: serials
-      }
+        Serials: serials,
+      },
     };
-    
+
     return this.sendCommand(command, 'RTN_DYN');
   }
-  
+
   /**
    * Get all currently connected dynamic sensors
    * @returns Promise with connected sensor data
    */
-  public async getConnectedDynamicSensors(): Promise<any> {
+  public async getConnectedDynamicSensors(): Promise<SensorRecords> {
     const command = {
       Type: 'GET_DYN_CONNECTED',
       From: 'UI',
       To: 'SERV',
-      Data: {}
+      Data: {},
     };
-    
+
     return this.sendCommand(command, 'RTN_DYN');
   }
-  
+
   /**
    * Take a vibration reading from a specific sensor
    * @param serial - Serial number of the sensor
@@ -113,14 +215,14 @@ export class CTCApiService {
       From: 'UI',
       To: 'SERV',
       Data: {
-        Serial: serial
-      }
+        Serial: serial,
+      },
     };
-    
+
     await this.sendCommand(command);
     // Note: The actual reading will be delivered via notification
   }
-  
+
   /**
    * Take a temperature reading from a specific sensor
    * @param serial - Serial number of the sensor
@@ -132,14 +234,14 @@ export class CTCApiService {
       From: 'UI',
       To: 'SERV',
       Data: {
-        Serial: serial
-      }
+        Serial: serial,
+      },
     };
-    
+
     await this.sendCommand(command);
     // Note: The actual reading will be delivered via notification
   }
-  
+
   /**
    * Take a battery level reading from a specific sensor
    * @param serial - Serial number of the sensor
@@ -151,25 +253,20 @@ export class CTCApiService {
       From: 'UI',
       To: 'SERV',
       Data: {
-        Serial: serial
-      }
+        Serial: serial,
+      },
     };
-    
+
     await this.sendCommand(command);
     // Note: The actual reading will be delivered via notification
   }
-  
+
   /**
    * Get vibration records for specified sensors
    * @param options - Options for the query
    * @returns Promise with vibration reading records
    */
-  public async getDynamicVibrationRecords(options: {
-    serials?: number[];
-    start?: string;
-    end?: string;
-    max?: number;
-  } = {}): Promise<any> {
+  public async getDynamicVibrationRecords(options: RecordOptions = {}): Promise<VibrationRecords> {
     const command = {
       Type: 'GET_DYN_READINGS',
       From: 'UI',
@@ -178,24 +275,21 @@ export class CTCApiService {
         Serials: options.serials || [],
         Start: options.start || '',
         End: options.end || '',
-        Max: options.max || 25
-      }
+        Max: options.max || 25,
+      },
     };
-    
+
     return this.sendCommand(command, 'RTN_DYN_READINGS');
   }
-  
+
   /**
    * Get temperature records for specified sensors
    * @param options - Options for the query
    * @returns Promise with temperature reading records
    */
-  public async getDynamicTemperatureRecords(options: {
-    serials?: number[];
-    start?: string;
-    end?: string;
-    max?: number;
-  } = {}): Promise<any> {
+  public async getDynamicTemperatureRecords(
+    options: RecordOptions = {}
+  ): Promise<TemperatureRecords> {
     const command = {
       Type: 'GET_DYN_TEMPS',
       From: 'UI',
@@ -204,24 +298,19 @@ export class CTCApiService {
         Serials: options.serials || [],
         Start: options.start || '',
         End: options.end || '',
-        Max: options.max || 25
-      }
+        Max: options.max || 25,
+      },
     };
-    
+
     return this.sendCommand(command, 'RTN_DYN_TEMPS');
   }
-  
+
   /**
    * Get battery level records for specified sensors
    * @param options - Options for the query
    * @returns Promise with battery level reading records
    */
-  public async getDynamicBatteryRecords(options: {
-    serials?: number[];
-    start?: string;
-    end?: string;
-    max?: number;
-  } = {}): Promise<any> {
+  public async getDynamicBatteryRecords(options: RecordOptions = {}): Promise<BatteryRecords> {
     const command = {
       Type: 'GET_DYN_BATTS',
       From: 'UI',
@@ -230,13 +319,13 @@ export class CTCApiService {
         Serials: options.serials || [],
         Start: options.start || '',
         End: options.end || '',
-        Max: options.max || 25
-      }
+        Max: options.max || 25,
+      },
     };
-    
+
     return this.sendCommand(command, 'RTN_DYN_BATTS');
   }
-  
+
   /**
    * Subscribe to changes
    * This will enable receiving notification commands
@@ -246,12 +335,12 @@ export class CTCApiService {
       Type: 'SUBSCRIBE',
       From: 'UI',
       To: 'SERV',
-      Data: {}
+      Data: {},
     };
-    
+
     await this.sendCommand(command);
   }
-  
+
   /**
    * Unsubscribe from changes
    * This will stop receiving notification commands
@@ -261,50 +350,99 @@ export class CTCApiService {
       Type: 'UNSUBSCRIBE',
       From: 'UI',
       To: 'SERV',
-      Data: {}
+      Data: {},
     };
-    
+
     await this.sendCommand(command);
   }
-  
+
   /**
    * Add event listener for notification events
    * @param event - Event name
    * @param listener - Event handler function
    */
-  public on(event: string, listener: (...args: any[]) => void): void {
+  public on<T>(event: string, listener: EventHandler<T>): void {
     this.events.on(event, listener);
   }
-  
+
   /**
    * Remove event listener
    * @param event - Event name
    * @param listener - Event handler function
    */
-  public off(event: string, listener: (...args: any[]) => void): void {
+  public off<T>(event: string, listener: EventHandler<T>): void {
     this.events.off(event, listener);
   }
-  
+
   /**
    * Send a command to the CTC API
    * @param command - Command object to send
    * @param expectedReturnType - Expected return command type
    * @returns Promise resolving with the response data
    */
-  private async sendCommand(command: any, expectedReturnType?: string): Promise<any> {
+  private async sendCommand<T = void>(
+    command: CTCApiCommand,
+    expectedReturnType?: string
+  ): Promise<T> {
     if (!this.isConnected || !this.socket) {
       throw new Error('Not connected to CTC WebSocket');
     }
-    
+
     return new Promise((resolve, reject) => {
       try {
         // Add a request ID to track this specific command
         const requestId = this.requestId++;
-        
+
         if (expectedReturnType) {
           // Store the resolve function for when we get the response
-          this.pendingRequests.set(`${expectedReturnType}_${requestId}`, resolve);
-          
+          this.pendingRequests.set(
+            `${expectedReturnType}_${requestId}`,
+            (data: Record<string, unknown>) => {
+              // Apply appropriate schema validation based on the expected return type
+              switch (expectedReturnType) {
+                case 'RTN_DYN': {
+                  const result = SensorRecordsSchema.safeParse(data);
+                  if (result.success) {
+                    resolve(result.data as T);
+                  } else {
+                    reject(new Error(`Invalid SensorRecords data: ${result.error.message}`));
+                  }
+                  break;
+                }
+                case 'RTN_DYN_READINGS': {
+                  const result = VibrationRecordsSchema.safeParse(data);
+                  if (result.success) {
+                    resolve(result.data as T);
+                  } else {
+                    reject(new Error(`Invalid VibrationRecords data: ${result.error.message}`));
+                  }
+                  break;
+                }
+                case 'RTN_DYN_TEMPS': {
+                  const result = TemperatureRecordsSchema.safeParse(data);
+                  if (result.success) {
+                    resolve(result.data as T);
+                  } else {
+                    reject(new Error(`Invalid TemperatureRecords data: ${result.error.message}`));
+                  }
+                  break;
+                }
+                case 'RTN_DYN_BATTS': {
+                  const result = BatteryRecordsSchema.safeParse(data);
+                  if (result.success) {
+                    resolve(result.data as T);
+                  } else {
+                    reject(new Error(`Invalid BatteryRecords data: ${result.error.message}`));
+                  }
+                  break;
+                }
+                default:
+                  // For unknown return types, just pass the data through
+                  resolve(data as T);
+              }
+            }
+          );
+
           // Set a timeout to reject the promise if no response is received
           setTimeout(() => {
             if (this.pendingRequests.has(`${expectedReturnType}_${requestId}`)) {
@@ -314,24 +452,25 @@ export class CTCApiService {
           }, 10000); // 10 second timeout
         } else {
           // If no return type is expected, resolve immediately after sending
-          resolve(undefined);
+          resolve(undefined as T);
         }
-        
+
         // Send the command
-        this.socket.send(JSON.stringify(command));
+        // We've already checked that this.socket is not null at the beginning of the method
+        this.socket!.send(JSON.stringify(command));
       } catch (error) {
         reject(error);
       }
     });
   }
-  
+
   /**
    * Handle incoming messages from the WebSocket
    * @param message - Parsed message object
    */
-  private handleMessage(message: any): void {
+  private handleMessage(message: CTCApiResponse): void {
     const { Type, Data } = message;
-    
+
     // Check if this is a return command matching a pending request
     for (const [key, resolver] of this.pendingRequests.entries()) {
       if (key.startsWith(`${Type}_`)) {
@@ -340,31 +479,67 @@ export class CTCApiService {
         return;
       }
     }
-    
+
     // Handle error responses
     if (Type === 'RTN_ERR') {
-      console.error('CTC API Error:', Data.Error, 'Attempt:', Data.Attempt);
-      this.events.emit('error', Data);
+      const errorResult = ErrorDataSchema.safeParse(Data);
+      if (errorResult.success) {
+        console.error(
+          'CTC API Error:',
+          errorResult.data.Error,
+          'Attempt:',
+          errorResult.data.Attempt
+        );
+        this.events.emit('error', errorResult.data);
+      } else {
+        console.error('CTC API Error with invalid format:', Data);
+        this.events.emit('error', { Error: 'Unknown error', Attempt: 'Unknown' });
+      }
       return;
     }
-    
+
     // Handle notifications
     switch (Type) {
-      case 'NOT_DYN_CONN':
-        this.events.emit('sensorConnectionChange', Data);
+      case 'NOT_DYN_CONN': {
+        const result = SensorDataSchema.safeParse(Data);
+        if (result.success) {
+          this.events.emit('sensorConnectionChange', result.data);
+        } else {
+          console.error('Invalid sensor connection data:', result.error);
+        }
         break;
+      }
       case 'NOT_DYN_READING_STARTED':
+        // This is just a notification, no specific schema needed
         this.events.emit('vibrationReadingStarted', Data);
         break;
-      case 'NOT_DYN_READING':
-        this.events.emit('vibrationReading', Data);
+      case 'NOT_DYN_READING': {
+        const result = VibrationReadingSchema.safeParse(Data);
+        if (result.success) {
+          this.events.emit('vibrationReading', result.data);
+        } else {
+          console.error('Invalid vibration reading data:', result.error);
+        }
         break;
-      case 'NOT_DYN_TEMP':
-        this.events.emit('temperatureReading', Data);
+      }
+      case 'NOT_DYN_TEMP': {
+        const result = TemperatureReadingSchema.safeParse(Data);
+        if (result.success) {
+          this.events.emit('temperatureReading', result.data);
+        } else {
+          console.error('Invalid temperature reading data:', result.error);
+        }
         break;
-      case 'NOT_DYN_BATT':
-        this.events.emit('batteryReading', Data);
+      }
+      case 'NOT_DYN_BATT': {
+        const result = BatteryReadingSchema.safeParse(Data);
+        if (result.success) {
+          this.events.emit('batteryReading', result.data);
+        } else {
+          console.error('Invalid battery reading data:', result.error);
+        }
         break;
+      }
       default:
         // Unknown notification type
         this.events.emit('unknownMessage', message);
