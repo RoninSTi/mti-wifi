@@ -1,0 +1,16 @@
+# Ignore artifacts:
+node_modules
+.next
+build
+dist
+coverage
+out
+public
+.cache
+.eslintcache
+.vercel
+.env*
+!.env.example
+.vscode
+README.md
+LICENSE

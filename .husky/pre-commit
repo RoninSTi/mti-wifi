@@ -1,0 +1,2 @@
+# Run lint-staged to handle pre-commit checks
+npx lint-staged
