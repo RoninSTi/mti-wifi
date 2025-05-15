@@ -10,8 +10,6 @@ export interface ILocation extends Document {
   zipCode?: string;
   country?: string;
   organization: IOrganization['_id'];
-  latitude?: number;
-  longitude?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,12 +51,6 @@ const LocationSchema: Schema = new Schema(
       ref: 'Organization',
       required: true,
       index: true,
-    },
-    latitude: {
-      type: Number,
-    },
-    longitude: {
-      type: Number,
     },
   },
   {

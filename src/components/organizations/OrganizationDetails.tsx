@@ -55,11 +55,7 @@ export function OrganizationDetails({
   if (isLoading) {
     return (
       <Card>
-        <CardHeader className="relative">
-          <Button variant="ghost" size="icon" className="absolute right-2 top-2" onClick={onClose}>
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </Button>
+        <CardHeader>
           <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-8 rounded-full" />
             <Skeleton className="h-6 w-[200px]" />
@@ -84,11 +80,7 @@ export function OrganizationDetails({
 
     return (
       <Card>
-        <CardHeader className="relative">
-          <Button variant="ghost" size="icon" className="absolute right-2 top-2" onClick={onClose}>
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </Button>
+        <CardHeader>
           <CardTitle>Error</CardTitle>
         </CardHeader>
         <CardContent>
@@ -100,11 +92,7 @@ export function OrganizationDetails({
 
   return (
     <Card>
-      <CardHeader className="relative">
-        <Button variant="ghost" size="icon" className="absolute right-2 top-2" onClick={onClose}>
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </Button>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <Building className="h-6 w-6" />
           <CardTitle>{organization.name}</CardTitle>

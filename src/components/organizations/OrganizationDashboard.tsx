@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { CreateOrganizationDialog } from './CreateOrganizationDialog';
 import { OrganizationsTable } from './OrganizationsTable';
-import { OrganizationDetails } from './OrganizationDetails';
+// Removed import for TabbedOrganizationDetails
 import { EditOrganizationDialog } from './EditOrganizationDialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,8 +34,7 @@ export function OrganizationDashboard() {
   // State for search input
   const [searchInput, setSearchInput] = useState(searchQuery);
 
-  // State for selected organization (for details view)
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  // Removed selectedOrgId state as we now use a separate page for details
 
   // State for the organization being edited directly (without showing details)
   const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
@@ -96,7 +95,7 @@ export function OrganizationDashboard() {
 
   // Handle organization actions
   const handleViewDetails = (id: string) => {
-    setSelectedOrgId(id);
+    router.push(`/organizations/${id}`);
   };
 
   // Direct edit without showing details
@@ -110,21 +109,10 @@ export function OrganizationDashboard() {
       try {
         await deleteOrg(id);
         toast.success('Organization deleted successfully');
-
-        // If we're currently viewing the deleted organization, close the details panel
-        if (selectedOrgId === id) {
-          setSelectedOrgId(null);
-        }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to delete organization');
       }
     }
-  };
-
-  // This only handles UI updates after deletion from the details panel
-  const handleDeleteFromDetails = (id: string) => {
-    toast.success('Organization deleted successfully');
-    setSelectedOrgId(null);
   };
 
   return (
@@ -168,9 +156,9 @@ export function OrganizationDashboard() {
         </div>
 
         {/* Content area */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-8">
           {/* Main table area */}
-          <div className={`${selectedOrgId ? 'hidden md:block md:col-span-2' : 'col-span-3'}`}>
+          <div>
             {/* Table */}
             <OrganizationsTable
               organizations={organizations}
@@ -282,16 +270,7 @@ export function OrganizationDashboard() {
             )}
           </div>
 
-          {/* Organization details sidebar */}
-          {selectedOrgId && (
-            <div className="col-span-3 md:col-span-1 order-first md:order-last">
-              <OrganizationDetails
-                organizationId={selectedOrgId}
-                onClose={() => setSelectedOrgId(null)}
-                onDelete={handleDeleteFromDetails}
-              />
-            </div>
-          )}
+          {/* Organization details moved to separate page */}
 
           {/* Edit organization dialog (not tied to details view) */}
           {editingOrganization && (
