@@ -25,8 +25,11 @@ export function useLocation(id: string): UseLocationResult {
     staleTime: 60 * 1000, // 1 minute
   });
 
+  // Get the location from data
+  const location = data?.data || null;
+
   return {
-    location: data?.data || null,
+    location,
     isLoading: !!shouldFetch && isLoading,
     isError,
     error,

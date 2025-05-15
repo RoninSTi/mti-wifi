@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Building, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,8 +13,10 @@ import { toast } from 'sonner';
 
 export default function OrganizationDetailsPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const organizationId = params?.id as string;
+  const tabParam = searchParams.get('tab');
 
   // Use the custom hook to fetch organization data
   const { organization, isLoading, isError, error } = useOrganization(organizationId);
@@ -83,7 +85,7 @@ export default function OrganizationDetailsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-8">
-        <Tabs defaultValue="details" className="w-full">
+        <Tabs defaultValue={tabParam === 'locations' ? 'locations' : 'details'} className="w-full">
           <TabsList className="w-full mb-8">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="locations">Locations</TabsTrigger>

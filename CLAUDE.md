@@ -376,10 +376,12 @@ When switching to production, the OpenTelemetry configuration should be updated 
 
 ### TypeScript Guidelines
 
-1. **Avoid the `any` Type**
+1. **NEVER Use `any`, `typeof`, or Type Assertions**
 
-   - NEVER use `any` type - it defeats the purpose of TypeScript
-   - Use proper type definitions for improved safety and IDE support
+   - Never use `any` type - it defeats TypeScript's purpose
+   - Never use `typeof` for type checking in code - use proper type definitions instead
+   - Never use type assertions (`as SomeType`) - rely on TypeScript's inference
+   - Use type predicates and schema validation for runtime type checking
    - For dynamic or unknown types, use `unknown` with proper type narrowing:
 
    ```typescript
@@ -388,13 +390,48 @@ When switching to production, the OpenTelemetry configuration should be updated 
      console.error(error.message); // Unsafe - error might not have a message property
    }
 
-   // CORRECT
+   // INCORRECT - using typeof
+   function handleValue(value: unknown) {
+     if (typeof value === 'string') {
+       return value.toUpperCase();
+     }
+     return String(value);
+   }
+
+   // INCORRECT - using type assertions
+   function processData(data: unknown) {
+     const user = data as User;
+     return user.name;
+   }
+
+   // CORRECT - using type predicates
+   function isError(value: unknown): value is Error {
+     return value instanceof Error;
+   }
+
    function handleError(error: unknown) {
-     if (error instanceof Error) {
+     if (isError(error)) {
        console.error(error.message);
      } else {
        console.error(String(error));
      }
+   }
+
+   // CORRECT - using Zod for validation
+   import { z } from 'zod';
+
+   const userSchema = z.object({
+     name: z.string(),
+     email: z.string().email(),
+   });
+
+   function processUserData(data: unknown) {
+     const result = userSchema.safeParse(data);
+     if (result.success) {
+       // TypeScript knows this is a valid user
+       return result.data.name;
+     }
+     throw new Error('Invalid user data');
    }
    ```
 
@@ -432,21 +469,28 @@ When switching to production, the OpenTelemetry configuration should be updated 
    const user = await fetchData<User>('/api/user');
    ```
 
-4. **Use Type Predicates for Type Guards**
+4. **Prefer Zod for Runtime Type Validation**
 
-   - Implement proper type guards with type predicates for better type narrowing:
+   - Use Zod schemas for validating data at runtime:
 
    ```typescript
-   // Type predicate pattern
-   function isError(value: unknown): value is Error {
-     return value instanceof Error;
-   }
+   // Define a schema
+   const userSchema = z.object({
+     id: z.string(),
+     name: z.string(),
+     email: z.string().email(),
+   });
 
-   // Usage
-   function handleResult(result: unknown) {
-     if (isError(result)) {
-       // TypeScript knows result is Error
-       console.error(result.message);
+   // Parse and validate data
+   function processUser(data: unknown) {
+     const result = userSchema.safeParse(data);
+     if (result.success) {
+       // TypeScript knows this is a valid user
+       const user = result.data;
+       sendEmail(user.email);
+     } else {
+       // Handle validation errors
+       console.error(result.error);
      }
    }
    ```

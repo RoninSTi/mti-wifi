@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { LocationResponse } from '@/app/api/locations/schemas';
 import {
   Table,
@@ -10,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { MoreHorizontal, Edit, Trash, Eye, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash, Eye, Loader2, MapPin } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,8 +23,25 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
+// Interface for the props received by the component
 interface LocationsTableProps {
-  locations: LocationResponse[];
+  // We're getting an array of location objects with organization already populated
+  locations: Array<{
+    _id: string;
+    name: string;
+    description?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+    organization: {
+      _id: string;
+      name: string;
+    };
+    createdAt: string | Date;
+    updatedAt: string | Date;
+  }>;
   isLoading: boolean;
   isError: boolean;
   error: unknown;
@@ -132,7 +150,14 @@ export function LocationsTable({
         <TableBody>
           {locations.map(location => (
             <TableRow key={location._id}>
-              <TableCell className="font-medium">{location.name}</TableCell>
+              <TableCell className="font-medium">
+                <Link
+                  href={`/organizations/${location.organization._id}/locations/${location._id}`}
+                  className="hover:underline text-primary cursor-pointer"
+                >
+                  {location.name}
+                </Link>
+              </TableCell>
               <TableCell>{location.address || '—'}</TableCell>
               <TableCell>{location.city || '—'}</TableCell>
               <TableCell>{location.state || '—'}</TableCell>
@@ -151,6 +176,16 @@ export function LocationsTable({
                       <Eye className="mr-2 h-4 w-4" />
                       View details
                     </DropdownMenuItem>
+                    <Link
+                      href={`/organizations/${location.organization._id}/locations/${location._id}`}
+                      passHref
+                      legacyBehavior
+                    >
+                      <DropdownMenuItem>
+                        <MapPin className="mr-2 h-4 w-4" />
+                        Full details page
+                      </DropdownMenuItem>
+                    </Link>
                     <DropdownMenuItem onClick={() => onEdit(location._id)}>
                       <Edit className="mr-2 h-4 w-4" />
                       Edit

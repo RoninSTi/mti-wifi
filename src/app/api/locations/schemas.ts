@@ -43,9 +43,23 @@ export type CreateLocationInput = z.infer<typeof createLocationSchema>;
 export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;
 export type LocationParams = z.infer<typeof locationParamsSchema>;
 
-// Response schema and type
-export const locationResponseSchema = createLocationSchema.extend({
+// Organization reference schema for responses
+export const organizationReferenceSchema = z.object({
   _id: z.string(),
+  name: z.string(),
+});
+
+// Response schema and type
+export const locationResponseSchema = z.object({
+  _id: z.string(),
+  name: locationBaseSchema.name,
+  description: locationBaseSchema.description,
+  address: locationBaseSchema.address,
+  city: locationBaseSchema.city,
+  state: locationBaseSchema.state,
+  zipCode: locationBaseSchema.zipCode,
+  country: locationBaseSchema.country,
+  organization: organizationReferenceSchema,
   createdAt: z.string().or(z.date()),
   updatedAt: z.string().or(z.date()),
 });
