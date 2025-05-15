@@ -17,7 +17,7 @@ import { Search, X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { useOrganizations } from '@/hooks/useOrganizations';
+import { useOrganizations, useDeleteOrganization } from '@/hooks';
 
 export function OrganizationDashboard() {
   // Router and URL parameters
@@ -44,6 +44,16 @@ export function OrganizationDashboard() {
     sortBy: 'createdAt',
     sortOrder: 'desc',
   });
+
+  // Initialize organization deletion hook
+  const {
+    deleteOrg,
+    // We don't use these variables directly but they could be useful for future enhancements
+    isLoading: _isDeleting,
+    isError: _isDeleteError,
+    error: _deleteError,
+    isSuccess: _isDeleteSuccess,
+  } = useDeleteOrganization();
 
   // Update URL with new pagination/filters
   const updateParams = (params: Record<string, string | number | null>) => {
@@ -83,13 +93,23 @@ export function OrganizationDashboard() {
     setSelectedOrgId(id);
   };
 
-  const handleDeleteOrganization = (id: string) => {
+  const handleDeleteOrganization = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this organization?')) {
-      // Mock delete - would normally call API
-      toast.success('Organization deleted successfully');
+      try {
+        // Only call deleteOrg directly if not coming from OrganizationDetails component
+        // (OrganizationDetails now handles its own deletion via the hook)
+        if (selectedOrgId !== id) {
+          await deleteOrg(id);
+        }
 
-      if (selectedOrgId === id) {
-        setSelectedOrgId(null);
+        toast.success('Organization deleted successfully');
+
+        // If we're currently viewing the deleted organization, close the details panel
+        if (selectedOrgId === id) {
+          setSelectedOrgId(null);
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to delete organization');
       }
     }
   };

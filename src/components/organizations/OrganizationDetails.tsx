@@ -1,11 +1,23 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { X, Building, User, Mail, Phone, MapPin, Calendar, Trash, Edit } from 'lucide-react';
+import {
+  X,
+  Building,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Trash,
+  Edit,
+  Loader2,
+} from 'lucide-react';
+import { useOrganization, useDeleteOrganization } from '@/hooks';
 
 interface OrganizationDetailsProps {
   organizationId: string;
@@ -13,86 +25,27 @@ interface OrganizationDetailsProps {
   onDelete: (id: string) => void;
 }
 
-// Mock organization data
-const mockOrganizations = [
-  {
-    _id: '1',
-    name: 'Acme Corporation',
-    description: 'A global manufacturing company',
-    contactName: 'John Doe',
-    contactEmail: 'john@acme.com',
-    contactPhone: '555-1234',
-    address: '123 Main St, Anytown, USA',
-    createdAt: '2023-01-15T00:00:00.000Z',
-    updatedAt: '2023-01-15T00:00:00.000Z',
-  },
-  {
-    _id: '2',
-    name: 'Globex Industries',
-    description: 'Technology solutions provider',
-    contactName: 'Jane Smith',
-    contactEmail: 'jane@globex.com',
-    contactPhone: '555-5678',
-    address: '456 Tech Blvd, Silicon Valley, USA',
-    createdAt: '2023-02-20T00:00:00.000Z',
-    updatedAt: '2023-02-20T00:00:00.000Z',
-  },
-  {
-    _id: '3',
-    name: 'Initech LLC',
-    description: 'Software development company',
-    contactName: 'Michael Bolton',
-    contactEmail: 'michael@initech.com',
-    contactPhone: '555-7890',
-    address: '789 Office Park, Business District, USA',
-    createdAt: '2023-03-10T00:00:00.000Z',
-    updatedAt: '2023-03-10T00:00:00.000Z',
-  },
-];
-
 export function OrganizationDetails({
   organizationId,
   onClose,
   onDelete,
 }: OrganizationDetailsProps) {
-  // Define Organization type for the component
-  type Organization = {
-    _id: string;
-    name: string;
-    description?: string;
-    contactName?: string;
-    contactEmail?: string;
-    contactPhone?: string;
-    address?: string;
-    createdAt: string;
-    updatedAt: string;
+  // Use the custom hook to fetch organization data
+  const { organization, isLoading, isError, error } = useOrganization(organizationId);
+
+  // Use deletion hook directly in the component
+  const { deleteOrg, isLoading: isDeleting } = useDeleteOrganization();
+
+  // Handler for delete using React Query's mutation
+  const handleDelete = async () => {
+    try {
+      await deleteOrg(organizationId);
+      onDelete(organizationId); // Call parent's onDelete for UI updates (closing panel, etc.)
+    } catch (error) {
+      // Error handling is managed by the hook itself
+      console.error('Error handling in component:', error);
+    }
   };
-
-  // Local state for loading simulation
-  const [isLoading, setIsLoading] = useState(true);
-  const [organization, setOrganization] = useState<Organization | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Simulate fetching organization data
-  useEffect(() => {
-    setIsLoading(true);
-    setError(null);
-
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      const org = mockOrganizations.find(org => org._id === organizationId);
-
-      if (org) {
-        setOrganization(org);
-      } else {
-        setError('Organization not found');
-      }
-
-      setIsLoading(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [organizationId]);
 
   if (isLoading) {
     return (
@@ -120,7 +73,10 @@ export function OrganizationDetails({
     );
   }
 
-  if (error || !organization) {
+  if (isError || !organization) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to load organization details';
+
     return (
       <Card>
         <CardHeader className="relative">
@@ -131,7 +87,7 @@ export function OrganizationDetails({
           <CardTitle>Error</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-destructive">{error || 'Failed to load organization details'}</p>
+          <p className="text-destructive">{errorMessage}</p>
         </CardContent>
       </Card>
     );
@@ -194,12 +150,16 @@ export function OrganizationDetails({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button variant="outline" className="w-full" onClick={() => onDelete(organizationId)}>
-          <Trash className="mr-2 h-4 w-4" />
-          Delete
+      <CardFooter className="flex gap-2">
+        <Button variant="outline" className="flex-1" onClick={handleDelete} disabled={isDeleting}>
+          {isDeleting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Trash className="mr-2 h-4 w-4" />
+          )}
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </Button>
-        <Button className="w-full">
+        <Button className="flex-1">
           <Edit className="mr-2 h-4 w-4" />
           Edit
         </Button>
