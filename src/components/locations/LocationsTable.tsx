@@ -102,21 +102,19 @@ export function LocationsTable({
     );
   }
 
-  // If no results, display appropriate message
-  if (locations.length === 0) {
+  // If no results, display appropriate message for search results only
+  if (locations.length === 0 && filterApplied) {
     return (
       <div className="rounded-lg border p-8 text-center">
-        <h3 className="text-lg font-medium">
-          {filterApplied ? 'No results found' : 'No locations yet'}
-        </h3>
+        <h3 className="text-lg font-medium">No results found</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          {filterApplied
-            ? 'Try adjusting your search or filter criteria.'
-            : 'Create your first location to get started.'}
+          Try adjusting your search or filter criteria.
         </p>
       </div>
     );
   }
+
+  // For no locations without search, the parent component will handle the empty state
 
   // Display actual data
   return (

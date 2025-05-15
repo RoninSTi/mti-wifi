@@ -148,114 +148,140 @@ export function LocationsTab({ organizationId }: LocationsTabProps) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* Main table area */}
         <div className={`${selectedLocationId ? 'hidden md:block md:col-span-2' : 'col-span-3'}`}>
-          <LocationsTable
-            locations={locations}
-            isLoading={isLoading}
-            isError={isError}
-            error={error}
-            onView={handleViewDetails}
-            onEdit={handleEditLocation} // Now we'll edit directly
-            onDelete={handleDeleteLocation}
-            onRetry={() => refetch()}
-            filterApplied={!!searchQuery}
-          />
-
-          {/* Pagination */}
-          {pagination && pagination.totalPages > 0 && (
-            <div className="mt-4 flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                {isLoading ? (
-                  <div className="h-5 w-[160px] bg-muted animate-pulse rounded"></div>
-                ) : (
-                  <>
-                    Showing {locations.length} of {pagination.totalItems} locations
-                  </>
-                )}
-              </div>
-
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={e => {
-                        e.preventDefault();
-                        if (pagination.hasPreviousPage) {
-                          handlePageChange(page - 1);
-                        }
-                      }}
-                      className={
-                        !pagination.hasPreviousPage ? 'pointer-events-none opacity-50' : ''
-                      }
-                    />
-                  </PaginationItem>
-
-                  {/* Page numbers */}
-                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                    .filter(p => {
-                      // Show current page, first, last, and adjacent pages
-                      return p === 1 || p === pagination.totalPages || Math.abs(p - page) <= 1;
-                    })
-                    .map((p, i, arr) => {
-                      // Add ellipsis when there are gaps
-                      const showEllipsisBefore = i > 0 && arr[i - 1] !== p - 1;
-
-                      return (
-                        <React.Fragment key={p}>
-                          {showEllipsisBefore && (
-                            <PaginationItem>
-                              <span className="flex h-9 w-9 items-center justify-center">...</span>
-                            </PaginationItem>
-                          )}
-                          <PaginationItem>
-                            <PaginationLink
-                              href="#"
-                              onClick={e => {
-                                e.preventDefault();
-                                handlePageChange(p);
-                              }}
-                              isActive={page === p}
-                            >
-                              {p}
-                            </PaginationLink>
-                          </PaginationItem>
-                        </React.Fragment>
-                      );
-                    })}
-
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={e => {
-                        e.preventDefault();
-                        if (pagination.hasNextPage) {
-                          handlePageChange(page + 1);
-                        }
-                      }}
-                      className={!pagination.hasNextPage ? 'pointer-events-none opacity-50' : ''}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-
-              {/* Items per page selector */}
-              <div className="flex items-center gap-2">
-                <select
-                  className="text-sm h-8 rounded-md border border-input bg-background px-2"
-                  value={limit}
-                  onChange={e => {
-                    setLimit(Number(e.target.value));
-                    setPage(1); // Reset to first page when changing limit
-                  }}
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
-                <span className="text-sm text-muted-foreground">per page</span>
-              </div>
+          {/* Show empty state if no locations exist yet and no search is applied */}
+          {!isLoading && !isError && locations.length === 0 && !searchQuery ? (
+            <div className="rounded-lg border border-dashed p-8 text-center">
+              <MapPin className="mx-auto h-10 w-10 text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-medium">No locations yet</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add your first location to get started.
+              </p>
+              <CreateLocationDialog
+                organizationId={organizationId}
+                trigger={
+                  <Button className="mt-4">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Location
+                  </Button>
+                }
+              />
             </div>
+          ) : (
+            <>
+              <LocationsTable
+                locations={locations}
+                isLoading={isLoading}
+                isError={isError}
+                error={error}
+                onView={handleViewDetails}
+                onEdit={handleEditLocation} // Now we'll edit directly
+                onDelete={handleDeleteLocation}
+                onRetry={() => refetch()}
+                filterApplied={!!searchQuery}
+              />
+
+              {/* Pagination */}
+              {pagination && pagination.totalPages > 0 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {isLoading ? (
+                      <div className="h-5 w-[160px] bg-muted animate-pulse rounded"></div>
+                    ) : (
+                      <>
+                        Showing {locations.length} of {pagination.totalItems} locations
+                      </>
+                    )}
+                  </div>
+
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          href="#"
+                          onClick={e => {
+                            e.preventDefault();
+                            if (pagination.hasPreviousPage) {
+                              handlePageChange(page - 1);
+                            }
+                          }}
+                          className={
+                            !pagination.hasPreviousPage ? 'pointer-events-none opacity-50' : ''
+                          }
+                        />
+                      </PaginationItem>
+
+                      {/* Page numbers */}
+                      {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                        .filter(p => {
+                          // Show current page, first, last, and adjacent pages
+                          return p === 1 || p === pagination.totalPages || Math.abs(p - page) <= 1;
+                        })
+                        .map((p, i, arr) => {
+                          // Add ellipsis when there are gaps
+                          const showEllipsisBefore = i > 0 && arr[i - 1] !== p - 1;
+
+                          return (
+                            <React.Fragment key={p}>
+                              {showEllipsisBefore && (
+                                <PaginationItem>
+                                  <span className="flex h-9 w-9 items-center justify-center">
+                                    ...
+                                  </span>
+                                </PaginationItem>
+                              )}
+                              <PaginationItem>
+                                <PaginationLink
+                                  href="#"
+                                  onClick={e => {
+                                    e.preventDefault();
+                                    handlePageChange(p);
+                                  }}
+                                  isActive={page === p}
+                                >
+                                  {p}
+                                </PaginationLink>
+                              </PaginationItem>
+                            </React.Fragment>
+                          );
+                        })}
+
+                      <PaginationItem>
+                        <PaginationNext
+                          href="#"
+                          onClick={e => {
+                            e.preventDefault();
+                            if (pagination.hasNextPage) {
+                              handlePageChange(page + 1);
+                            }
+                          }}
+                          className={
+                            !pagination.hasNextPage ? 'pointer-events-none opacity-50' : ''
+                          }
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+
+                  {/* Items per page selector */}
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="text-sm h-8 rounded-md border border-input bg-background px-2"
+                      value={limit}
+                      onChange={e => {
+                        setLimit(Number(e.target.value));
+                        setPage(1); // Reset to first page when changing limit
+                      }}
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                    </select>
+                    <span className="text-sm text-muted-foreground">per page</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -270,26 +296,6 @@ export function LocationsTab({ organizationId }: LocationsTabProps) {
           </div>
         )}
       </div>
-
-      {/* Show a message if no locations exist yet and no search is applied */}
-      {!isLoading && !isError && locations.length === 0 && !searchQuery && (
-        <div className="rounded-lg border border-dashed p-8 text-center">
-          <MapPin className="mx-auto h-10 w-10 text-muted-foreground/50 mb-4" />
-          <h3 className="text-lg font-medium">No locations yet</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Add your first location to get started.
-          </p>
-          <CreateLocationDialog
-            organizationId={organizationId}
-            trigger={
-              <Button className="mt-4">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Location
-              </Button>
-            }
-          />
-        </div>
-      )}
 
       {/* Edit location dialog */}
       {editingLocation && (

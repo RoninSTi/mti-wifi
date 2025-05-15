@@ -89,16 +89,6 @@ export function LocationDetails({ locationId, onClose, onDelete }: LocationDetai
       )}
 
       <div className="mt-4 space-y-3">
-        {location.organization && (
-          <div className="flex items-start gap-2">
-            <Building className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs text-muted-foreground">Organization</p>
-              <p className="text-sm">{location.organization}</p>
-            </div>
-          </div>
-        )}
-
         {(location.address || location.city || location.state || location.zipCode) && (
           <div className="flex items-start gap-2">
             <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
