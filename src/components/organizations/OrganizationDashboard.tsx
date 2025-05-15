@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { CreateOrganizationDialog } from './CreateOrganizationDialog';
 import { OrganizationsTable } from './OrganizationsTable';
 import { OrganizationDetails } from './OrganizationDetails';
+import { EditOrganizationDialog } from './EditOrganizationDialog';
 import { Button } from '@/components/ui/button';
 import {
   Pagination,
@@ -17,7 +18,7 @@ import { Search, X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { useOrganizations, useDeleteOrganization } from '@/hooks';
+import { useOrganizations, useDeleteOrganization, useOrganization } from '@/hooks';
 
 export function OrganizationDashboard() {
   // Router and URL parameters
@@ -35,6 +36,12 @@ export function OrganizationDashboard() {
 
   // State for selected organization (for details view)
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+
+  // State for the organization being edited directly (without showing details)
+  const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
+
+  // Fetch data for the organization being edited
+  const { organization: editingOrganization } = useOrganization(editingOrgId || '');
 
   // Fetch organizations with React Query hook
   const { organizations, isLoading, isError, error, pagination, refetch } = useOrganizations({
@@ -90,6 +97,11 @@ export function OrganizationDashboard() {
   // Handle organization actions
   const handleViewDetails = (id: string) => {
     setSelectedOrgId(id);
+  };
+
+  // Direct edit without showing details
+  const handleEditOrganization = (id: string) => {
+    setEditingOrgId(id);
   };
 
   // This gets called when deleting from the table
@@ -166,7 +178,7 @@ export function OrganizationDashboard() {
               isError={isError}
               error={error}
               onView={handleViewDetails}
-              onEdit={handleViewDetails}
+              onEdit={handleEditOrganization}
               onDelete={handleDeleteOrganization}
               onRetry={() => refetch()}
               filterApplied={!!nameFilter}
@@ -279,6 +291,17 @@ export function OrganizationDashboard() {
                 onDelete={handleDeleteFromDetails}
               />
             </div>
+          )}
+
+          {/* Edit organization dialog (not tied to details view) */}
+          {editingOrganization && (
+            <EditOrganizationDialog
+              organization={editingOrganization}
+              open={!!editingOrgId}
+              onOpenChange={open => {
+                if (!open) setEditingOrgId(null);
+              }}
+            />
           )}
         </div>
       </div>

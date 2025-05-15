@@ -19,6 +19,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useOrganization, useDeleteOrganization } from '@/hooks';
+import { EditOrganizationDialog } from './EditOrganizationDialog';
 
 interface OrganizationDetailsProps {
   organizationId: string;
@@ -163,10 +164,15 @@ export function OrganizationDetails({
           )}
           {isDeleting ? 'Deleting...' : 'Delete'}
         </Button>
-        <Button className="flex-1">
-          <Edit className="mr-2 h-4 w-4" />
-          Edit
-        </Button>
+        <EditOrganizationDialog
+          organization={organization}
+          trigger={
+            <Button className="flex-1 organization-details-edit-button">
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          }
+        />
       </CardFooter>
     </Card>
   );

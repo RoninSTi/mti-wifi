@@ -6,3 +6,4 @@ export * from './useCreateOrganization';
 export * from './useOrganizationQueries';
 export * from './useOrganization';
 export * from './useDeleteOrganization';
+export * from './useUpdateOrganization';
