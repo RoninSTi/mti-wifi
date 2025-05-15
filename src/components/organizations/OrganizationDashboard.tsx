@@ -29,10 +29,10 @@ export function OrganizationDashboard() {
   // Get current pagination and filters from URL
   const page = Number(searchParams.get('page') || '1');
   const limit = Number(searchParams.get('limit') || '10');
-  const nameFilter = searchParams.get('name') || '';
+  const searchQuery = searchParams.get('q') || '';
 
   // State for search input
-  const [searchInput, setSearchInput] = useState(nameFilter);
+  const [searchInput, setSearchInput] = useState(searchQuery);
 
   // State for selected organization (for details view)
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export function OrganizationDashboard() {
   const { organizations, isLoading, isError, error, pagination, refetch } = useOrganizations({
     page,
     limit,
-    name: nameFilter || undefined,
+    q: searchQuery || undefined,
     sortBy: 'createdAt',
     sortOrder: 'desc',
   });
@@ -75,7 +75,7 @@ export function OrganizationDashboard() {
     });
 
     // Reset to page 1 when filters change
-    if ('name' in params && params.name !== nameFilter) {
+    if ('q' in params && params.q !== searchQuery) {
       newParams.set('page', '1');
     }
 
@@ -85,13 +85,13 @@ export function OrganizationDashboard() {
   // Handle search submission
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    updateParams({ name: searchInput || null, page: 1 });
+    updateParams({ q: searchInput || null, page: 1 });
   };
 
   // Clear search filter
   const clearSearch = () => {
     setSearchInput('');
-    updateParams({ name: null, page: 1 });
+    updateParams({ q: null, page: 1 });
   };
 
   // Handle organization actions
@@ -144,9 +144,9 @@ export function OrganizationDashboard() {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                type="search"
+                type="text"
                 placeholder="Search organizations..."
-                className="pl-8"
+                className="pl-8 [&::-webkit-search-cancel-button]:hidden [&::-ms-clear]:hidden"
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
               />
@@ -181,7 +181,7 @@ export function OrganizationDashboard() {
               onEdit={handleEditOrganization}
               onDelete={handleDeleteOrganization}
               onRetry={() => refetch()}
-              filterApplied={!!nameFilter}
+              filterApplied={!!searchQuery}
             />
 
             {/* Pagination */}

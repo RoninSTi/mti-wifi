@@ -18,7 +18,10 @@ const ORGANIZATIONS_URL = '/api/organizations';
  * @param limit Items per page (default: 10)
  * @param sortBy Field to sort by
  * @param sortOrder Sort direction ('asc' or 'desc')
+ * @param q General search query across all fields
  * @param name Optional name filter
+ * @param contactName Optional contact name filter
+ * @param contactEmail Optional contact email filter
  * @returns Paginated list of organizations
  */
 export const getOrganizations = async ({
@@ -26,13 +29,19 @@ export const getOrganizations = async ({
   limit = 10,
   sortBy,
   sortOrder = 'desc',
+  q,
   name,
+  contactName,
+  contactEmail,
 }: {
   page?: number;
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  q?: string;
   name?: string;
+  contactName?: string;
+  contactEmail?: string;
 } = {}) => {
   // Use the specialized paginated API client method
   return apiClient.getPaginated<OrganizationResponse>(ORGANIZATIONS_URL, {
@@ -40,7 +49,10 @@ export const getOrganizations = async ({
     limit,
     sortBy,
     sortOrder,
+    q,
     name,
+    contactName,
+    contactEmail,
   });
 };
 

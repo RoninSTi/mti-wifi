@@ -9,7 +9,10 @@ export interface UseOrganizationsParams {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  q?: string;
   name?: string;
+  contactName?: string;
+  contactEmail?: string;
 }
 
 export interface UseOrganizationsResult {
@@ -29,16 +32,23 @@ export function useOrganizations({
   limit = 10,
   sortBy,
   sortOrder = 'desc',
+  q,
   name,
+  contactName,
+  contactEmail,
 }: UseOrganizationsParams = {}): UseOrganizationsResult {
-  const queryKey = ['organizations', { page, limit, sortBy, sortOrder, name }];
+  const queryKey = [
+    'organizations',
+    { page, limit, sortBy, sortOrder, q, name, contactName, contactEmail },
+  ];
 
   const { data, isLoading, isError, error, refetch } = useQuery<
     PaginatedApiResponse<OrganizationResponse>,
     Error
   >({
     queryKey,
-    queryFn: () => getOrganizations({ page, limit, sortBy, sortOrder, name }),
+    queryFn: () =>
+      getOrganizations({ page, limit, sortBy, sortOrder, q, name, contactName, contactEmail }),
     staleTime: 60 * 1000, // 1 minute
   });
 

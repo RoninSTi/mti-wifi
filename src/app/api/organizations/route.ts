@@ -118,14 +118,53 @@ async function listOrganizationsHandler(request: NextRequest): Promise<NextRespo
       // Extract potential filter parameters
       const { searchParams } = new URL(request.url);
       const nameFilter = searchParams.get('name');
+      const contactNameFilter = searchParams.get('contactName');
+      const contactEmailFilter = searchParams.get('contactEmail');
+      const searchQuery = searchParams.get('q'); // General search parameter
 
       // Build base query with optional filters
       const filterConditions: Record<string, unknown> = {};
 
+      // OR conditions for the general search query
+      const orConditions = [];
+
+      // Individual field filters (exact matches)
       if (nameFilter) {
         // Case-insensitive partial name match
         filterConditions.name = { $regex: nameFilter, $options: 'i' };
         addSpanAttributes({ 'request.filter.name': nameFilter });
+      }
+
+      if (contactNameFilter) {
+        // Case-insensitive partial contact name match
+        filterConditions.contactName = { $regex: contactNameFilter, $options: 'i' };
+        addSpanAttributes({ 'request.filter.contactName': contactNameFilter });
+      }
+
+      if (contactEmailFilter) {
+        // Case-insensitive exact or partial email match
+        filterConditions.contactEmail = { $regex: contactEmailFilter, $options: 'i' };
+        addSpanAttributes({ 'request.filter.contactEmail': contactEmailFilter });
+      }
+
+      // General search across all relevant text fields
+      if (searchQuery) {
+        // Search across multiple fields with the same query
+        orConditions.push(
+          { name: { $regex: searchQuery, $options: 'i' } },
+          { description: { $regex: searchQuery, $options: 'i' } },
+          { contactName: { $regex: searchQuery, $options: 'i' } },
+          { contactEmail: { $regex: searchQuery, $options: 'i' } },
+          { contactPhone: { $regex: searchQuery, $options: 'i' } },
+          { address: { $regex: searchQuery, $options: 'i' } }
+        );
+
+        addSpanAttributes({ 'request.search.query': searchQuery });
+      }
+
+      // If we have OR conditions, add them to the filter using $or
+      if (orConditions.length > 0) {
+        filterConditions.$or = orConditions;
       }
 
       // Add filter details to span
