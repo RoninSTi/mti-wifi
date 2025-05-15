@@ -8,6 +8,7 @@ import { ModeToggle } from './ui/mode-toggle';
 export default function Header() {
   const navItems = [
     { href: '/', label: 'Home' },
+    { href: '/organizations', label: 'Organizations' },
     { href: '/about', label: 'About' },
     { href: '/telemetry-dashboard', label: 'Telemetry' },
   ];
