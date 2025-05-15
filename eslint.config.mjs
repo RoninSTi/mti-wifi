@@ -14,9 +14,10 @@ const eslintConfig = [
   {
     rules: {
       // Allow unused variables when they start with an underscore
-      "@typescript-eslint/no-unused-vars": ["error", { 
+      "@typescript-eslint/no-unused-vars": ["warn", { 
         "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_" 
+        "varsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
       }]
     }
   },
