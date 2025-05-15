@@ -7,8 +7,12 @@ import {
   useCreateOrganizationMutation,
   useUpdateOrganizationMutation,
   useDeleteOrganizationMutation,
-} from '@/hooks/useOrganizations';
-import { CreateOrganizationInput, UpdateOrganizationInput } from '@/app/api/organizations/schemas';
+} from '@/hooks';
+import {
+  CreateOrganizationInput,
+  UpdateOrganizationInput,
+  OrganizationResponse,
+} from '@/app/api/organizations/schemas';
 
 /**
  * Example component demonstrating TanStack Query hooks for organizations
@@ -57,7 +61,7 @@ export function OrganizationsExample() {
         console.log('Created successfully', data);
         // Additional logic after successful creation
       },
-      onError: error => {
+      onError: (error: Error) => {
         console.error('Creation failed', error);
         // Error handling logic
       },
@@ -120,7 +124,7 @@ export function OrganizationsExample() {
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-2">Organizations List</h2>
         <ul className="space-y-2">
-          {organizations.map(org => (
+          {organizations.map((org: OrganizationResponse) => (
             <li key={org._id} className="border p-3 rounded">
               <div className="flex justify-between items-center">
                 <div>

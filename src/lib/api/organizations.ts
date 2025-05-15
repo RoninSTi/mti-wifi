@@ -7,7 +7,7 @@ import {
   UpdateOrganizationInput,
   OrganizationResponse,
 } from '@/app/api/organizations/schemas';
-import { PaginatedResponse } from '@/lib/pagination/types';
+// Note: PaginatedResponse imported from pagination/types is used implicitly in the return types
 
 // Base URL for organization endpoints
 const ORGANIZATIONS_URL = '/api/organizations';
@@ -34,24 +34,14 @@ export const getOrganizations = async ({
   sortOrder?: 'asc' | 'desc';
   name?: string;
 } = {}) => {
-  // Build query parameters
-  const params = new URLSearchParams();
-  params.append('page', page.toString());
-  params.append('limit', limit.toString());
-
-  if (sortBy) {
-    params.append('sortBy', sortBy);
-  }
-
-  params.append('sortOrder', sortOrder);
-
-  if (name) {
-    params.append('name', name);
-  }
-
-  const url = `${ORGANIZATIONS_URL}?${params.toString()}`;
-
-  return apiClient.get<PaginatedResponse<OrganizationResponse>>(url);
+  // Use the specialized paginated API client method
+  return apiClient.getPaginated<OrganizationResponse>(ORGANIZATIONS_URL, {
+    page,
+    limit,
+    sortBy,
+    sortOrder,
+    name,
+  });
 };
 
 /**

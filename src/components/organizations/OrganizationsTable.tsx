@@ -24,24 +24,55 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface OrganizationsTableProps {
   organizations: OrganizationResponse[];
   isLoading: boolean;
+  isError?: boolean;
+  error?: unknown;
   onView: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onRetry?: () => void;
+  filterApplied?: boolean;
 }
 
 export function OrganizationsTable({
   organizations,
   isLoading,
+  isError = false,
+  error,
   onView,
   onEdit,
   onDelete,
+  onRetry,
+  filterApplied = false,
 }: OrganizationsTableProps) {
+  // Error state
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center border rounded-lg bg-destructive/10 border-destructive/30">
+        <h3 className="text-lg font-medium text-destructive">Unable to load organizations</h3>
+        <p className="text-muted-foreground mt-2 mb-4">
+          {error instanceof Error ? error.message : 'An unexpected error occurred'}
+        </p>
+        {onRetry && (
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            Retry
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   // Empty state - when no organizations exist
   if (!isLoading && organizations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center border rounded-lg bg-muted/10">
-        <h3 className="text-lg font-medium">No organizations found</h3>
-        <p className="text-muted-foreground mt-1">Add your first organization to get started.</p>
+        <h3 className="text-lg font-medium">
+          {filterApplied ? 'No matching organizations found' : 'No organizations found'}
+        </h3>
+        <p className="text-muted-foreground mt-2 mb-1">
+          {filterApplied
+            ? 'Try changing your search criteria or clear filters'
+            : 'Add your first organization to get started.'}
+        </p>
       </div>
     );
   }
@@ -61,18 +92,26 @@ export function OrganizationsTable({
           {isLoading
             ? // Loading state with skeleton rows
               Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={`skeleton-${i}`}>
+                <TableRow key={`skeleton-${i}`} className="animate-pulse">
                   <TableCell>
-                    <Skeleton className="h-6 w-[200px]" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-5 w-[180px]" />
+                      <Skeleton className="h-3 w-[140px]" />
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <Skeleton className="h-6 w-[150px]" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-5 w-[120px]" />
+                      <Skeleton className="h-3 w-[150px]" />
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <Skeleton className="h-6 w-[100px]" />
+                    <Skeleton className="h-5 w-[100px]" />
                   </TableCell>
                   <TableCell>
-                    <Skeleton className="h-6 w-8" />
+                    <div className="flex justify-end">
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

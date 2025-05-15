@@ -7,7 +7,7 @@ export function useAuth() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === 'authenticated';
   const isLoading = status === 'loading';
-  
+
   return {
     session,
     isAuthenticated,
@@ -26,7 +26,7 @@ export async function login(username: string, password: string) {
       password,
       redirect: false,
     });
-    
+
     return result;
   } catch (error) {
     console.error('Login error:', error);
@@ -47,13 +47,25 @@ export async function register(username: string, email: string, password: string
       },
       body: JSON.stringify({ username, email, password }),
     });
-    
+
+    const data = await response.json();
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Registration failed');
+      // Handle specific error responses
+      if (response.status === 409) {
+        throw new Error('User with this email or username already exists');
+      }
+
+      if (response.status === 400 && data.details) {
+        // For validation errors with details
+        throw new Error(Array.isArray(data.details) ? data.details.join(', ') : data.details);
+      }
+
+      // For other errors
+      throw new Error(data.error || 'Registration failed');
     }
-    
-    return await response.json();
+
+    return data;
   } catch (error) {
     console.error('Registration error:', error);
     throw error;

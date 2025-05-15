@@ -378,7 +378,7 @@ When switching to production, the OpenTelemetry configuration should be updated 
 
 1. **Avoid the `any` Type**
 
-   - Never use `any` type unless absolutely necessary
+   - NEVER use `any` type - it defeats the purpose of TypeScript
    - Use proper type definitions for improved safety and IDE support
    - For dynamic or unknown types, use `unknown` with proper type narrowing:
 
@@ -432,6 +432,42 @@ When switching to production, the OpenTelemetry configuration should be updated 
    const user = await fetchData<User>('/api/user');
    ```
 
+4. **Use Type Predicates for Type Guards**
+
+   - Implement proper type guards with type predicates for better type narrowing:
+
+   ```typescript
+   // Type predicate pattern
+   function isError(value: unknown): value is Error {
+     return value instanceof Error;
+   }
+
+   // Usage
+   function handleResult(result: unknown) {
+     if (isError(result)) {
+       // TypeScript knows result is Error
+       console.error(result.message);
+     }
+   }
+   ```
+
+5. **Prefer Interface Merging for API Response Types**
+
+   - Use interfaces for API responses to allow for declaration merging:
+
+   ```typescript
+   // Can be extended elsewhere
+   interface ApiResponse<T> {
+     data: T;
+     meta: ResponseMetadata;
+   }
+
+   // Usage with specific data type
+   interface UserResponse extends ApiResponse<User> {
+     // Additional fields specific to user responses
+   }
+   ```
+
 ### JSX and React Guidelines
 
 1. **Use Proper HTML Entities in JSX**
@@ -451,12 +487,231 @@ When switching to production, the OpenTelemetry configuration should be updated 
    - Remove any unused components or utility imports
    - ESLint will flag these with the `no-unused-vars` rule
 
-### Code Style and Formatting
+### Code Validation and Type Checking
+
+- All TypeScript code must pass strict type checking with no errors
+- Run TypeScript checks with `npx tsc --noEmit --pretty` to verify type correctness
+- Prefer explicit return types for functions, especially those exported from modules
+- Use type assertions sparingly and only when the type is guaranteed
+
+### TypeScript Config Strictness
+
+The project uses strict TypeScript settings:
+
+- `strict: true` - Enables all strict type checking options
+- `noImplicitAny: true` - Raise error on expressions and declarations with an implied 'any' type
+- `strictNullChecks: true` - Enable strict null checks
+- `strictFunctionTypes: true` - Enable strict checking of function types
+
+### ESLint and Code Style
 
 - The project uses Prettier for code formatting
 - ESLint is configured for TypeScript and React best practices
+- Use the `npm run lint` command to verify ESLint compliance
 - Pre-commit hooks automatically format and lint code before commits
 - The code should follow all ESLint rules without disabling them
+- Never use `// eslint-disable-next-line` comments without team approval
+
+### Validation Checklist
+
+Before submitting code:
+
+1. Run type checking: `npx tsc --noEmit`
+2. Run linting: `npm run lint`
+3. Ensure no TypeScript or ESLint errors
+4. Verify that shared types match between frontend and backend
+5. Confirm all API responses are properly validated with Zod schemas
+
+## API Client and Data Fetching
+
+The application implements a standardized way of handling API requests using shared types and validation with Zod.
+
+### API Client Architecture
+
+We use a centralized API client with specialized methods for common request patterns:
+
+```typescript
+// Basic request pattern
+export const apiClient = {
+  async get<T>(url: string, options?: RequestOptions): Promise<ApiResponse<T>> {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', ...options?.headers },
+        cache: options?.cache || 'default',
+      });
+
+      return handleResponse<T>(response);
+    } catch (error) {
+      return {
+        error: {
+          error: 'Request Failed',
+          message: error instanceof Error ? error.message : 'Network request failed',
+          status: 0,
+        },
+      };
+    }
+  },
+
+  // Additional methods for POST, PUT, DELETE, etc.
+};
+```
+
+### Response Validation with Zod
+
+Always validate API responses using Zod schemas for runtime type safety:
+
+```typescript
+// Define a schema that matches the expected API response
+const userSchema = z.object({
+  id: z.string(),
+  username: z.string(),
+  email: z.string().email(),
+  role: z.enum(['user', 'admin']),
+});
+
+// Validate the response
+const response = await apiClient.get('/api/users/123');
+const result = userSchema.safeParse(response.data);
+
+if (result.success) {
+  // Validated data with proper types
+  const user = result.data;
+} else {
+  // Handle validation errors
+  console.error('Invalid response data:', result.error);
+}
+```
+
+### Paginated Responses
+
+For paginated API endpoints, use specialized client methods and response types:
+
+```typescript
+// Paginated response schema
+export const paginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.object({
+    data: z.array(itemSchema),
+    meta: z.object({
+      currentPage: z.number(),
+      totalPages: z.number(),
+      totalItems: z.number(),
+      itemsPerPage: z.number(),
+      hasNextPage: z.boolean(),
+      hasPreviousPage: z.boolean(),
+    }),
+  });
+
+// API client method for paginated endpoints
+async getPaginated<T>(url: string, params = {}): Promise<ApiResponse<PaginatedResponse<T>>> {
+  // Implementation that handles pagination parameters
+}
+```
+
+## React Query and Custom Hooks
+
+The application uses React Query for data fetching and state management.
+
+### Setting Up React Query
+
+The React Query provider is set up in `src/app/providers.tsx`:
+
+```tsx
+'use client';
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useState } from 'react';
+
+export function Providers({ children }) {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000, // 1 minute
+            retry: 1,
+          },
+        },
+      })
+  );
+
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+```
+
+### Creating Data Hooks
+
+Custom hooks should follow these patterns:
+
+1. **Type Safety**: Use proper TypeScript generics and return types
+2. **Shared Types**: Import types from a central location
+3. **Error Handling**: Provide standardized error handling
+4. **Pagination Support**: Handle pagination metadata when needed
+
+Example resource hook:
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { getResource } from '@/lib/api/resource';
+import type { ResourceResponse } from '@/types/api-types';
+import type { ApiResponse } from '@/lib/api/api-client';
+
+export function useResource(id: string) {
+  return useQuery<ApiResponse<ResourceResponse>, Error>({
+    queryKey: ['resource', id],
+    queryFn: () => getResource(id),
+    // Other options like staleTime, retry, etc.
+  });
+}
+```
+
+Example paginated hook:
+
+```typescript
+export function useResourceList(params: ResourceListParams = {}) {
+  const { data, isLoading, isError, error, refetch } = useQuery<
+    ApiResponse<PaginatedResponse<ResourceResponse>>,
+    Error
+  >({
+    queryKey: ['resources', params],
+    queryFn: () => getResourceList(params),
+  });
+
+  // Extract normalized data from the response
+  const resources = data?.data?.data || [];
+  const pagination = data?.data?.meta || null;
+
+  return {
+    resources,
+    pagination,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  };
+}
+```
+
+### Mutation Hooks
+
+For data mutations (create, update, delete), use `useMutation`:
+
+```typescript
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createResource } from '@/lib/api/resource';
+
+export function useCreateResource() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createResource,
+    onSuccess: () => {
+      // Invalidate related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['resources'] });
+    },
+  });
+}
+```
 
 ## Notes
 

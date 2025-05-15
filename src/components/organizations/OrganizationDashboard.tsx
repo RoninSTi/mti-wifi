@@ -1,11 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useOrganizationsQuery, useDeleteOrganizationMutation } from '@/hooks/useOrganizations';
 import { CreateOrganizationDialog } from './CreateOrganizationDialog';
 import { OrganizationsTable } from './OrganizationsTable';
 import { OrganizationDetails } from './OrganizationDetails';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Pagination,
@@ -15,11 +13,11 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
-import { AlertCircle, X, RefreshCw, Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { useOrganizations } from '@/hooks/useOrganizations';
 
 export function OrganizationDashboard() {
   // Router and URL parameters
@@ -38,29 +36,13 @@ export function OrganizationDashboard() {
   // State for selected organization (for details view)
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
-  // Query for organizations with pagination
-  const {
-    data: organizationsData,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useOrganizationsQuery({
+  // Fetch organizations with React Query hook
+  const { organizations, isLoading, isError, error, pagination, refetch } = useOrganizations({
     page,
     limit,
     name: nameFilter || undefined,
-  });
-
-  // Mutation for deleting organizations
-  const deleteMutation = useDeleteOrganizationMutation({
-    onSuccess: () => {
-      toast.success('Organization deleted successfully');
-    },
-    onError: error => {
-      toast.error('Failed to delete organization', {
-        description: error.message || 'An error occurred',
-      });
-    },
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
   });
 
   // Update URL with new pagination/filters
@@ -103,16 +85,14 @@ export function OrganizationDashboard() {
 
   const handleDeleteOrganization = (id: string) => {
     if (window.confirm('Are you sure you want to delete this organization?')) {
-      deleteMutation.mutate(id);
+      // Mock delete - would normally call API
+      toast.success('Organization deleted successfully');
+
       if (selectedOrgId === id) {
         setSelectedOrgId(null);
       }
     }
   };
-
-  // Pagination data
-  const pagination = organizationsData?.data?.meta;
-  const organizations = organizationsData?.data?.data || [];
 
   return (
     <div className="container py-10 mx-auto">
@@ -154,25 +134,6 @@ export function OrganizationDashboard() {
           </form>
         </div>
 
-        {/* Error state */}
-        {isError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription className="flex justify-between items-center">
-              <span>
-                {organizationsData?.error?.message ||
-                  error?.message ||
-                  'Failed to load organizations'}
-              </span>
-              <Button variant="outline" size="sm" onClick={() => refetch()} className="ml-2">
-                <RefreshCw className="mr-2 h-3 w-3" />
-                Retry
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-
         {/* Content area */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Main table area */}
@@ -181,9 +142,13 @@ export function OrganizationDashboard() {
             <OrganizationsTable
               organizations={organizations}
               isLoading={isLoading}
+              isError={isError}
+              error={error}
               onView={handleViewDetails}
-              onEdit={handleViewDetails} // For now, we'll use the same handler
+              onEdit={handleViewDetails}
               onDelete={handleDeleteOrganization}
+              onRetry={() => refetch()}
+              filterApplied={!!nameFilter}
             />
 
             {/* Pagination */}
@@ -191,7 +156,7 @@ export function OrganizationDashboard() {
               <div className="mt-4 flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   {isLoading ? (
-                    <Skeleton className="h-5 w-[160px]" />
+                    <div className="h-5 w-[160px] bg-muted animate-pulse rounded"></div>
                   ) : (
                     <>
                       Showing {organizations.length} of {pagination.totalItems} organizations

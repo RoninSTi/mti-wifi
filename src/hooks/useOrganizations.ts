@@ -1,152 +1,62 @@
-'use client';
+import { useQuery } from '@tanstack/react-query';
+import { getOrganizations } from '@/lib/api/organizations';
+import { OrganizationResponse } from '@/app/api/organizations/schemas';
+import { PaginationMeta } from '@/lib/pagination/types';
+import { PaginatedApiResponse } from '@/lib/api/api-client';
 
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  QueryKey,
-  UseQueryOptions,
-  UseMutationOptions,
-} from '@tanstack/react-query';
-import {
-  getOrganizations,
-  getOrganization,
-  createOrganization,
-  updateOrganization,
-  deleteOrganization,
-} from '@/lib/api/organizations';
-import { ApiResponse } from '@/lib/api/api-client';
-import {
-  CreateOrganizationInput,
-  UpdateOrganizationInput,
-  OrganizationResponse,
-} from '@/app/api/organizations/schemas';
-import { PaginatedResponse } from '@/lib/pagination/types';
+export interface UseOrganizationsParams {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  name?: string;
+}
 
-// Query keys for caching and invalidation
-export const organizationKeys = {
-  all: ['organizations'] as const,
-  lists: () => [...organizationKeys.all, 'list'] as const,
-  list: (filters: Record<string, unknown>) => [...organizationKeys.lists(), filters] as const,
-  details: () => [...organizationKeys.all, 'detail'] as const,
-  detail: (id: string) => [...organizationKeys.details(), id] as const,
-};
-
-/**
- * Hook for fetching a paginated list of organizations
- */
-export function useOrganizationsQuery(
-  params: {
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-    name?: string;
-  } = {},
-  options?: Omit<
-    UseQueryOptions<
-      ApiResponse<PaginatedResponse<OrganizationResponse>>,
-      Error,
-      ApiResponse<PaginatedResponse<OrganizationResponse>>,
-      QueryKey
-    >,
-    'queryKey' | 'queryFn'
-  >
-) {
-  return useQuery({
-    queryKey: organizationKeys.list(params),
-    queryFn: () => getOrganizations(params),
-    ...options,
-  });
+export interface UseOrganizationsResult {
+  organizations: OrganizationResponse[];
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  pagination: PaginationMeta | null;
+  refetch: () => Promise<void>;
 }
 
 /**
- * Hook for fetching a single organization by ID
+ * Hook for fetching organizations with pagination and filtering
  */
-export function useOrganizationQuery(
-  id: string,
-  options?: Omit<
-    UseQueryOptions<
-      ApiResponse<OrganizationResponse>,
-      Error,
-      ApiResponse<OrganizationResponse>,
-      QueryKey
-    >,
-    'queryKey' | 'queryFn'
-  >
-) {
-  return useQuery({
-    queryKey: organizationKeys.detail(id),
-    queryFn: () => getOrganization(id),
-    enabled: !!id,
-    ...options,
+export function useOrganizations({
+  page = 1,
+  limit = 10,
+  sortBy,
+  sortOrder = 'desc',
+  name,
+}: UseOrganizationsParams = {}): UseOrganizationsResult {
+  const queryKey = ['organizations', { page, limit, sortBy, sortOrder, name }];
+
+  const { data, isLoading, isError, error, refetch } = useQuery<
+    PaginatedApiResponse<OrganizationResponse>,
+    Error
+  >({
+    queryKey,
+    queryFn: () => getOrganizations({ page, limit, sortBy, sortOrder, name }),
+    staleTime: 60 * 1000, // 1 minute
   });
-}
 
-/**
- * Hook for creating a new organization
- */
-export function useCreateOrganizationMutation(
-  options?: Omit<
-    UseMutationOptions<ApiResponse<OrganizationResponse>, Error, CreateOrganizationInput>,
-    'mutationFn'
-  >
-) {
-  const queryClient = useQueryClient();
+  // Extract organizations and pagination from the response
+  const organizations = data?.data?.data || [];
+  const pagination = data?.data?.meta || null;
 
-  return useMutation({
-    mutationFn: createOrganization,
-    onSuccess: () => {
-      // Invalidate the organizations list to refetch
-      queryClient.invalidateQueries({ queryKey: organizationKeys.lists() });
-    },
-    ...options,
-  });
-}
+  // Create refetch function
+  const refetchData = async () => {
+    await refetch();
+  };
 
-/**
- * Hook for updating an organization
- */
-export function useUpdateOrganizationMutation(
-  id: string,
-  options?: Omit<
-    UseMutationOptions<ApiResponse<OrganizationResponse>, Error, UpdateOrganizationInput>,
-    'mutationFn'
-  >
-) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: UpdateOrganizationInput) => updateOrganization(id, data),
-    onSuccess: _data => {
-      // Invalidate specific organization
-      queryClient.invalidateQueries({ queryKey: organizationKeys.detail(id) });
-      // Invalidate lists
-      queryClient.invalidateQueries({ queryKey: organizationKeys.lists() });
-    },
-    ...options,
-  });
-}
-
-/**
- * Hook for deleting an organization
- */
-export function useDeleteOrganizationMutation(
-  options?: Omit<
-    UseMutationOptions<ApiResponse<{ success: boolean; message: string }>, Error, string>,
-    'mutationFn'
-  >
-) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: deleteOrganization,
-    onSuccess: (_, id) => {
-      // Invalidate specific organization
-      queryClient.invalidateQueries({ queryKey: organizationKeys.detail(id) });
-      // Invalidate lists
-      queryClient.invalidateQueries({ queryKey: organizationKeys.lists() });
-    },
-    ...options,
-  });
+  return {
+    organizations,
+    isLoading,
+    isError,
+    error,
+    pagination,
+    refetch: refetchData,
+  };
 }

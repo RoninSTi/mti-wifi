@@ -1,23 +1,65 @@
 /**
  * API client utilities for making requests to the backend with error handling
  */
+import { z } from 'zod';
+import type { PaginatedResponse } from '@/lib/pagination/types';
 
+// API request options
 type RequestOptions = {
   headers?: Record<string, string>;
   cache?: RequestCache;
 };
 
-export type ApiError = {
-  error: string;
-  message: string;
-  details?: unknown;
-  status: number;
-};
+// API error schema and type
+const apiErrorSchema = z.object({
+  error: z.string(),
+  message: z.string(),
+  details: z.unknown().optional(),
+  status: z.number(),
+});
 
+export type ApiError = z.infer<typeof apiErrorSchema>;
+
+// Standard API response schema and type
 export type ApiResponse<T> = {
   data?: T;
   error?: ApiError;
 };
+
+// Pagination metadata schema
+const paginationMetaSchema = z.object({
+  currentPage: z.number(),
+  totalPages: z.number(),
+  totalItems: z.number(),
+  itemsPerPage: z.number(),
+  hasNextPage: z.boolean(),
+  hasPreviousPage: z.boolean(),
+});
+
+// Schema for paginated responses - this matches the format from our API
+export const paginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.object({
+    data: z.array(itemSchema),
+    meta: paginationMetaSchema,
+  });
+
+// Types for paginated responses
+export type PaginationMetaResponse = z.infer<typeof paginationMetaSchema>;
+export type PaginatedApiResponse<T> = ApiResponse<PaginatedResponse<T>>;
+
+/**
+ * Determines if an object looks like a PaginatedResponse (has 'data' array and 'meta' object)
+ */
+function isPaginatedResponse(obj: unknown): obj is PaginatedResponse<unknown> {
+  return (
+    obj !== null &&
+    typeof obj === 'object' &&
+    'data' in obj &&
+    Array.isArray((obj as Record<string, unknown>).data) &&
+    'meta' in obj &&
+    typeof (obj as Record<string, unknown>).meta === 'object'
+  );
+}
 
 /**
  * Handles API response with error checking and type safety
@@ -29,22 +71,45 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
 
   // Handle JSON responses
   if (contentType && contentType.includes('application/json')) {
-    const data = await response.json();
+    const rawData = await response.json();
 
     // Handle error responses
     if (!response.ok) {
-      return {
-        error: {
-          error: data.error || 'Unknown error',
-          message: data.message || 'An unexpected error occurred',
-          details: data.details,
+      // Validate error structure with Zod
+      try {
+        const validatedError = apiErrorSchema.parse({
+          error: rawData.error || 'Unknown error',
+          message: rawData.message || 'An unexpected error occurred',
+          details: rawData.details,
           status: response.status,
-        },
-      };
+        });
+        return { error: validatedError };
+      } catch {
+        // Fallback for invalid error structure
+        return {
+          error: {
+            error: 'Validation Error',
+            message: 'Server returned an invalid error response',
+            status: response.status,
+          },
+        };
+      }
     }
 
     // Handle successful responses
-    return { data: data.data || data };
+
+    // Check if this is a paginated response
+    if (isPaginatedResponse(rawData)) {
+      // It's already in the correct structure, don't add extra nesting
+      return { data: rawData as unknown as T };
+    } else if (rawData && typeof rawData === 'object' && 'data' in rawData) {
+      // It may have a 'data' property, but not be paginated
+      const typedData = rawData as Record<string, unknown>;
+      return { data: typedData.data as T };
+    } else {
+      // Return the raw data
+      return { data: rawData as T };
+    }
   }
 
   // Handle non-JSON responses (rare in our API)
@@ -91,6 +156,65 @@ export const apiClient = {
           error: 'Request Failed',
           message: error instanceof Error ? error.message : 'Network request failed',
           status: 0, // Use 0 to indicate network/client error
+        },
+      };
+    }
+  },
+
+  /**
+   * Make a GET request for paginated data
+   * @param url API endpoint URL
+   * @param params Pagination parameters
+   * @param options Additional request options
+   * @returns Typed paginated API response
+   */
+  async getPaginated<T>(
+    url: string,
+    params: {
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
+      [key: string]: string | number | boolean | undefined;
+    } = {},
+    options?: RequestOptions
+  ): Promise<ApiResponse<PaginatedResponse<T>>> {
+    try {
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+
+      // Add pagination parameters
+      if (params.page) queryParams.append('page', params.page.toString());
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+      if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      // Add any other parameters
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && !['page', 'limit', 'sortBy', 'sortOrder'].includes(key)) {
+          queryParams.append(key, String(value));
+        }
+      });
+
+      // Build the URL with query parameters
+      const fullUrl = `${url}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        cache: options?.cache || 'default',
+      });
+
+      return handleResponse<PaginatedResponse<T>>(response);
+    } catch (error) {
+      return {
+        error: {
+          error: 'Request Failed',
+          message: error instanceof Error ? error.message : 'Network request failed',
+          status: 0,
         },
       };
     }

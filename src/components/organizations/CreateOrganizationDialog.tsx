@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -24,35 +23,31 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Plus } from 'lucide-react';
-import { CreateOrganizationInput } from '@/app/api/organizations/schemas';
-import { useCreateOrganizationMutation } from '@/hooks/useOrganizations';
 import { toast } from 'sonner';
+import { useCreateOrganization } from '@/hooks';
+import { CreateOrganizationInput } from '@/app/api/organizations/schemas';
 
-// Form schema derived from CreateOrganizationInput but with custom error messages
-const formSchema = z.object({
-  name: z
-    .string()
-    .min(1, 'Organization name is required')
-    .max(100, 'Name cannot exceed 100 characters'),
-  description: z.string().max(1000, 'Description cannot exceed 1000 characters').optional(),
-  contactName: z.string().max(100, 'Contact name cannot exceed 100 characters').optional(),
-  contactEmail: z
-    .string()
-    .email('Please enter a valid email address')
-    .max(100, 'Email cannot exceed 100 characters')
-    .optional()
-    .or(z.literal('')),
-  contactPhone: z.string().max(20, 'Phone number cannot exceed 20 characters').optional(),
-  address: z.string().max(200, 'Address cannot exceed 200 characters').optional(),
-});
+// Note: We use the validation schema from the API directly via the useCreateOrganization hook
+// This ensures consistency between client and server validation
 
 export function CreateOrganizationDialog() {
   // State for dialog open/close
   const [open, setOpen] = useState(false);
 
-  // Initialize form
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  // Get the create organization mutation hook
+  const {
+    createOrg,
+    isLoading: isSubmitting,
+    isSuccess,
+    isError,
+    error,
+    reset: resetMutation,
+    validationSchema,
+  } = useCreateOrganization();
+
+  // Initialize form using the imported Zod schema
+  const form = useForm<CreateOrganizationInput>({
+    resolver: zodResolver(validationSchema),
     defaultValues: {
       name: '',
       description: '',
@@ -63,33 +58,28 @@ export function CreateOrganizationDialog() {
     },
   });
 
-  // Create mutation hook
-  const createMutation = useCreateOrganizationMutation();
+  // Handle success or error states
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success('Organization created successfully');
+      form.reset();
+      setOpen(false);
+      resetMutation();
+    }
+
+    if (isError && error instanceof Error) {
+      toast.error(`Failed to create organization: ${error.message}`);
+    }
+  }, [isSuccess, isError, error, form, resetMutation]);
 
   // Form submission handler
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Convert empty strings to undefined for optional fields
-    const formData: CreateOrganizationInput = {
-      name: values.name,
-      description: values.description || undefined,
-      contactName: values.contactName || undefined,
-      contactEmail: values.contactEmail || undefined,
-      contactPhone: values.contactPhone || undefined,
-      address: values.address || undefined,
-    };
-
-    createMutation.mutate(formData, {
-      onSuccess: () => {
-        toast.success('Organization created successfully');
-        form.reset();
-        setOpen(false);
-      },
-      onError: error => {
-        toast.error('Failed to create organization', {
-          description: error.message || 'Please try again',
-        });
-      },
-    });
+  async function onSubmit(values: CreateOrganizationInput) {
+    try {
+      await createOrg(values);
+    } catch (err) {
+      // The error will be handled by the useEffect above
+      console.error('Error creating organization:', err);
+    }
   }
 
   return (
@@ -196,12 +186,12 @@ export function CreateOrganizationDialog() {
                 variant="outline"
                 onClick={() => setOpen(false)}
                 type="button"
-                disabled={createMutation.isPending}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? 'Creating...' : 'Create Organization'}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating...' : 'Create Organization'}
               </Button>
             </DialogFooter>
           </form>

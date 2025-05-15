@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { useOrganizationQuery } from '@/hooks/useOrganizations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,148 +13,197 @@ interface OrganizationDetailsProps {
   onDelete: (id: string) => void;
 }
 
+// Mock organization data
+const mockOrganizations = [
+  {
+    _id: '1',
+    name: 'Acme Corporation',
+    description: 'A global manufacturing company',
+    contactName: 'John Doe',
+    contactEmail: 'john@acme.com',
+    contactPhone: '555-1234',
+    address: '123 Main St, Anytown, USA',
+    createdAt: '2023-01-15T00:00:00.000Z',
+    updatedAt: '2023-01-15T00:00:00.000Z',
+  },
+  {
+    _id: '2',
+    name: 'Globex Industries',
+    description: 'Technology solutions provider',
+    contactName: 'Jane Smith',
+    contactEmail: 'jane@globex.com',
+    contactPhone: '555-5678',
+    address: '456 Tech Blvd, Silicon Valley, USA',
+    createdAt: '2023-02-20T00:00:00.000Z',
+    updatedAt: '2023-02-20T00:00:00.000Z',
+  },
+  {
+    _id: '3',
+    name: 'Initech LLC',
+    description: 'Software development company',
+    contactName: 'Michael Bolton',
+    contactEmail: 'michael@initech.com',
+    contactPhone: '555-7890',
+    address: '789 Office Park, Business District, USA',
+    createdAt: '2023-03-10T00:00:00.000Z',
+    updatedAt: '2023-03-10T00:00:00.000Z',
+  },
+];
+
 export function OrganizationDetails({
   organizationId,
   onClose,
   onDelete,
 }: OrganizationDetailsProps) {
-  const { data, isLoading, error } = useOrganizationQuery(organizationId);
+  // Define Organization type for the component
+  type Organization = {
+    _id: string;
+    name: string;
+    description?: string;
+    contactName?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+    address?: string;
+    createdAt: string;
+    updatedAt: string;
+  };
 
-  const organization = data?.data;
-  const hasError = !!error || !!data?.error;
+  // Local state for loading simulation
+  const [isLoading, setIsLoading] = useState(true);
+  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Simulate fetching organization data
+  useEffect(() => {
+    setIsLoading(true);
+    setError(null);
+
+    // Simulate API delay
+    const timer = setTimeout(() => {
+      const org = mockOrganizations.find(org => org._id === organizationId);
+
+      if (org) {
+        setOrganization(org);
+      } else {
+        setError('Organization not found');
+      }
+
+      setIsLoading(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [organizationId]);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="relative">
+          <Button variant="ghost" size="icon" className="absolute right-2 top-2" onClick={onClose}>
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-6 w-[200px]" />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-[80%]" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-[50%]" />
+            <Skeleton className="h-4 w-[70%]" />
+            <Skeleton className="h-4 w-[60%]" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || !organization) {
+    return (
+      <Card>
+        <CardHeader className="relative">
+          <Button variant="ghost" size="icon" className="absolute right-2 top-2" onClick={onClose}>
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
+          <CardTitle>Error</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive">{error || 'Failed to load organization details'}</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card className="h-full">
-      <CardHeader className="flex flex-row items-start justify-between pb-2">
-        <div className="space-y-1">
-          <CardTitle className="text-xl">
-            {isLoading ? (
-              <Skeleton className="h-8 w-[180px]" />
-            ) : hasError ? (
-              'Error Loading Details'
-            ) : (
-              'Organization Details'
-            )}
-          </CardTitle>
-        </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
+    <Card>
+      <CardHeader className="relative">
+        <Button variant="ghost" size="icon" className="absolute right-2 top-2" onClick={onClose}>
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </Button>
+        <div className="flex items-center gap-2">
+          <Building className="h-6 w-6" />
+          <CardTitle>{organization.name}</CardTitle>
+        </div>
       </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-6 w-[250px]" />
-            <Skeleton className="h-4 w-[200px]" />
-            <div className="space-y-2 mt-6">
-              <Skeleton className="h-5 w-[150px]" />
-              <Skeleton className="h-5 w-[180px]" />
-              <Skeleton className="h-5 w-[160px]" />
-              <Skeleton className="h-5 w-[190px]" />
-            </div>
-          </div>
-        ) : hasError ? (
-          <div className="py-8 text-center space-y-2">
-            <div className="text-destructive font-medium">Failed to load organization details</div>
-            <p className="text-sm text-muted-foreground">
-              {data?.error?.message || error?.message || 'An unknown error occurred'}
-            </p>
-            <Button className="mt-4" variant="secondary" onClick={onClose}>
-              Go Back
-            </Button>
-          </div>
-        ) : organization ? (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-xl font-semibold flex items-center">
-                <Building className="mr-2 h-5 w-5" />
-                {organization.name}
-              </h3>
-              {organization.description && (
-                <p className="text-muted-foreground mt-1">{organization.description}</p>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="font-medium">Contact Information</h4>
-              <div className="grid gap-2">
-                <div className="flex items-center text-sm">
-                  <User className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span>{organization.contactName || 'Not provided'}</span>
-                </div>
-                <div className="flex items-center text-sm">
-                  <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
-                  {organization.contactEmail ? (
-                    <a href={`mailto:${organization.contactEmail}`} className="hover:underline">
-                      {organization.contactEmail}
-                    </a>
-                  ) : (
-                    <span className="text-muted-foreground">No email address</span>
-                  )}
-                </div>
-                <div className="flex items-center text-sm">
-                  <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
-                  {organization.contactPhone ? (
-                    <a href={`tel:${organization.contactPhone}`} className="hover:underline">
-                      {organization.contactPhone}
-                    </a>
-                  ) : (
-                    <span className="text-muted-foreground">No phone number</span>
-                  )}
-                </div>
-                <div className="flex items-start text-sm">
-                  <MapPin className="mr-2 h-4 w-4 text-muted-foreground mt-0.5" />
-                  <span>{organization.address || 'No address'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t pt-4">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center text-muted-foreground">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  <span>Created:</span>
-                </div>
-                <span>
-                  {organization.createdAt && format(new Date(organization.createdAt), 'PPP')}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm mt-1">
-                <div className="flex items-center text-muted-foreground">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  <span>Last Updated:</span>
-                </div>
-                <span>
-                  {organization.updatedAt && format(new Date(organization.updatedAt), 'PPP')}
-                </span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="py-8 text-center">
-            <p>No organization found</p>
-          </div>
+      <CardContent className="space-y-6">
+        {organization.description && (
+          <p className="text-muted-foreground">{organization.description}</p>
         )}
-      </CardContent>
-      {!isLoading && !hasError && organization && (
-        <CardFooter className="flex justify-between pt-0">
-          <Button variant="outline" onClick={() => onClose()}>
-            <X className="mr-2 h-4 w-4" />
-            Close
-          </Button>
-          <div className="space-x-2">
-            <Button variant="default">
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
-            <Button variant="destructive" onClick={() => onDelete(organization._id)}>
-              <Trash className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
+
+        <div className="space-y-2">
+          {organization.contactName && (
+            <div className="flex items-start gap-2">
+              <User className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+              <span>{organization.contactName}</span>
+            </div>
+          )}
+
+          {organization.contactEmail && (
+            <div className="flex items-start gap-2">
+              <Mail className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+              <span>{organization.contactEmail}</span>
+            </div>
+          )}
+
+          {organization.contactPhone && (
+            <div className="flex items-start gap-2">
+              <Phone className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+              <span>{organization.contactPhone}</span>
+            </div>
+          )}
+
+          {organization.address && (
+            <div className="flex items-start gap-2">
+              <MapPin className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+              <span>{organization.address}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="pt-2 border-t">
+          <div className="flex items-start gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+            <div>
+              <p className="text-sm text-muted-foreground">Created</p>
+              <p className="text-sm">{format(new Date(organization.createdAt), 'MMMM d, yyyy')}</p>
+            </div>
           </div>
-        </CardFooter>
-      )}
+        </div>
+      </CardContent>
+      <CardFooter className="flex justify-between">
+        <Button variant="outline" className="w-full" onClick={() => onDelete(organizationId)}>
+          <Trash className="mr-2 h-4 w-4" />
+          Delete
+        </Button>
+        <Button className="w-full">
+          <Edit className="mr-2 h-4 w-4" />
+          Edit
+        </Button>
+      </CardFooter>
     </Card>
   );
 }

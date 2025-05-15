@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { getDatabaseConfig } from './config';
+// Config is used for more advanced configuration scenarios
+import './config';
 
 // Define the shape of our cached mongoose connection
 interface MongooseCache {
@@ -23,18 +24,49 @@ if (!global.mongoose) {
 }
 
 export async function connectToDatabase() {
+  // If we already have a connection and it's connected, use it
   if (cached.conn) {
-    return cached.conn;
+    // Check if connection is still active
+    if (mongoose.connection.readyState === 1) {
+      return cached.conn;
+    } else {
+      // Connection exists but isn't active anymore, reset it
+      cached.conn = null;
+      cached.promise = null;
+    }
   }
 
-  if (!cached.promise) {
-    const { uri, options } = getDatabaseConfig();
+  // If there's a pending connection attempt, wait for it
+  if (cached.promise) {
+    try {
+      cached.conn = await cached.promise;
+      return cached.conn;
+    } catch {
+      // Previous connection promise failed, reset it
+      cached.promise = null;
+    }
+  }
 
-    cached.promise = mongoose.connect(uri, options).then(mongoose => {
+  // Create a new connection
+  // Use a direct connection string for simplicity and reliability
+  const uri =
+    process.env.MONGODB_URI || 'mongodb://root:password@localhost:27017/nextjs_db?authSource=admin';
+
+  const options = { bufferCommands: false };
+
+  // Create and store the connection promise
+  cached.promise = mongoose
+    .connect(uri, options)
+    .then(mongoose => {
       return mongoose;
+    })
+    .catch(error => {
+      // Log error but still throw it so it can be handled by the caller
+      console.error('MongoDB connection error:', error);
+      throw error;
     });
-  }
 
+  // Wait for the connection and store it
   cached.conn = await cached.promise;
   return cached.conn;
 }
