@@ -252,6 +252,111 @@ async function getOrganizationHandler(
 }
 
 /**
+ * Handler for deleting an organization by ID
+ */
+async function deleteOrganizationHandler(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
+  return await createApiSpan('organizations.delete', async () => {
+    try {
+      // Get session (we know it exists because of authMiddleware)
+      const session = await getServerSession(authOptions);
+
+      // Validate URL parameter
+      let validatedParams: OrganizationParams;
+      try {
+        validatedParams = organizationParamsSchema.parse({ id: params.id });
+      } catch (error) {
+        if (error instanceof ZodError) {
+          return NextResponse.json(
+            {
+              error: 'Validation Error',
+              details: error.errors,
+            },
+            { status: 400 }
+          );
+        }
+        throw error;
+      }
+
+      // Check if ID is valid MongoDB ObjectId
+      if (!Types.ObjectId.isValid(validatedParams.id)) {
+        return NextResponse.json(
+          {
+            error: 'Invalid ID',
+            message: 'Organization ID is not valid',
+          },
+          { status: 400 }
+        );
+      }
+
+      // Add request metadata to span
+      addSpanAttributes({
+        'request.user.id': session?.user?.id || 'unknown',
+        'request.organization.id': validatedParams.id,
+      });
+
+      // Connect to database
+      await connectToDatabase();
+
+      // Delete organization from database
+      const deletedOrganization = await createDatabaseSpan(
+        'deleteOne',
+        'organizations',
+        async () => {
+          const result = await Organization.findByIdAndDelete(validatedParams.id);
+
+          if (!result) {
+            throw new Error('Organization not found');
+          }
+
+          return result;
+        }
+      );
+
+      // Return success response
+      return NextResponse.json(
+        {
+          success: true,
+          message: 'Organization deleted successfully',
+          data: {
+            _id: deletedOrganization._id,
+            name: deletedOrganization.name,
+          },
+        },
+        { status: 200 }
+      );
+    } catch (error: unknown) {
+      // Handle specific errors
+      if (error instanceof Error) {
+        if (error.message === 'Organization not found') {
+          return NextResponse.json(
+            {
+              error: 'Not Found',
+              message: 'Organization not found',
+            },
+            { status: 404 }
+          );
+        }
+      }
+
+      // Log and return generic error
+      console.error('Error deleting organization:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+
+      return NextResponse.json(
+        {
+          error: 'Internal Server Error',
+          message: errorMessage,
+        },
+        { status: 500 }
+      );
+    }
+  });
+}
+
+/**
  * PUT /api/organizations/[id] - Update an organization by ID
  * Applies authentication middleware
  */
@@ -265,4 +370,12 @@ export const PUT = applyMiddleware([authMiddleware], (request: NextRequest) =>
  */
 export const GET = applyMiddleware([authMiddleware], (request: NextRequest) =>
   getOrganizationHandler(request, { params: { id: getOrganizationIdFromRequest(request) } })
+);
+
+/**
+ * DELETE /api/organizations/[id] - Delete organization by ID
+ * Applies authentication middleware
+ */
+export const DELETE = applyMiddleware([authMiddleware], (request: NextRequest) =>
+  deleteOrganizationHandler(request, { params: { id: getOrganizationIdFromRequest(request) } })
 );

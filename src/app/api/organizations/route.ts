@@ -7,6 +7,12 @@ import { authOptions } from '@/lib/auth/auth-options';
 import { createOrganizationSchema, type CreateOrganizationInput } from './schemas';
 import { ZodError } from 'zod';
 import { applyMiddleware, authMiddleware } from '../middleware';
+import {
+  getPaginationParamsFromRequest,
+  applyPaginationToMongooseQuery,
+  createPaginatedResponse,
+  type PaginationParams,
+} from '@/lib/pagination';
 
 /**
  * Handler for creating a new organization
@@ -98,7 +104,93 @@ async function createOrganizationHandler(request: NextRequest): Promise<NextResp
 }
 
 /**
+ * Handler for listing organizations with pagination
+ */
+async function listOrganizationsHandler(request: NextRequest): Promise<NextResponse> {
+  return await createApiSpan('organizations.list', async () => {
+    try {
+      // Connect to database
+      await connectToDatabase();
+
+      // Get pagination parameters from request
+      const paginationParams: PaginationParams = getPaginationParamsFromRequest(request);
+
+      // Extract potential filter parameters
+      const { searchParams } = new URL(request.url);
+      const nameFilter = searchParams.get('name');
+
+      // Build base query with optional filters
+      const filterConditions: Record<string, unknown> = {};
+
+      if (nameFilter) {
+        // Case-insensitive partial name match
+        filterConditions.name = { $regex: nameFilter, $options: 'i' };
+        addSpanAttributes({ 'request.filter.name': nameFilter });
+      }
+
+      // Add filter details to span
+      addSpanAttributes({
+        'request.page': paginationParams.page,
+        'request.limit': paginationParams.limit,
+        'request.hasFilters': Object.keys(filterConditions).length > 0,
+      });
+
+      // Create the base query for organizations
+      const baseQuery = Organization.find(filterConditions);
+
+      // Apply pagination and sorting to query
+      const paginatedQuery = applyPaginationToMongooseQuery(baseQuery, paginationParams);
+
+      // Execute query to get paginated results
+      const organizations = await createDatabaseSpan('find', 'organizations', async () => {
+        return await paginatedQuery.exec();
+      });
+
+      // Count total items for pagination metadata
+      const totalOrganizations = await createDatabaseSpan('count', 'organizations', async () => {
+        return await Organization.countDocuments(filterConditions);
+      });
+
+      // Add result details to span
+      addSpanAttributes({
+        'result.count': organizations.length,
+        'result.totalCount': totalOrganizations,
+      });
+
+      // Create standardized paginated response
+      const response = createPaginatedResponse(organizations, paginationParams, totalOrganizations);
+
+      // Return success response
+      return NextResponse.json(response);
+    } catch (error: unknown) {
+      // Log and return generic error
+      console.error('Error listing organizations:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+
+      return NextResponse.json(
+        {
+          error: 'Internal Server Error',
+          message: errorMessage,
+        },
+        { status: 500 }
+      );
+    }
+  });
+}
+
+/**
  * POST /api/organizations - Create a new organization
  * Applies authentication middleware
  */
 export const POST = applyMiddleware([authMiddleware], createOrganizationHandler);
+
+/**
+ * GET /api/organizations - Get a paginated list of organizations
+ * Supports pagination with query parameters:
+ * - page: Page number (default: 1)
+ * - limit: Items per page (default: 10, max: 100)
+ * - sortBy: Field to sort by (optional)
+ * - sortOrder: 'asc' or 'desc' (default: 'desc')
+ * - name: Optional filter by organization name (partial match)
+ */
+export const GET = applyMiddleware([authMiddleware], listOrganizationsHandler);
