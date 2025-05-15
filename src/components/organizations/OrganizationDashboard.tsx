@@ -48,11 +48,10 @@ export function OrganizationDashboard() {
   // Initialize organization deletion hook
   const {
     deleteOrg,
-    // We don't use these variables directly but they could be useful for future enhancements
-    isLoading: _isDeleting,
-    isError: _isDeleteError,
-    error: _deleteError,
-    isSuccess: _isDeleteSuccess,
+    isLoading: isDeleting,
+    isError: isDeleteError,
+    error: deleteError,
+    isSuccess: isDeleteSuccess,
   } = useDeleteOrganization();
 
   // Update URL with new pagination/filters
@@ -93,15 +92,11 @@ export function OrganizationDashboard() {
     setSelectedOrgId(id);
   };
 
+  // This gets called when deleting from the table
   const handleDeleteOrganization = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this organization?')) {
       try {
-        // Only call deleteOrg directly if not coming from OrganizationDetails component
-        // (OrganizationDetails now handles its own deletion via the hook)
-        if (selectedOrgId !== id) {
-          await deleteOrg(id);
-        }
-
+        await deleteOrg(id);
         toast.success('Organization deleted successfully');
 
         // If we're currently viewing the deleted organization, close the details panel
@@ -112,6 +107,12 @@ export function OrganizationDashboard() {
         toast.error(error instanceof Error ? error.message : 'Failed to delete organization');
       }
     }
+  };
+
+  // This only handles UI updates after deletion from the details panel
+  const handleDeleteFromDetails = (id: string) => {
+    toast.success('Organization deleted successfully');
+    setSelectedOrgId(null);
   };
 
   return (
@@ -275,7 +276,7 @@ export function OrganizationDashboard() {
               <OrganizationDetails
                 organizationId={selectedOrgId}
                 onClose={() => setSelectedOrgId(null)}
-                onDelete={handleDeleteOrganization}
+                onDelete={handleDeleteFromDetails}
               />
             </div>
           )}

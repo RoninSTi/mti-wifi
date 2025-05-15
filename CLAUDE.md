@@ -713,6 +713,55 @@ export function useCreateResource() {
 }
 ```
 
+### Best Practices for React Query Hooks
+
+1. **Never Recreate API Types or Schemas**
+
+   - Use the existing types and schemas defined in the API files
+   - Import these types and schemas rather than redefining them in the hooks
+   - API response types are already defined in `src/app/api/*/schemas.ts` files
+
+   ```typescript
+   // INCORRECT - Recreating schemas in the hook
+   const deleteResponseSchema = z.object({
+     success: z.boolean(),
+     message: z.string().optional(),
+   });
+
+   // CORRECT - Import and use existing schemas
+   import { SuccessResponseSchema } from '@/app/api/common/schemas';
+   import type { DeleteResponse } from '@/app/api/resources/schemas';
+   ```
+
+2. **Use the Existing API Client**
+
+   - The API client in `src/lib/api/api-client.ts` already handles response structure and errors
+   - It returns an `ApiResponse<T>` type that you should use directly
+
+3. **Proper Query Invalidation**
+
+   - When mutating data, invalidate only the relevant queries
+   - For collection queries, invalidate the queryKey without parameters
+
+   ```typescript
+   // Invalidate all 'resources' queries
+   queryClient.invalidateQueries({ queryKey: ['resources'] });
+
+   // Remove specific resource from cache
+   queryClient.removeQueries({ queryKey: ['resource', id] });
+   ```
+
+4. **Consistent Error Handling**
+
+   - The API client already standardizes error objects in the `ApiResponse<T>` type
+   - Simply check `response.error` to handle errors consistently
+
+   ```typescript
+   if (response.error) {
+     throw new Error(response.error.message || 'Operation failed');
+   }
+   ```
+
 ## Notes
 
 - The project uses Geist font from Google Fonts (both sans and mono variants)

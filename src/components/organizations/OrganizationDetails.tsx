@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import {
   X,
   Building,
@@ -38,12 +39,15 @@ export function OrganizationDetails({
 
   // Handler for delete using React Query's mutation
   const handleDelete = async () => {
-    try {
-      await deleteOrg(organizationId);
-      onDelete(organizationId); // Call parent's onDelete for UI updates (closing panel, etc.)
-    } catch (error) {
-      // Error handling is managed by the hook itself
-      console.error('Error handling in component:', error);
+    if (window.confirm('Are you sure you want to delete this organization?')) {
+      try {
+        await deleteOrg(organizationId);
+        // Call the parent's onDelete handler to handle success UI updates
+        onDelete(organizationId);
+      } catch (error) {
+        // Only show error toast here in the details component
+        toast.error(error instanceof Error ? error.message : 'Failed to delete organization');
+      }
     }
   };
 
