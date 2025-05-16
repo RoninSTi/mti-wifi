@@ -15,3 +15,18 @@ export * from './useLocation';
 export * from './useCreateLocation';
 export * from './useUpdateLocation';
 export * from './useDeleteLocation';
+
+// Area hooks
+export * from './useAreas';
+export * from './useArea';
+export * from './useCreateArea';
+export * from './useUpdateArea';
+export * from './useDeleteArea';
+
+// Equipment hooks
+export * from './useEquipment';
+export * from './useEquipmentList';
+export * from './useCreateEquipment';
+export * from './useUpdateEquipment';
+export * from './useDeleteEquipment';
+export * from './useEquipmentQueries';

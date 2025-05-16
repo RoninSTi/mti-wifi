@@ -528,8 +528,41 @@ When switching to production, the OpenTelemetry configuration should be updated 
    ```
 
 2. **Avoid Unused Imports**
+
    - Remove any unused components or utility imports
    - ESLint will flag these with the `no-unused-vars` rule
+
+3. **Use Next.js Navigation APIs Instead of Direct DOM Manipulation**
+
+   - Never use `window.location.href` for client-side navigation
+   - Always use Next.js's navigation APIs for routing
+
+   ```tsx
+   // INCORRECT
+   const handleClick = () => {
+     window.location.href = '/dashboard';
+   };
+
+   // CORRECT - Using useRouter hook
+   import { useRouter } from 'next/navigation';
+
+   const MyComponent = () => {
+     const router = useRouter();
+
+     const handleClick = () => {
+       router.push('/dashboard');
+     };
+
+     // rest of component...
+   };
+
+   // CORRECT - Using Link component for declarative navigation
+   import Link from 'next/link';
+
+   const MyComponent = () => {
+     return <Link href="/dashboard">Go to Dashboard</Link>;
+   };
+   ```
 
 ### Code Validation and Type Checking
 

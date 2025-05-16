@@ -1,27 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSpan, createDatabaseSpan, addSpanAttributes } from '@/telemetry/utils';
 import { connectToDatabase } from '@/lib/db/mongoose';
-import Organization from '@/models/Organization';
+import Area from '@/models/Area';
+import Location from '@/models/Location';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/auth-options';
-import { createOrganizationSchema, type CreateOrganizationInput } from './schemas';
+import { createAreaSchema, type CreateAreaInput } from './schemas';
 import { ZodError } from 'zod';
-import { applyMiddleware, authMiddleware, RouteContext } from '../middleware';
+import { applyMiddleware, authMiddleware } from '../middleware';
 import {
   getPaginationParamsFromRequest,
   applyPaginationToMongooseQuery,
   createPaginatedResponse,
   type PaginationParams,
 } from '@/lib/pagination';
+import mongoose from 'mongoose';
 
 /**
- * Handler for creating a new organization
+ * Handler for creating a new area
  */
-async function createOrganizationHandler(
-  request: NextRequest,
-  context: RouteContext
-): Promise<NextResponse> {
-  return await createApiSpan('organizations.create', async () => {
+async function createAreaHandler(request: NextRequest): Promise<NextResponse> {
+  return await createApiSpan('areas.create', async () => {
     try {
       // Get session (we know it exists because of authMiddleware)
       const session = await getServerSession(authOptions);
@@ -30,9 +29,9 @@ async function createOrganizationHandler(
       const rawData = await request.json();
 
       // Validate with Zod schema
-      let validatedData: CreateOrganizationInput;
+      let validatedData: CreateAreaInput;
       try {
-        validatedData = createOrganizationSchema.parse(rawData);
+        validatedData = createAreaSchema.parse(rawData);
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -49,27 +48,45 @@ async function createOrganizationHandler(
       // Add request metadata to span
       addSpanAttributes({
         'request.user.id': session?.user?.id || 'unknown',
-        'request.organization.name': validatedData.name,
+        'request.area.name': validatedData.name,
+        'request.location.id': validatedData.location,
       });
 
       // Connect to database
       await connectToDatabase();
 
-      // Create organization in database
-      const organization = await createDatabaseSpan('insert', 'organizations', async () => {
-        // Create new organization
-        const newOrg = new Organization(validatedData);
-        return await newOrg.save();
+      // Verify the location exists
+      const locationExists = await createDatabaseSpan('findOne', 'locations', async () => {
+        return await Location.exists({
+          _id: new mongoose.Types.ObjectId(validatedData.location),
+        });
+      });
+
+      if (!locationExists) {
+        return NextResponse.json(
+          {
+            error: 'Not Found',
+            message: 'The specified location does not exist',
+          },
+          { status: 404 }
+        );
+      }
+
+      // Create area in database
+      const area = await createDatabaseSpan('insert', 'areas', async () => {
+        // Create new area
+        const newArea = new Area(validatedData);
+        return await newArea.save();
       });
 
       // Add result to span attributes
-      addSpanAttributes({ 'result.organization.id': organization._id.toString() });
+      addSpanAttributes({ 'result.area.id': area._id.toString() });
 
       // Return success response
       return NextResponse.json(
         {
           success: true,
-          data: organization,
+          data: area,
         },
         { status: 201 }
       );
@@ -81,18 +98,18 @@ async function createOrganizationHandler(
         'code' in error &&
         error.code === 11000
       ) {
-        // Duplicate key error (e.g., organization name already exists)
+        // Duplicate key error (e.g., area name already exists in this location)
         return NextResponse.json(
           {
             error: 'Duplicate Error',
-            message: 'An organization with this name already exists',
+            message: 'An area with this name already exists in the specified location',
           },
           { status: 409 }
         );
       }
 
       // Log and return generic error
-      console.error('Error creating organization:', error);
+      console.error('Error creating area:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
       return NextResponse.json(
@@ -107,13 +124,10 @@ async function createOrganizationHandler(
 }
 
 /**
- * Handler for listing organizations with pagination
+ * Handler for listing areas with pagination and filtering
  */
-async function listOrganizationsHandler(
-  request: NextRequest,
-  context: RouteContext
-): Promise<NextResponse> {
-  return await createApiSpan('organizations.list', async () => {
+async function listAreasHandler(request: NextRequest): Promise<NextResponse> {
+  return await createApiSpan('areas.list', async () => {
     try {
       // Connect to database
       await connectToDatabase();
@@ -124,8 +138,8 @@ async function listOrganizationsHandler(
       // Extract potential filter parameters
       const { searchParams } = new URL(request.url);
       const nameFilter = searchParams.get('name');
-      const contactNameFilter = searchParams.get('contactName');
-      const contactEmailFilter = searchParams.get('contactEmail');
+      const locationFilter = searchParams.get('locationId');
+      const areaTypeFilter = searchParams.get('areaType');
       const searchQuery = searchParams.get('q'); // General search parameter
 
       // Build base query with optional filters
@@ -134,23 +148,20 @@ async function listOrganizationsHandler(
       // OR conditions for the general search query
       const orConditions = [];
 
-      // Individual field filters (exact matches)
+      // Individual field filters
       if (nameFilter) {
-        // Case-insensitive partial name match
         filterConditions.name = { $regex: nameFilter, $options: 'i' };
         addSpanAttributes({ 'request.filter.name': nameFilter });
       }
 
-      if (contactNameFilter) {
-        // Case-insensitive partial contact name match
-        filterConditions.contactName = { $regex: contactNameFilter, $options: 'i' };
-        addSpanAttributes({ 'request.filter.contactName': contactNameFilter });
+      if (locationFilter) {
+        filterConditions.location = locationFilter;
+        addSpanAttributes({ 'request.filter.locationId': locationFilter });
       }
 
-      if (contactEmailFilter) {
-        // Case-insensitive exact or partial email match
-        filterConditions.contactEmail = { $regex: contactEmailFilter, $options: 'i' };
-        addSpanAttributes({ 'request.filter.contactEmail': contactEmailFilter });
+      if (areaTypeFilter) {
+        filterConditions.areaType = areaTypeFilter;
+        addSpanAttributes({ 'request.filter.areaType': areaTypeFilter });
       }
 
       // General search across all relevant text fields
@@ -159,10 +170,7 @@ async function listOrganizationsHandler(
         orConditions.push(
           { name: { $regex: searchQuery, $options: 'i' } },
           { description: { $regex: searchQuery, $options: 'i' } },
-          { contactName: { $regex: searchQuery, $options: 'i' } },
-          { contactEmail: { $regex: searchQuery, $options: 'i' } },
-          { contactPhone: { $regex: searchQuery, $options: 'i' } },
-          { address: { $regex: searchQuery, $options: 'i' } }
+          { buildingSection: { $regex: searchQuery, $options: 'i' } }
         );
 
         addSpanAttributes({ 'request.search.query': searchQuery });
@@ -180,36 +188,36 @@ async function listOrganizationsHandler(
         'request.hasFilters': Object.keys(filterConditions).length > 0,
       });
 
-      // Create the base query for organizations
-      const baseQuery = Organization.find(filterConditions);
+      // Create the base query for areas
+      const baseQuery = Area.find(filterConditions).populate('location', 'name');
 
       // Apply pagination and sorting to query
       const paginatedQuery = applyPaginationToMongooseQuery(baseQuery, paginationParams);
 
       // Execute query to get paginated results
-      const organizations = await createDatabaseSpan('find', 'organizations', async () => {
+      const areas = await createDatabaseSpan('find', 'areas', async () => {
         return await paginatedQuery.exec();
       });
 
       // Count total items for pagination metadata
-      const totalOrganizations = await createDatabaseSpan('count', 'organizations', async () => {
-        return await Organization.countDocuments(filterConditions);
+      const totalAreas = await createDatabaseSpan('count', 'areas', async () => {
+        return await Area.countDocuments(filterConditions);
       });
 
       // Add result details to span
       addSpanAttributes({
-        'result.count': organizations.length,
-        'result.totalCount': totalOrganizations,
+        'result.count': areas.length,
+        'result.totalCount': totalAreas,
       });
 
       // Create standardized paginated response
-      const response = createPaginatedResponse(organizations, paginationParams, totalOrganizations);
+      const response = createPaginatedResponse(areas, paginationParams, totalAreas);
 
       // Return success response
       return NextResponse.json(response);
     } catch (error: unknown) {
       // Log and return generic error
-      console.error('Error listing organizations:', error);
+      console.error('Error listing areas:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
       return NextResponse.json(
@@ -224,18 +232,21 @@ async function listOrganizationsHandler(
 }
 
 /**
- * POST /api/organizations - Create a new organization
+ * POST /api/areas - Create a new area
  * Applies authentication middleware
  */
-export const POST = applyMiddleware([authMiddleware], createOrganizationHandler);
+export const POST = applyMiddleware([authMiddleware], createAreaHandler);
 
 /**
- * GET /api/organizations - Get a paginated list of organizations
+ * GET /api/areas - Get a paginated list of areas
  * Supports pagination with query parameters:
  * - page: Page number (default: 1)
  * - limit: Items per page (default: 10, max: 100)
  * - sortBy: Field to sort by (optional)
  * - sortOrder: 'asc' or 'desc' (default: 'desc')
- * - name: Optional filter by organization name (partial match)
+ * - name: Optional filter by area name (partial match)
+ * - locationId: Optional filter by location ID (exact match)
+ * - areaType: Optional filter by area type (exact match)
+ * - q: General search across all text fields
  */
-export const GET = applyMiddleware([authMiddleware], listOrganizationsHandler);
+export const GET = applyMiddleware([authMiddleware], listAreasHandler);

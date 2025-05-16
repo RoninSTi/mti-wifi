@@ -1,36 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSpan, createDatabaseSpan, addSpanAttributes } from '@/telemetry/utils';
 import { connectToDatabase } from '@/lib/db/mongoose';
-import Organization from '@/models/Organization';
+import Area from '@/models/Area';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/auth-options';
 import {
-  updateOrganizationSchema,
-  organizationParamsSchema,
-  type UpdateOrganizationInput,
-  type OrganizationParams,
+  updateAreaSchema,
+  areaParamsSchema,
+  type UpdateAreaInput,
+  type AreaParams,
 } from '../schemas';
 import { ZodError } from 'zod';
 import { applyMiddleware, authMiddleware, RouteContext } from '../../middleware';
 import { Types } from 'mongoose';
 
 /**
- * Handler for updating an organization by ID
+ * Handler for updating an area by ID
  */
-async function updateOrganizationHandler(
+async function updateAreaHandler(
   request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> {
-  return await createApiSpan('organizations.update', async () => {
+  return await createApiSpan('areas.update', async () => {
     try {
       // Get session (we know it exists because of authMiddleware)
       const session = await getServerSession(authOptions);
 
       // Validate URL parameter
-      const id = context.params.id;
-      let validatedParams: OrganizationParams;
+      let validatedParams: AreaParams;
       try {
-        validatedParams = organizationParamsSchema.parse({ id });
+        validatedParams = areaParamsSchema.parse({ id: context.params.id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -48,9 +47,9 @@ async function updateOrganizationHandler(
       const rawData = await request.json();
 
       // Validate with Zod schema
-      let validatedData: UpdateOrganizationInput;
+      let validatedData: UpdateAreaInput;
       try {
-        validatedData = updateOrganizationSchema.parse(rawData);
+        validatedData = updateAreaSchema.parse(rawData);
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -69,7 +68,7 @@ async function updateOrganizationHandler(
         return NextResponse.json(
           {
             error: 'Invalid ID',
-            message: 'Organization ID is not valid',
+            message: 'Area ID is not valid',
           },
           { status: 400 }
         );
@@ -78,61 +77,57 @@ async function updateOrganizationHandler(
       // Add request metadata to span
       addSpanAttributes({
         'request.user.id': session?.user?.id || 'unknown',
-        'request.organization.id': validatedParams.id,
+        'request.area.id': validatedParams.id,
       });
 
       // Connect to database
       await connectToDatabase();
 
-      // Update organization in database
-      const updatedOrganization = await createDatabaseSpan(
-        'updateOne',
-        'organizations',
-        async () => {
-          const result = await Organization.findByIdAndUpdate(
-            validatedParams.id,
-            { $set: validatedData },
-            { new: true, runValidators: true }
-          );
+      // Update area in database
+      const updatedArea = await createDatabaseSpan('updateOne', 'areas', async () => {
+        const result = await Area.findByIdAndUpdate(
+          validatedParams.id,
+          { $set: validatedData },
+          { new: true, runValidators: true }
+        ).populate('location', 'name');
 
-          if (!result) {
-            throw new Error('Organization not found');
-          }
-
-          return result;
+        if (!result) {
+          throw new Error('Area not found');
         }
-      );
+
+        return result;
+      });
 
       // Add result to span attributes
-      addSpanAttributes({ 'result.organization.id': updatedOrganization._id.toString() });
+      addSpanAttributes({ 'result.area.id': updatedArea._id.toString() });
 
       // Return success response
       return NextResponse.json(
         {
           success: true,
-          data: updatedOrganization,
+          data: updatedArea,
         },
         { status: 200 }
       );
     } catch (error: unknown) {
       // Handle specific errors
       if (error instanceof Error) {
-        if (error.message === 'Organization not found') {
+        if (error.message === 'Area not found') {
           return NextResponse.json(
             {
               error: 'Not Found',
-              message: 'Organization not found',
+              message: 'Area not found',
             },
             { status: 404 }
           );
         }
 
         if (error.name === 'MongoServerError' && 'code' in error && error.code === 11000) {
-          // Duplicate key error (e.g., organization name already exists)
+          // Duplicate key error (e.g., area name already exists in this location)
           return NextResponse.json(
             {
               error: 'Duplicate Error',
-              message: 'An organization with this name already exists',
+              message: 'An area with this name already exists in the location',
             },
             { status: 409 }
           );
@@ -140,7 +135,7 @@ async function updateOrganizationHandler(
       }
 
       // Log and return generic error
-      console.error('Error updating organization:', error);
+      console.error('Error updating area:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
       return NextResponse.json(
@@ -155,19 +150,15 @@ async function updateOrganizationHandler(
 }
 
 /**
- * GET /api/organizations/[id] - Get organization by ID
+ * GET /api/areas/[id] - Get area by ID
  */
-async function getOrganizationHandler(
-  request: NextRequest,
-  context: RouteContext
-): Promise<NextResponse> {
-  return await createApiSpan('organizations.get', async () => {
+async function getAreaHandler(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+  return await createApiSpan('areas.get', async () => {
     try {
       // Validate URL parameter
-      const id = context.params.id;
-      let validatedParams: OrganizationParams;
+      let validatedParams: AreaParams;
       try {
-        validatedParams = organizationParamsSchema.parse({ id });
+        validatedParams = areaParamsSchema.parse({ id: context.params.id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -186,7 +177,7 @@ async function getOrganizationHandler(
         return NextResponse.json(
           {
             error: 'Invalid ID',
-            message: 'Organization ID is not valid',
+            message: 'Area ID is not valid',
           },
           { status: 400 }
         );
@@ -194,18 +185,25 @@ async function getOrganizationHandler(
 
       // Add request metadata to span
       addSpanAttributes({
-        'request.organization.id': validatedParams.id,
+        'request.area.id': validatedParams.id,
       });
 
       // Connect to database
       await connectToDatabase();
 
-      // Fetch organization from database
-      const organization = await createDatabaseSpan('findById', 'organizations', async () => {
-        const result = await Organization.findById(validatedParams.id);
+      // Fetch area from database with populated location and organization
+      const area = await createDatabaseSpan('findById', 'areas', async () => {
+        const result = await Area.findById(validatedParams.id).populate({
+          path: 'location',
+          select: 'name organization address',
+          populate: {
+            path: 'organization',
+            select: 'name',
+          },
+        });
 
         if (!result) {
-          throw new Error('Organization not found');
+          throw new Error('Area not found');
         }
 
         return result;
@@ -215,24 +213,24 @@ async function getOrganizationHandler(
       return NextResponse.json(
         {
           success: true,
-          data: organization,
+          data: area,
         },
         { status: 200 }
       );
     } catch (error: unknown) {
       // Handle specific errors
-      if (error instanceof Error && error.message === 'Organization not found') {
+      if (error instanceof Error && error.message === 'Area not found') {
         return NextResponse.json(
           {
             error: 'Not Found',
-            message: 'Organization not found',
+            message: 'Area not found',
           },
           { status: 404 }
         );
       }
 
       // Log and return generic error
-      console.error('Error fetching organization:', error);
+      console.error('Error fetching area:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
       return NextResponse.json(
@@ -247,22 +245,21 @@ async function getOrganizationHandler(
 }
 
 /**
- * Handler for deleting an organization by ID
+ * Handler for deleting an area by ID
  */
-async function deleteOrganizationHandler(
+async function deleteAreaHandler(
   request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> {
-  return await createApiSpan('organizations.delete', async () => {
+  return await createApiSpan('areas.delete', async () => {
     try {
       // Get session (we know it exists because of authMiddleware)
       const session = await getServerSession(authOptions);
 
       // Validate URL parameter
-      const id = context.params.id;
-      let validatedParams: OrganizationParams;
+      let validatedParams: AreaParams;
       try {
-        validatedParams = organizationParamsSchema.parse({ id });
+        validatedParams = areaParamsSchema.parse({ id: context.params.id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -281,7 +278,7 @@ async function deleteOrganizationHandler(
         return NextResponse.json(
           {
             error: 'Invalid ID',
-            message: 'Organization ID is not valid',
+            message: 'Area ID is not valid',
           },
           { status: 400 }
         );
@@ -290,35 +287,31 @@ async function deleteOrganizationHandler(
       // Add request metadata to span
       addSpanAttributes({
         'request.user.id': session?.user?.id || 'unknown',
-        'request.organization.id': validatedParams.id,
+        'request.area.id': validatedParams.id,
       });
 
       // Connect to database
       await connectToDatabase();
 
-      // Delete organization from database
-      const deletedOrganization = await createDatabaseSpan(
-        'deleteOne',
-        'organizations',
-        async () => {
-          const result = await Organization.findByIdAndDelete(validatedParams.id);
+      // Delete area from database
+      const deletedArea = await createDatabaseSpan('deleteOne', 'areas', async () => {
+        const result = await Area.findByIdAndDelete(validatedParams.id);
 
-          if (!result) {
-            throw new Error('Organization not found');
-          }
-
-          return result;
+        if (!result) {
+          throw new Error('Area not found');
         }
-      );
+
+        return result;
+      });
 
       // Return success response
       return NextResponse.json(
         {
           success: true,
-          message: 'Organization deleted successfully',
+          message: 'Area deleted successfully',
           data: {
-            _id: deletedOrganization._id,
-            name: deletedOrganization.name,
+            _id: deletedArea._id,
+            name: deletedArea.name,
           },
         },
         { status: 200 }
@@ -326,11 +319,11 @@ async function deleteOrganizationHandler(
     } catch (error: unknown) {
       // Handle specific errors
       if (error instanceof Error) {
-        if (error.message === 'Organization not found') {
+        if (error.message === 'Area not found') {
           return NextResponse.json(
             {
               error: 'Not Found',
-              message: 'Organization not found',
+              message: 'Area not found',
             },
             { status: 404 }
           );
@@ -338,7 +331,7 @@ async function deleteOrganizationHandler(
       }
 
       // Log and return generic error
-      console.error('Error deleting organization:', error);
+      console.error('Error deleting area:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
       return NextResponse.json(
@@ -353,19 +346,19 @@ async function deleteOrganizationHandler(
 }
 
 /**
- * PUT /api/organizations/[id] - Update an organization by ID
+ * PUT /api/areas/[id] - Update an area by ID
  * Applies authentication middleware
  */
-export const PUT = applyMiddleware([authMiddleware], updateOrganizationHandler);
+export const PUT = applyMiddleware([authMiddleware], updateAreaHandler);
 
 /**
- * GET /api/organizations/[id] - Get organization by ID
+ * GET /api/areas/[id] - Get area by ID
  * Applies authentication middleware
  */
-export const GET = applyMiddleware([authMiddleware], getOrganizationHandler);
+export const GET = applyMiddleware([authMiddleware], getAreaHandler);
 
 /**
- * DELETE /api/organizations/[id] - Delete organization by ID
+ * DELETE /api/areas/[id] - Delete area by ID
  * Applies authentication middleware
  */
-export const DELETE = applyMiddleware([authMiddleware], deleteOrganizationHandler);
+export const DELETE = applyMiddleware([authMiddleware], deleteAreaHandler);

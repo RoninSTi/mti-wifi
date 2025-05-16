@@ -117,7 +117,19 @@ export function OrganizationsTable({
               ))
             : // Actual data rows
               organizations.map(org => (
-                <TableRow key={org._id}>
+                <TableRow
+                  key={org._id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={e => {
+                    // Make sure we're not clicking on the dropdown menu
+                    const isDropdownClick = (e.target as HTMLElement).closest(
+                      '[data-dropdown-trigger="true"]'
+                    );
+                    if (!isDropdownClick) {
+                      onView(org._id);
+                    }
+                  }}
+                >
                   <TableCell className="font-medium">
                     <div>
                       <div>{org.name}</div>
@@ -143,10 +155,10 @@ export function OrganizationsTable({
                   <TableCell>
                     {org.createdAt ? format(new Date(org.createdAt), 'MMM d, yyyy') : '-'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={e => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" data-dropdown-trigger="true">
                           <MoreHorizontal className="h-4 w-4" />
                           <span className="sr-only">Open menu</span>
                         </Button>

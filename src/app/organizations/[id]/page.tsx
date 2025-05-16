@@ -1,35 +1,41 @@
 'use client';
 
 import React from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Building, Loader2 } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useOrganization } from '@/hooks';
-import { OrganizationDetails } from '@/components/organizations/OrganizationDetails';
+import { useOrganization, useDeleteOrganization } from '@/hooks';
 import { LocationsTab } from '@/components/locations/LocationsTab';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { EditOrganizationDialog } from '@/components/organizations/EditOrganizationDialog';
+import { DeleteButton } from '@/components/ui/delete-button';
 
 export default function OrganizationDetailsPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const organizationId = params?.id as string;
-  const tabParam = searchParams.get('tab');
 
   // Use the custom hook to fetch organization data
   const { organization, isLoading, isError, error } = useOrganization(organizationId);
+
+  // Initialize delete organization hook at the component level
+  const { deleteOrg, isLoading: isDeleting } = useDeleteOrganization();
 
   // Handle back navigation
   const handleBack = () => {
     router.push('/organizations');
   };
 
-  // Handle delete success
-  const handleDeleteSuccess = () => {
-    toast.success('Organization deleted successfully');
-    router.push('/organizations');
+  // Handle organization deletion
+  const handleDelete = async () => {
+    try {
+      await deleteOrg(organizationId);
+      toast.success('Organization deleted successfully');
+      router.push('/organizations');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete organization');
+    }
   };
 
   if (isLoading) {
@@ -85,24 +91,80 @@ export default function OrganizationDetailsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-8">
-        <Tabs defaultValue={tabParam === 'locations' ? 'locations' : 'details'} className="w-full">
-          <TabsList className="w-full mb-8">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="locations">Locations</TabsTrigger>
-          </TabsList>
+        {/* Organization Details */}
+        <div className="max-w-3xl">
+          {organization.description && (
+            <div className="mb-6">
+              <h3 className="text-lg font-medium mb-2">Description</h3>
+              <p className="text-muted-foreground">{organization.description}</p>
+            </div>
+          )}
 
-          <TabsContent value="details">
-            <OrganizationDetails
-              organizationId={organizationId}
-              onClose={() => {}} // Not used in full page view
-              onDelete={handleDeleteSuccess}
+          <div className="grid grid-cols-2 gap-6 mb-6">
+            {organization.contactName && (
+              <div>
+                <h3 className="text-lg font-medium mb-2">Contact Name</h3>
+                <p className="text-muted-foreground">{organization.contactName}</p>
+              </div>
+            )}
+
+            {organization.contactEmail && (
+              <div>
+                <h3 className="text-lg font-medium mb-2">Contact Email</h3>
+                <p className="text-muted-foreground">{organization.contactEmail}</p>
+              </div>
+            )}
+          </div>
+
+          {organization.contactPhone && (
+            <div className="mb-6">
+              <h3 className="text-lg font-medium mb-2">Contact Phone</h3>
+              <p className="text-muted-foreground">{organization.contactPhone}</p>
+            </div>
+          )}
+
+          {organization.address && (
+            <div className="mb-6">
+              <h3 className="text-lg font-medium mb-2">Address</h3>
+              <p className="text-muted-foreground">{organization.address}</p>
+            </div>
+          )}
+
+          <div className="flex gap-2 mt-8">
+            <EditOrganizationDialog
+              organization={organization}
+              trigger={<Button variant="outline">Edit Organization</Button>}
             />
-          </TabsContent>
 
-          <TabsContent value="locations">
-            <LocationsTab organizationId={organizationId} />
-          </TabsContent>
-        </Tabs>
+            <DeleteButton
+              onDelete={handleDelete}
+              resourceName="organization"
+              isDeleting={isDeleting}
+            />
+          </div>
+        </div>
+
+        {/* Locations Section */}
+        <div className="mt-8">
+          <div className="rounded-md border">
+            <div className="bg-muted p-4 border-b">
+              <h2 className="text-xl font-semibold">Locations</h2>
+            </div>
+            <div className="p-4">
+              <div className="w-full mx-auto">
+                {isLoading ? (
+                  <div className="flex justify-center p-8">
+                    <Skeleton className="h-48 w-full max-w-md" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <LocationsTab organizationId={organizationId} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

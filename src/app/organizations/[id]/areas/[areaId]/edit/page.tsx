@@ -4,7 +4,7 @@ import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLocation } from '@/hooks';
+import { useArea, useLocation } from '@/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Breadcrumb,
@@ -13,20 +13,24 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import Link from 'next/link';
-import { EditLocationDialog } from '@/components/locations/EditLocationDialog';
+import { EditAreaDialog } from '@/components/areas/EditAreaDialog';
 
-export default function EditLocationPage() {
+export default function EditAreaPage() {
   const params = useParams();
   const router = useRouter();
   const organizationId = params?.id as string;
-  const locationId = params?.locationId as string;
+  const areaId = params?.areaId as string;
 
-  // Use the custom hook to fetch location data
-  const { location, isLoading, isError, error } = useLocation(locationId);
+  // Use the custom hook to fetch area data
+  const { area, isLoading, isError, error } = useArea(areaId);
+
+  // Get location data for breadcrumb
+  const locationId = area?.location?._id || '';
+  const { location } = useLocation(locationId);
 
   // Handle back navigation
   const handleBack = () => {
-    router.push(`/organizations/${organizationId}/locations/${locationId}`);
+    router.push(`/organizations/${organizationId}/areas/${areaId}`);
   };
 
   if (isLoading) {
@@ -46,8 +50,8 @@ export default function EditLocationPage() {
     );
   }
 
-  if (isError || !location) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to load location details';
+  if (isError || !area) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load area details';
 
     return (
       <div className="container py-10 mx-auto">
@@ -55,22 +59,22 @@ export default function EditLocationPage() {
           <Button variant="outline" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-2xl font-bold">Location not found</h1>
+          <h1 className="text-2xl font-bold">Area not found</h1>
         </div>
 
         <div className="bg-destructive/10 text-destructive rounded-lg p-4 mt-6">
           <p>{errorMessage}</p>
           <Button className="mt-4" onClick={handleBack}>
-            Return to Location
+            Return to Area
           </Button>
         </div>
       </div>
     );
   }
 
-  // Redirect back to location details page when dialog is closed
+  // Redirect back to area details page when dialog is closed
   const handleEditClose = () => {
-    router.push(`/organizations/${organizationId}/locations/${locationId}`);
+    router.push(`/organizations/${organizationId}/areas/${areaId}`);
   };
 
   return (
@@ -85,15 +89,23 @@ export default function EditLocationPage() {
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href={`/organizations/${organizationId}`}>{location.organization.name}</Link>
+            <Link href={`/organizations/${organizationId}`}>
+              {location?.name || 'Organization'}
+            </Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
             <Link href={`/organizations/${organizationId}/locations/${locationId}`}>
-              {location.name}
+              {area.location.name}
             </Link>
+          </BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          <BreadcrumbLink asChild>
+            <Link href={`/organizations/${organizationId}/areas/${areaId}`}>{area.name}</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
@@ -106,13 +118,13 @@ export default function EditLocationPage() {
         <Button variant="outline" size="icon" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-bold">Edit Location</h1>
+        <h1 className="text-2xl font-bold">Edit Area</h1>
       </div>
 
       <div className="grid grid-cols-1 gap-8 max-w-3xl">
         {/* Auto-open edit dialog and redirect back when done */}
-        <EditLocationDialog
-          location={location}
+        <EditAreaDialog
+          area={area}
           open={true}
           onOpenChange={open => {
             if (!open) handleEditClose();

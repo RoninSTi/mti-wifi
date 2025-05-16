@@ -31,11 +31,16 @@ export async function authMiddleware(_request: NextRequest): Promise<NextRespons
  * @param handler The handler function to wrap
  * @returns A new handler function with middleware applied
  */
+// Define a specific context type for all route handlers
+export interface RouteContext {
+  params: Record<string, string>;
+}
+
 export function applyMiddleware(
   middlewares: ((request: NextRequest) => Promise<NextResponse | null>)[],
-  handler: (request: NextRequest) => Promise<NextResponse>
+  handler: (request: NextRequest, context: RouteContext) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest): Promise<NextResponse> => {
+  return async (request: NextRequest, context: RouteContext): Promise<NextResponse> => {
     // Run each middleware in sequence
     for (const middleware of middlewares) {
       const result = await middleware(request);
@@ -45,7 +50,7 @@ export function applyMiddleware(
       }
     }
 
-    // If all middleware pass, call the handler
-    return handler(request);
+    // If all middleware pass, call the handler with the context
+    return handler(request, context);
   };
 }

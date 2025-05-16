@@ -2,18 +2,20 @@
 
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, MapPin, Loader2 } from 'lucide-react';
+import { ArrowLeft, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useLocation } from '@/hooks';
+import { useLocation, useDeleteLocation } from '@/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { AreasTab } from '@/components/areas/AreasTab';
+import { DeleteButton } from '@/components/ui/delete-button';
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { Card } from '@/components/ui/card';
 import Link from 'next/link';
 
 export default function LocationDetailsPage() {
@@ -22,18 +24,28 @@ export default function LocationDetailsPage() {
   const organizationId = params?.id as string;
   const locationId = params?.locationId as string;
 
-  // Use the custom hook to fetch location data
+  // Use the custom hooks to fetch location data and handle deletion
   const { location, isLoading, isError, error } = useLocation(locationId);
+  const { deleteLocation, isLoading: isDeleting } = useDeleteLocation();
 
   // Handle back navigation
   const handleBack = () => {
-    router.push(`/organizations/${organizationId}?tab=locations`);
+    router.push(`/organizations/${organizationId}`);
   };
 
-  // Handle delete success
-  const handleDeleteSuccess = () => {
-    toast.success('Location deleted successfully');
-    router.push(`/organizations/${organizationId}?tab=locations`);
+  // Handle location deletion
+  const handleDelete = async () => {
+    try {
+      const result = await deleteLocation(locationId);
+      if (result.error) {
+        toast.error(result.error.message || 'Failed to delete location');
+      } else {
+        toast.success('Location deleted successfully');
+        router.push(`/organizations/${organizationId}`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete location');
+    }
   };
 
   if (isLoading) {
@@ -102,73 +114,56 @@ export default function LocationDetailsPage() {
         </Button>
         <div className="flex items-center gap-2">
           <MapPin className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">{location.name}</h1>
+          <span className="text-xl font-medium">Location Details</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-8">
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="w-full mb-8">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="areas">Areas</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="details">
-            {/* We'll move the location details component here */}
-            <div className="max-w-3xl">
-              {location.description && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2">Description</h3>
-                  <p className="text-muted-foreground">{location.description}</p>
-                </div>
-              )}
-
-              {(location.address || location.city || location.state || location.zipCode) && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2">Address</h3>
-                  <p className="text-muted-foreground">
-                    {[location.address, location.city, location.state, location.zipCode]
-                      .filter(Boolean)
-                      .join(', ')}
-                    {location.country && location.country !== 'USA' && `, ${location.country}`}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-2 mt-8">
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    router.push(`/organizations/${organizationId}/locations/${locationId}/edit`)
-                  }
-                >
-                  Edit Location
-                </Button>
-
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete this location?')) {
-                      // We'll add the delete functionality here
-                      handleDeleteSuccess();
-                    }
-                  }}
-                >
-                  Delete Location
-                </Button>
-              </div>
+        {/* Header and action buttons */}
+        <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">{location.name}</h1>
             </div>
-          </TabsContent>
-
-          <TabsContent value="areas">
-            <div className="rounded-lg border border-dashed p-8 text-center">
-              <h3 className="text-lg font-medium">Areas Coming Soon</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                This feature is under development.
+            {(location.address || location.city || location.state || location.zipCode) && (
+              <p className="text-muted-foreground mt-1">
+                {[location.address, location.city, location.state, location.zipCode]
+                  .filter(Boolean)
+                  .join(', ')}
+                {location.country && location.country !== 'USA' && `, ${location.country}`}
               </p>
-            </div>
-          </TabsContent>
-        </Tabs>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() =>
+                router.push(`/organizations/${organizationId}/locations/${locationId}/edit`)
+              }
+            >
+              Edit Location
+            </Button>
+
+            <DeleteButton onDelete={handleDelete} resourceName="location" isDeleting={isDeleting} />
+          </div>
+        </div>
+
+        {/* Description */}
+        {location.description && (
+          <div className="rounded-lg border p-4 bg-card">
+            <p className="text-card-foreground text-sm">{location.description}</p>
+          </div>
+        )}
+
+        {/* Areas Section */}
+        <Card className="overflow-hidden">
+          <div className="bg-muted p-4 border-b">
+            <h2 className="text-xl font-semibold">Areas</h2>
+          </div>
+          <div className="p-4">
+            <AreasTab locationId={locationId} organizationId={organizationId} />
+          </div>
+        </Card>
       </div>
     </div>
   );

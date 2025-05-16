@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
@@ -49,13 +49,16 @@ export function EditOrganizationDialog({
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
 
-  const setOpen = (value: boolean) => {
-    if (isControlled && onOpenChange) {
-      onOpenChange(value);
-    } else {
-      setInternalOpen(value);
-    }
-  };
+  const setOpen = useCallback(
+    (value: boolean) => {
+      if (isControlled && onOpenChange) {
+        onOpenChange(value);
+      } else {
+        setInternalOpen(value);
+      }
+    },
+    [isControlled, onOpenChange]
+  );
 
   // Get the update organization mutation hook
   const {
@@ -107,7 +110,7 @@ export function EditOrganizationDialog({
     if (isError && error instanceof Error) {
       toast.error(`Failed to update organization: ${error.message}`);
     }
-  }, [isSuccess, isError, error, resetMutation, onSuccess]);
+  }, [isSuccess, isError, error, resetMutation, onSuccess, setOpen]);
 
   // Form submission handler
   async function onSubmit(values: UpdateOrganizationInput) {

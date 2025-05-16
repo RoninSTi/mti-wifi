@@ -11,22 +11,15 @@ import {
   type LocationParams,
 } from '../schemas';
 import { ZodError } from 'zod';
-import { applyMiddleware, authMiddleware } from '../../middleware';
+import { applyMiddleware, authMiddleware, RouteContext } from '../../middleware';
 import { Types } from 'mongoose';
-
-/**
- * Helper to get a location ID from the request URL
- */
-function getLocationIdFromRequest(request: NextRequest): string {
-  return request.nextUrl.pathname.split('/').pop() || '';
-}
 
 /**
  * Handler for updating a location by ID
  */
 async function updateLocationHandler(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ): Promise<NextResponse> {
   return await createApiSpan('locations.update', async () => {
     try {
@@ -36,7 +29,7 @@ async function updateLocationHandler(
       // Validate URL parameter
       let validatedParams: LocationParams;
       try {
-        validatedParams = locationParamsSchema.parse({ id: params.id });
+        validatedParams = locationParamsSchema.parse({ id: context.params.id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -161,14 +154,14 @@ async function updateLocationHandler(
  */
 async function getLocationHandler(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ): Promise<NextResponse> {
   return await createApiSpan('locations.get', async () => {
     try {
       // Validate URL parameter
       let validatedParams: LocationParams;
       try {
-        validatedParams = locationParamsSchema.parse({ id: params.id });
+        validatedParams = locationParamsSchema.parse({ id: context.params.id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -252,7 +245,7 @@ async function getLocationHandler(
  */
 async function deleteLocationHandler(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ): Promise<NextResponse> {
   return await createApiSpan('locations.delete', async () => {
     try {
@@ -262,7 +255,7 @@ async function deleteLocationHandler(
       // Validate URL parameter
       let validatedParams: LocationParams;
       try {
-        validatedParams = locationParamsSchema.parse({ id: params.id });
+        validatedParams = locationParamsSchema.parse({ id: context.params.id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -352,22 +345,16 @@ async function deleteLocationHandler(
  * PUT /api/locations/[id] - Update a location by ID
  * Applies authentication middleware
  */
-export const PUT = applyMiddleware([authMiddleware], (request: NextRequest) =>
-  updateLocationHandler(request, { params: { id: getLocationIdFromRequest(request) } })
-);
+export const PUT = applyMiddleware([authMiddleware], updateLocationHandler);
 
 /**
  * GET /api/locations/[id] - Get location by ID
  * Applies authentication middleware
  */
-export const GET = applyMiddleware([authMiddleware], (request: NextRequest) =>
-  getLocationHandler(request, { params: { id: getLocationIdFromRequest(request) } })
-);
+export const GET = applyMiddleware([authMiddleware], getLocationHandler);
 
 /**
  * DELETE /api/locations/[id] - Delete location by ID
  * Applies authentication middleware
  */
-export const DELETE = applyMiddleware([authMiddleware], (request: NextRequest) =>
-  deleteLocationHandler(request, { params: { id: getLocationIdFromRequest(request) } })
-);
+export const DELETE = applyMiddleware([authMiddleware], deleteLocationHandler);
