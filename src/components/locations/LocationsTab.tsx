@@ -7,7 +7,8 @@ import { CreateLocationDialog } from './CreateLocationDialog';
 import { LocationDetails } from './LocationDetails';
 import { EditLocationDialog } from './EditLocationDialog';
 import { useLocations, useDeleteLocation, useLocation } from '@/hooks';
-import { Search, X, MapPin, Plus } from 'lucide-react';
+import { Search, X, MapPin, Plus, Loader2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import {
@@ -36,6 +37,10 @@ export function LocationsTab({ organizationId }: LocationsTabProps) {
   // State for the location being edited directly (without showing details)
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
 
+  // State for delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [locationToDelete, setLocationToDelete] = useState<string | null>(null);
+
   // Fetch data for the location being edited
   const { location: editingLocation } = useLocation(editingLocationId || '');
 
@@ -50,7 +55,7 @@ export function LocationsTab({ organizationId }: LocationsTabProps) {
   });
 
   // Initialize location deletion hook
-  const { deleteLocation } = useDeleteLocation();
+  const { deleteLocation, isLoading: isDeleting } = useDeleteLocation();
 
   // Handle location actions
   const handleViewDetails = (id: string) => {
@@ -62,19 +67,30 @@ export function LocationsTab({ organizationId }: LocationsTabProps) {
     setEditingLocationId(id);
   };
 
-  const handleDeleteLocation = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this location?')) {
-      try {
-        await deleteLocation(id);
-        toast.success('Location deleted successfully');
+  // Initiate delete process - open confirmation dialog
+  const handleDeleteLocation = (id: string) => {
+    setLocationToDelete(id);
+    setDeleteDialogOpen(true);
+  };
 
-        // If we're currently viewing the deleted location, close the details panel
-        if (selectedLocationId === id) {
-          setSelectedLocationId(null);
-        }
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to delete location');
+  // Execute delete after confirmation
+  const handleConfirmDelete = async () => {
+    if (!locationToDelete) return;
+
+    try {
+      await deleteLocation(locationToDelete);
+      toast.success('Location deleted successfully');
+
+      // If we're currently viewing the deleted location, close the details panel
+      if (selectedLocationId === locationToDelete) {
+        setSelectedLocationId(null);
       }
+
+      // Close dialog and reset state
+      setDeleteDialogOpen(false);
+      setLocationToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete location');
     }
   };
 
@@ -302,6 +318,18 @@ export function LocationsTab({ organizationId }: LocationsTabProps) {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Location"
+        description="Are you sure you want to delete this location? This action cannot be undone and will remove all data associated with this location."
+        confirmText="Delete"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        variant="destructive"
+      />
     </div>
   );
 }

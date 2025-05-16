@@ -7,7 +7,8 @@ import { AreasTable } from './AreasTable';
 import { CreateAreaDialog } from './CreateAreaDialog';
 import { EditAreaDialog } from './EditAreaDialog';
 import { useAreas, useDeleteArea, useArea } from '@/hooks';
-import { Search, X, Grid3X3, Plus } from 'lucide-react';
+import { Search, X, Grid3X3, Plus, Loader2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import {
@@ -35,6 +36,10 @@ export function AreasTab({ locationId, organizationId }: AreasTabProps) {
   // State for the area being edited
   const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
 
+  // State for delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [areaToDelete, setAreaToDelete] = useState<string | null>(null);
+
   // Fetch data for the area being edited
   const { area: editingArea } = useArea(editingAreaId || '');
 
@@ -49,7 +54,7 @@ export function AreasTab({ locationId, organizationId }: AreasTabProps) {
   });
 
   // Initialize area deletion hook
-  const { deleteArea } = useDeleteArea();
+  const { deleteArea, isLoading: isDeleting } = useDeleteArea();
 
   // Handle area actions
   const handleViewDetails = (id: string) => {
@@ -70,14 +75,25 @@ export function AreasTab({ locationId, organizationId }: AreasTabProps) {
     setEditingAreaId(id);
   };
 
-  const handleDeleteArea = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this area?')) {
-      try {
-        await deleteArea(id);
-        toast.success('Area deleted successfully');
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to delete area');
-      }
+  // Initiate delete process - open confirmation dialog
+  const handleDeleteArea = (id: string) => {
+    setAreaToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  // Execute delete after confirmation
+  const handleConfirmDelete = async () => {
+    if (!areaToDelete) return;
+
+    try {
+      await deleteArea(areaToDelete);
+      toast.success('Area deleted successfully');
+
+      // Close dialog and reset state
+      setDeleteDialogOpen(false);
+      setAreaToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete area');
     }
   };
 
@@ -283,6 +299,18 @@ export function AreasTab({ locationId, organizationId }: AreasTabProps) {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Area"
+        description="Are you sure you want to delete this area? This action cannot be undone and will remove all equipment associated with this area."
+        confirmText="Delete"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        variant="destructive"
+      />
     </div>
   );
 }

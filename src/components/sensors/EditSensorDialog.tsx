@@ -21,17 +21,18 @@ import { UpdateSensorInput } from '@/app/api/sensors/schemas';
 interface EditSensorDialogProps {
   sensorId: string;
   trigger?: React.ReactNode;
-  defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onComplete?: () => void;
 }
 
 export function EditSensorDialog({
   sensorId,
   trigger,
-  defaultOpen = false,
+  open = false,
+  onOpenChange = () => {},
   onComplete,
 }: EditSensorDialogProps) {
-  const [open, setOpen] = useState(defaultOpen);
   const [formData, setFormData] = useState<Partial<UpdateSensorInput>>({
     name: '',
     description: '',
@@ -91,7 +92,7 @@ export function EditSensorDialog({
     try {
       updateSensor(formData, {
         onSuccess: () => {
-          setOpen(false);
+          onOpenChange(false);
           if (onComplete) {
             onComplete();
           }
@@ -107,7 +108,7 @@ export function EditSensorDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger ? (
         <DialogTrigger asChild>{trigger}</DialogTrigger>
       ) : (
@@ -173,7 +174,7 @@ export function EditSensorDialog({
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" type="button" onClick={() => setOpen(false)}>
+            <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isUpdating}>

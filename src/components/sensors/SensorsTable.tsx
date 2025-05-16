@@ -12,19 +12,34 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, Wifi, WifiOff, MoreHorizontal, Search, X } from 'lucide-react';
+import {
+  PlusCircle,
+  Wifi,
+  WifiOff,
+  MoreHorizontal,
+  Search,
+  X,
+  Eye,
+  Edit,
+  Trash,
+} from 'lucide-react';
 import { CreateSensorDialog } from './CreateSensorDialog';
 import { EditSensorDialog } from './EditSensorDialog';
 import { SensorDetails } from './SensorDetails';
 import { useSensors } from '@/hooks/useSensors';
 import { useDeleteSensor } from '@/hooks/useDeleteSensor';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   Pagination,
@@ -51,6 +66,9 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
   // Dialog state
   const [selectedSensor, setSelectedSensor] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sensorToDelete, setSensorToDelete] = useState<string | null>(null);
 
   // Fetch sensors with pagination and search
   const { sensors, isLoading, refetch, pagination, isError } = useSensors(equipmentId, {
@@ -61,7 +79,7 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
     sortOrder: 'desc',
   });
 
-  const { mutate: deleteSensor } = useDeleteSensor();
+  const { mutate: deleteSensor, isPending: isDeleting } = useDeleteSensor();
 
   // Helper function for status badge using the correct type from SensorResponse
   const getStatusBadge = (status: SensorResponse['status']) => {
@@ -84,10 +102,28 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
     setDetailsOpen(true);
   };
 
-  const handleDelete = (sensorId: string) => {
-    deleteSensor(sensorId, {
+  // Initiate delete process - open the confirmation dialog
+  const handleDeleteClick = (sensorId: string) => {
+    setSensorToDelete(sensorId);
+    setDeleteDialogOpen(true);
+  };
+
+  // Execute the delete after confirmation
+  const handleConfirmDelete = () => {
+    if (!sensorToDelete) return;
+
+    deleteSensor(sensorToDelete, {
       onSuccess: () => {
+        toast.success('Sensor deleted successfully');
         refetch();
+      },
+      onError: error => {
+        toast.error(error instanceof Error ? error.message : 'Failed to delete sensor');
+      },
+      onSettled: () => {
+        // Clean up state
+        setSensorToDelete(null);
+        setDeleteDialogOpen(false);
       },
     });
   };
@@ -200,8 +236,20 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
               </TableRow>
             ) : sensors && sensors.length > 0 ? (
               sensors.map(sensor => (
-                <TableRow key={sensor._id}>
-                  <TableCell className="font-medium">{sensor.name}</TableCell>
+                <TableRow
+                  key={sensor._id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={e => {
+                    // Prevent row click when clicking on the dropdown menu
+                    if ((e.target as HTMLElement).closest('.dropdown-trigger')) {
+                      return;
+                    }
+                    handleViewDetails(sensor._id);
+                  }}
+                >
+                  <TableCell className="font-medium">
+                    <span className="text-primary">{sensor.name}</span>
+                  </TableCell>
                   <TableCell>{sensor.serial ?? 'N/A'}</TableCell>
                   <TableCell>{getStatusBadge(sensor.status)}</TableCell>
                   <TableCell>
@@ -219,41 +267,40 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewDetails(sensor._id)}
-                      >
-                        Details
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <EditSensorDialog
-                              sensorId={sensor._id}
-                              trigger={<button className="w-full text-left">Edit</button>}
-                              onComplete={refetch}
-                            />
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onSelect={e => {
-                              e.preventDefault();
-                              handleDelete(sensor._id);
-                            }}
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                  <TableCell onClick={e => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="dropdown-trigger">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">More options</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleViewDetails(sensor._id)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            // Find the edit dialog and set it up for this sensor
+                            setSelectedSensor(sensor._id);
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => handleDeleteClick(sensor._id)}
+                        >
+                          <Trash className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
@@ -399,6 +446,28 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit Sensor Dialog */}
+      {selectedSensor && (
+        <EditSensorDialog
+          sensorId={selectedSensor}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onComplete={refetch}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Are you sure?"
+        description="This action cannot be undone. This will permanently delete this sensor."
+        confirmText="Delete"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        variant="destructive"
+      />
     </div>
   );
 }

@@ -9,16 +9,7 @@ import { CreateEquipmentDialog } from '../equipment/CreateEquipmentDialog';
 import { EditEquipmentDialog } from '../equipment/EditEquipmentDialog';
 import { EquipmentTable } from '../equipment/EquipmentTable';
 import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import {
   Pagination,
@@ -226,28 +217,16 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
       )}
 
       {/* Delete Equipment Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the equipment &quot;
-              {deletingEquipmentName}&quot;.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-destructive hover:bg-destructive/90"
-              disabled={isDeleting}
-            >
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete Equipment
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Are you sure?"
+        description={`This action cannot be undone. This will permanently delete the equipment "${deletingEquipmentName}".`}
+        confirmText="Delete Equipment"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        variant="destructive"
+      />
 
       {/* Pagination */}
       {pagination && pagination.totalPages > 0 && (

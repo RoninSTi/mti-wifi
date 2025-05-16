@@ -9,16 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useEquipmentList, useDeleteEquipment } from '@/hooks';
 import { Loader2, Search, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CustomPagination } from '@/components/ui/custom-pagination';
 import {
   Select,
@@ -237,24 +228,16 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
       {renderPagination(pagination)}
 
       {/* Delete confirmation dialog */}
-      <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this equipment and any
-              associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={isAlertDialogOpen}
+        onOpenChange={setIsAlertDialogOpen}
+        title="Are you sure?"
+        description="This action cannot be undone. This will permanently delete this equipment and any associated data."
+        confirmText="Delete"
+        isLoading={isDeleting}
+        onConfirm={handleDeleteConfirm}
+        variant="destructive"
+      />
     </div>
   );
 }
