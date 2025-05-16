@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
 import { useEquipment, useDeleteEquipment } from '@/hooks';
 import { toast } from 'sonner';
-// import { EquipmentDetails } from '@/components/equipment/EquipmentDetails';
 import { SensorsTable } from '@/components/sensors/SensorsTable';
 import { DeleteButton } from '@/components/ui/delete-button';
 import { SiteBreadcrumb, BreadcrumbItem } from '@/components/ui/site-breadcrumb';
@@ -15,22 +14,30 @@ import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// DEPRECATED: This route is being replaced by the nested route structure:
-// /organizations/[id]/locations/[locationId]/areas/[areaId]/equipment/[equipmentId]
-// Use the nested route instead of this route for new code
 export default function EquipmentDetailsPage() {
   const params = useParams();
   const router = useRouter();
 
   // Type-safe parameter extraction with proper type narrowing
   const id = params?.id;
+  const locationId = params?.locationId;
+  const areaId = params?.areaId;
   const equipmentId = params?.equipmentId;
 
-  if (!id || Array.isArray(id) || !equipmentId || Array.isArray(equipmentId)) {
+  if (
+    !id ||
+    Array.isArray(id) ||
+    !locationId ||
+    Array.isArray(locationId) ||
+    !areaId ||
+    Array.isArray(areaId) ||
+    !equipmentId ||
+    Array.isArray(equipmentId)
+  ) {
     throw new Error('Missing or invalid route parameters');
   }
 
-  const organizationId = id; // Now TypeScript knows these are strings
+  const organizationId = id;
 
   // Fetch equipment details
   const { equipment, isLoading, isError, error } = useEquipment(equipmentId);
@@ -38,14 +45,7 @@ export default function EquipmentDetailsPage() {
 
   // Handle back navigation
   const handleBack = () => {
-    if (equipment?.area?._id && equipment?.area?.location?._id) {
-      // Navigate to the proper nested URL structure
-      const locationId = equipment.area.location._id;
-      const areaId = equipment.area._id;
-      router.push(`/organizations/${organizationId}/locations/${locationId}/areas/${areaId}`);
-    } else {
-      router.push(`/organizations/${organizationId}`);
-    }
+    router.push(`/organizations/${organizationId}/locations/${locationId}/areas/${areaId}`);
   };
 
   // Handle equipment deletion
@@ -56,14 +56,8 @@ export default function EquipmentDetailsPage() {
         toast.error(result.error.message || 'Failed to delete equipment');
       } else {
         toast.success('Equipment deleted successfully');
-        // Navigate back to area page using the proper nested URL structure
-        if (equipment?.area?._id && equipment?.area?.location?._id) {
-          const locationId = equipment.area.location._id;
-          const areaId = equipment.area._id;
-          router.push(`/organizations/${organizationId}/locations/${locationId}/areas/${areaId}`);
-        } else {
-          router.push(`/organizations/${organizationId}`);
-        }
+        // Navigate back to area page
+        router.push(`/organizations/${organizationId}/locations/${locationId}/areas/${areaId}`);
       }
     } catch (error) {
       toast.error(
@@ -106,8 +100,8 @@ export default function EquipmentDetailsPage() {
 
         <div className="bg-destructive/10 text-destructive rounded-lg p-4 mt-6">
           <p>{errorMessage}</p>
-          <Button className="mt-4" onClick={() => router.back()}>
-            Return to Organization
+          <Button className="mt-4" onClick={handleBack}>
+            Return to Area
           </Button>
         </div>
       </div>
@@ -124,10 +118,18 @@ export default function EquipmentDetailsPage() {
     });
   }
 
+  // Add location to breadcrumb
+  if (equipment.area?.location) {
+    breadcrumbItems.push({
+      label: equipment.area.location.name,
+      href: `/organizations/${organizationId}/locations/${locationId}`,
+    });
+  }
+
   if (equipment.area) {
     breadcrumbItems.push({
       label: equipment.area.name,
-      href: `/organizations/${organizationId}/areas/${equipment.area._id}`,
+      href: `/organizations/${organizationId}/locations/${locationId}/areas/${areaId}`,
     });
   }
 

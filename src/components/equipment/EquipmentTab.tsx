@@ -85,7 +85,17 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
     const organizationId =
       orgIndex >= 0 && orgIndex + 1 < pathParts.length ? pathParts[orgIndex + 1] : '';
 
-    router.push(`/organizations/${organizationId}/areas/${areaId}/equipment/${id}`);
+    // Get the location ID from the URL
+    const locIndex = pathParts.findIndex(part => part === 'locations');
+    const locationId =
+      locIndex >= 0 && locIndex + 1 < pathParts.length ? pathParts[locIndex + 1] : '';
+
+    // Navigate to equipment details page with complete hierarchy URL structure
+    if (locationId) {
+      router.push(
+        `/organizations/${organizationId}/locations/${locationId}/areas/${areaId}/equipment/${id}`
+      );
+    }
   };
 
   // Open edit dialog for equipment
