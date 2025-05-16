@@ -27,7 +27,8 @@ async function updateOrganizationHandler(
       const session = await getServerSession(authOptions);
 
       // Validate URL parameter
-      const id = context.params.id;
+      const params = await context.params;
+      const id = params.id;
       let validatedParams: OrganizationParams;
       try {
         validatedParams = organizationParamsSchema.parse({ id });
@@ -164,7 +165,8 @@ async function getOrganizationHandler(
   return await createApiSpan('organizations.get', async () => {
     try {
       // Validate URL parameter
-      const id = context.params.id;
+      const params = await context.params;
+      const id = params.id;
       let validatedParams: OrganizationParams;
       try {
         validatedParams = organizationParamsSchema.parse({ id });
@@ -259,7 +261,8 @@ async function deleteOrganizationHandler(
       const session = await getServerSession(authOptions);
 
       // Validate URL parameter
-      const id = context.params.id;
+      const params = await context.params;
+      const id = params.id;
       let validatedParams: OrganizationParams;
       try {
         validatedParams = organizationParamsSchema.parse({ id });

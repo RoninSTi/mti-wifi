@@ -3,11 +3,13 @@ import { createApiSpan, createDatabaseSpan, addSpanAttributes } from '@/telemetr
 import { connectToDatabase } from '@/lib/db/mongoose';
 import Equipment from '@/models/Equipment';
 import Area from '@/models/Area';
+import Location from '@/models/Location';
+import Organization from '@/models/Organization';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createEquipmentSchema, type CreateEquipmentInput } from './schemas';
 import { ZodError } from 'zod';
-import { applyMiddleware, authMiddleware } from '../middleware';
+import { applyMiddleware, authMiddleware, RouteContext } from '../middleware';
 import {
   getPaginationParamsFromRequest,
   applyPaginationToMongooseQuery,
@@ -19,11 +21,17 @@ import mongoose from 'mongoose';
 /**
  * Handler for creating new equipment
  */
-async function createEquipmentHandler(request: NextRequest): Promise<NextResponse> {
+async function createEquipmentHandler(
+  request: NextRequest,
+  context: RouteContext
+): Promise<NextResponse> {
   return await createApiSpan('equipment.create', async () => {
     try {
       // Get session (we know it exists because of authMiddleware)
       const session = await getServerSession(authOptions);
+
+      // Await context.params for consistency with other handlers
+      await context.params;
 
       // Parse request body
       const rawData = await request.json();
@@ -135,9 +143,15 @@ async function createEquipmentHandler(request: NextRequest): Promise<NextRespons
 /**
  * Handler for listing equipment with pagination and filtering
  */
-async function listEquipmentHandler(request: NextRequest): Promise<NextResponse> {
+async function listEquipmentHandler(
+  request: NextRequest,
+  context: RouteContext
+): Promise<NextResponse> {
   return await createApiSpan('equipment.list', async () => {
     try {
+      // Await context.params for consistency with other handlers
+      await context.params;
+
       // Connect to database
       await connectToDatabase();
 

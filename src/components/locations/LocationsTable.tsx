@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { LocationResponse } from '@/app/api/locations/schemas';
 import {
   Table,
@@ -63,6 +64,7 @@ export function LocationsTable({
   onRetry,
   filterApplied = false,
 }: LocationsTableProps) {
+  const router = useRouter();
   // If loading, show skeleton UI
   if (isLoading) {
     return (
@@ -148,60 +150,94 @@ export function LocationsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {locations.map(location => (
-            <TableRow key={location._id}>
-              <TableCell className="font-medium">
-                <Link
-                  href={`/organizations/${location.organization._id}/locations/${location._id}`}
-                  className="hover:underline text-primary cursor-pointer"
-                >
-                  {location.name}
-                </Link>
-              </TableCell>
-              <TableCell>{location.address || '—'}</TableCell>
-              <TableCell>{location.city || '—'}</TableCell>
-              <TableCell>{location.state || '—'}</TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">More options</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onView(location._id)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View details
-                    </DropdownMenuItem>
-                    <Link
-                      href={`/organizations/${location.organization._id}/locations/${location._id}`}
-                      passHref
-                      legacyBehavior
-                    >
-                      <DropdownMenuItem>
-                        <MapPin className="mr-2 h-4 w-4" />
-                        Full details page
+          {locations.map(location => {
+            const detailsUrl = `/organizations/${location.organization._id}/locations/${location._id}`;
+
+            return (
+              <TableRow
+                key={location._id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={e => {
+                  // Only navigate if the click is not on the dropdown menu or its children
+                  if (!e.defaultPrevented) {
+                    router.push(detailsUrl);
+                  }
+                }}
+              >
+                <TableCell className="font-medium">
+                  <span className="text-primary">{location.name}</span>
+                </TableCell>
+                <TableCell>{location.address || '—'}</TableCell>
+                <TableCell>{location.city || '—'}</TableCell>
+                <TableCell>{location.state || '—'}</TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={e => {
+                          // Prevent row click event from triggering
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">More options</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onView(location._id);
+                        }}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        View details
                       </DropdownMenuItem>
-                    </Link>
-                    <DropdownMenuItem onClick={() => onEdit(location._id)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => onDelete(location._id)}
-                    >
-                      <Trash className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
+                      <Link href={detailsUrl} passHref legacyBehavior>
+                        <DropdownMenuItem
+                          onClick={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            router.push(detailsUrl);
+                          }}
+                        >
+                          <MapPin className="mr-2 h-4 w-4" />
+                          Full details page
+                        </DropdownMenuItem>
+                      </Link>
+                      <DropdownMenuItem
+                        onClick={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onEdit(location._id);
+                        }}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onDelete(location._id);
+                        }}
+                      >
+                        <Trash className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

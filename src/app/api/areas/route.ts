@@ -3,11 +3,12 @@ import { createApiSpan, createDatabaseSpan, addSpanAttributes } from '@/telemetr
 import { connectToDatabase } from '@/lib/db/mongoose';
 import Area from '@/models/Area';
 import Location from '@/models/Location';
+import Organization from '@/models/Organization';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createAreaSchema, type CreateAreaInput } from './schemas';
 import { ZodError } from 'zod';
-import { applyMiddleware, authMiddleware } from '../middleware';
+import { applyMiddleware, authMiddleware, RouteContext } from '../middleware';
 import {
   getPaginationParamsFromRequest,
   applyPaginationToMongooseQuery,
@@ -19,11 +20,17 @@ import mongoose from 'mongoose';
 /**
  * Handler for creating a new area
  */
-async function createAreaHandler(request: NextRequest): Promise<NextResponse> {
+async function createAreaHandler(
+  request: NextRequest,
+  context: RouteContext
+): Promise<NextResponse> {
   return await createApiSpan('areas.create', async () => {
     try {
       // Get session (we know it exists because of authMiddleware)
       const session = await getServerSession(authOptions);
+
+      // Await context.params for consistency with other handlers
+      await context.params;
 
       // Parse request body
       const rawData = await request.json();
@@ -126,9 +133,15 @@ async function createAreaHandler(request: NextRequest): Promise<NextResponse> {
 /**
  * Handler for listing areas with pagination and filtering
  */
-async function listAreasHandler(request: NextRequest): Promise<NextResponse> {
+async function listAreasHandler(
+  request: NextRequest,
+  context: RouteContext
+): Promise<NextResponse> {
   return await createApiSpan('areas.list', async () => {
     try {
+      // Await context.params for consistency with other handlers
+      await context.params;
+
       // Connect to database
       await connectToDatabase();
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSpan, createDatabaseSpan, addSpanAttributes } from '@/telemetry/utils';
 import { connectToDatabase } from '@/lib/db/mongoose';
 import Location from '@/models/Location';
+import Organization from '@/models/Organization';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/auth-options';
 import {
@@ -27,9 +28,11 @@ async function updateLocationHandler(
       const session = await getServerSession(authOptions);
 
       // Validate URL parameter
+      const params = await context.params;
+      const id = params.id;
       let validatedParams: LocationParams;
       try {
-        validatedParams = locationParamsSchema.parse({ id: context.params.id });
+        validatedParams = locationParamsSchema.parse({ id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -159,9 +162,11 @@ async function getLocationHandler(
   return await createApiSpan('locations.get', async () => {
     try {
       // Validate URL parameter
+      const params = await context.params;
+      const id = params.id;
       let validatedParams: LocationParams;
       try {
-        validatedParams = locationParamsSchema.parse({ id: context.params.id });
+        validatedParams = locationParamsSchema.parse({ id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -253,9 +258,11 @@ async function deleteLocationHandler(
       const session = await getServerSession(authOptions);
 
       // Validate URL parameter
+      const params = await context.params;
+      const id = params.id;
       let validatedParams: LocationParams;
       try {
-        validatedParams = locationParamsSchema.parse({ id: context.params.id });
+        validatedParams = locationParamsSchema.parse({ id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSpan, createDatabaseSpan, addSpanAttributes } from '@/telemetry/utils';
 import { connectToDatabase } from '@/lib/db/mongoose';
 import Equipment from '@/models/Equipment';
+import Area from '@/models/Area';
+import Location from '@/models/Location';
+import Organization from '@/models/Organization';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/auth-options';
 import {
@@ -20,7 +23,8 @@ async function getEquipmentHandler(
   request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> {
-  const id = context.params.id;
+  const params = await context.params;
+  const id = params.id;
   return await createApiSpan('equipment.get', async () => {
     try {
       // Validate the ID parameter
@@ -112,7 +116,8 @@ async function updateEquipmentHandler(
   request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> {
-  const id = context.params.id;
+  const params = await context.params;
+  const id = params.id;
   return await createApiSpan('equipment.update', async () => {
     try {
       // Get session (we know it exists because of authMiddleware)
@@ -259,7 +264,8 @@ async function deleteEquipmentHandler(
   request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> {
-  const id = context.params.id;
+  const params = await context.params;
+  const id = params.id;
   return await createApiSpan('equipment.delete', async () => {
     try {
       // Get session (we know it exists because of authMiddleware)

@@ -7,7 +7,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/auth-options';
 import { createLocationSchema, type CreateLocationInput } from './schemas';
 import { ZodError } from 'zod';
-import { applyMiddleware, authMiddleware } from '../middleware';
+import { applyMiddleware, authMiddleware, RouteContext } from '../middleware';
 import {
   getPaginationParamsFromRequest,
   applyPaginationToMongooseQuery,
@@ -19,11 +19,17 @@ import mongoose from 'mongoose';
 /**
  * Handler for creating a new location
  */
-async function createLocationHandler(request: NextRequest): Promise<NextResponse> {
+async function createLocationHandler(
+  request: NextRequest,
+  context: RouteContext
+): Promise<NextResponse> {
   return await createApiSpan('locations.create', async () => {
     try {
       // Get session (we know it exists because of authMiddleware)
       const session = await getServerSession(authOptions);
+
+      // Await context.params for consistency with other handlers
+      await context.params;
 
       // Parse request body
       const rawData = await request.json();
@@ -126,9 +132,15 @@ async function createLocationHandler(request: NextRequest): Promise<NextResponse
 /**
  * Handler for listing locations with pagination and filtering
  */
-async function listLocationsHandler(request: NextRequest): Promise<NextResponse> {
+async function listLocationsHandler(
+  request: NextRequest,
+  context: RouteContext
+): Promise<NextResponse> {
   return await createApiSpan('locations.list', async () => {
     try {
+      // Await context.params for consistency with other handlers
+      await context.params;
+
       // Connect to database
       await connectToDatabase();
 

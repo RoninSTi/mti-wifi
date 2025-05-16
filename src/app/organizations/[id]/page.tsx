@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Building } from 'lucide-react';
+import { ArrowLeft, Building, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useOrganization, useDeleteOrganization } from '@/hooks';
 import { LocationsTab } from '@/components/locations/LocationsTab';
@@ -41,11 +41,17 @@ export default function OrganizationDetailsPage() {
   if (isLoading) {
     return (
       <div className="container py-10 mx-auto">
-        <div className="flex items-center gap-2 mb-6">
-          <Button variant="outline" size="icon" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <Skeleton className="h-8 w-[250px]" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handleBack}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <Skeleton className="h-8 w-[250px]" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-[80px]" />
+            <Skeleton className="h-9 w-[120px]" />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-8">
@@ -61,11 +67,13 @@ export default function OrganizationDetailsPage() {
 
     return (
       <div className="container py-10 mx-auto">
-        <div className="flex items-center gap-2 mb-6">
-          <Button variant="outline" size="icon" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">Organization not found</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handleBack}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-2xl font-bold">Organization not found</h1>
+          </div>
         </div>
 
         <div className="bg-destructive/10 text-destructive rounded-lg p-4 mt-6">
@@ -80,13 +88,33 @@ export default function OrganizationDetailsPage() {
 
   return (
     <div className="container py-10 mx-auto">
-      <div className="flex items-center gap-2 mb-6">
-        <Button variant="outline" size="icon" onClick={handleBack}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <Building className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">{organization.name}</h1>
+          <Button variant="outline" size="icon" onClick={handleBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <Building className="h-6 w-6" />
+            <h1 className="text-2xl font-bold">{organization.name}</h1>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <EditOrganizationDialog
+            organization={organization}
+            trigger={
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            }
+          />
+          <DeleteButton
+            onDelete={handleDelete}
+            resourceName="organization"
+            isDeleting={isDeleting}
+            size="sm"
+          />
         </div>
       </div>
 
@@ -129,19 +157,6 @@ export default function OrganizationDetailsPage() {
               <p className="text-muted-foreground">{organization.address}</p>
             </div>
           )}
-
-          <div className="flex gap-2 mt-8">
-            <EditOrganizationDialog
-              organization={organization}
-              trigger={<Button variant="outline">Edit Organization</Button>}
-            />
-
-            <DeleteButton
-              onDelete={handleDelete}
-              resourceName="organization"
-              isDeleting={isDeleting}
-            />
-          </div>
         </div>
 
         {/* Locations Section */}

@@ -26,6 +26,9 @@ async function createOrganizationHandler(
       // Get session (we know it exists because of authMiddleware)
       const session = await getServerSession(authOptions);
 
+      // Await context.params for consistency with other handlers
+      await context.params;
+
       // Parse request body
       const rawData = await request.json();
 
@@ -115,6 +118,9 @@ async function listOrganizationsHandler(
 ): Promise<NextResponse> {
   return await createApiSpan('organizations.list', async () => {
     try {
+      // Await context.params for consistency with other handlers
+      await context.params;
+
       // Connect to database
       await connectToDatabase();
 

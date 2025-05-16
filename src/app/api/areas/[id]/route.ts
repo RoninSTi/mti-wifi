@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSpan, createDatabaseSpan, addSpanAttributes } from '@/telemetry/utils';
 import { connectToDatabase } from '@/lib/db/mongoose';
 import Area from '@/models/Area';
+import Location from '@/models/Location';
+import Organization from '@/models/Organization';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/auth-options';
 import {
@@ -27,9 +29,11 @@ async function updateAreaHandler(
       const session = await getServerSession(authOptions);
 
       // Validate URL parameter
+      const params = await context.params;
+      const id = params.id;
       let validatedParams: AreaParams;
       try {
-        validatedParams = areaParamsSchema.parse({ id: context.params.id });
+        validatedParams = areaParamsSchema.parse({ id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -156,9 +160,11 @@ async function getAreaHandler(request: NextRequest, context: RouteContext): Prom
   return await createApiSpan('areas.get', async () => {
     try {
       // Validate URL parameter
+      const params = await context.params;
+      const id = params.id;
       let validatedParams: AreaParams;
       try {
-        validatedParams = areaParamsSchema.parse({ id: context.params.id });
+        validatedParams = areaParamsSchema.parse({ id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -257,9 +263,11 @@ async function deleteAreaHandler(
       const session = await getServerSession(authOptions);
 
       // Validate URL parameter
+      const params = await context.params;
+      const id = params.id;
       let validatedParams: AreaParams;
       try {
-        validatedParams = areaParamsSchema.parse({ id: context.params.id });
+        validatedParams = areaParamsSchema.parse({ id });
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(

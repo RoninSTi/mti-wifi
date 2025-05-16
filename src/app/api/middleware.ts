@@ -33,7 +33,7 @@ export async function authMiddleware(_request: NextRequest): Promise<NextRespons
  */
 // Define a specific context type for all route handlers
 export interface RouteContext {
-  params: Record<string, string>;
+  params: Promise<Record<string, string>>;
 }
 
 export function applyMiddleware(
