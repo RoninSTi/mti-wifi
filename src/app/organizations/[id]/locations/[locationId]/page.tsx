@@ -108,18 +108,37 @@ export default function LocationDetailsPage() {
         </BreadcrumbItem>
       </Breadcrumb>
 
-      <div className="flex items-center gap-2 mb-6">
-        <Button variant="outline" size="icon" onClick={handleBack}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">
-          <MapPin className="h-6 w-6" />
-          <span className="text-xl font-medium">Location Details</span>
+          <Button variant="outline" size="icon" onClick={handleBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-6 w-6" />
+            <span className="text-xl font-medium">Location Details</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              router.push(`/organizations/${organizationId}/locations/${locationId}/edit`)
+            }
+          >
+            Edit Location
+          </Button>
+          <DeleteButton
+            onDelete={handleDelete}
+            resourceName="location"
+            isDeleting={isDeleting}
+            size="sm"
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-8">
-        {/* Header and action buttons */}
+        {/* Location header */}
         <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
           <div>
             <div className="flex items-center gap-2">
@@ -133,18 +152,6 @@ export default function LocationDetailsPage() {
                 {location.country && location.country !== 'USA' && `, ${location.country}`}
               </p>
             )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() =>
-                router.push(`/organizations/${organizationId}/locations/${locationId}/edit`)
-              }
-            >
-              Edit Location
-            </Button>
-
-            <DeleteButton onDelete={handleDelete} resourceName="location" isDeleting={isDeleting} />
           </div>
         </div>
 
