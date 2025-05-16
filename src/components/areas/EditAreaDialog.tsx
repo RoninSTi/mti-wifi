@@ -77,7 +77,7 @@ export function EditAreaDialog({ area, open, onOpenChange }: EditAreaDialogProps
         return;
       }
 
-      toast.success('Area updated successfully');
+      // Toast is already shown in the hook
       onOpenChange(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update area');

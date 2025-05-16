@@ -77,7 +77,7 @@ export function CreateAreaDialog({
         return;
       }
 
-      toast.success('Area created successfully');
+      // Toast is already shown in the hook
       setFormData({
         name: '',
         description: '',

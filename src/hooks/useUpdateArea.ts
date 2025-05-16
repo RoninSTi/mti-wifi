@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateArea } from '@/lib/api/areas';
 import { UpdateAreaInput, AreaResponse } from '@/app/api/areas/schemas';
 import { ApiResponse } from '@/lib/api/api-client';
+import { toast } from 'sonner';
 
 interface UpdateAreaParams {
   id: string;
@@ -40,6 +41,14 @@ export function useUpdateArea(): UseUpdateAreaResult {
           queryKey: ['areas', { locationId: response.data.location._id }],
         });
       }
+
+      // Show success toast
+      toast.success('Area updated successfully');
+    },
+    onError: error => {
+      toast.error(
+        `Failed to update area: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     },
   });
 

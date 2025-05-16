@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Server, Plus, Search, X, Loader2 } from 'lucide-react';
 import { useEquipmentList, useDeleteEquipment } from '@/hooks';
@@ -40,7 +41,7 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch equipment list with React Query hook
-  const { equipment, isLoading, isError, error, pagination, refetch } = useEquipmentList({
+  const { equipment, isLoading, isError, error, pagination } = useEquipmentList({
     areaId,
     page,
     limit,
@@ -49,9 +50,21 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
     sortOrder: 'desc',
   });
 
+  // Use router for navigation
+  const router = useRouter();
+
+  // Navigate to equipment details page
   const handleViewEquipment = (id: string) => {
-    console.log('View equipment:', id);
-    // Implement view functionality
+    // Get the organization ID from the URL
+    const pathParts = window.location.pathname.split('/');
+    const orgIndex = pathParts.findIndex(part => part === 'organizations');
+    const organizationId =
+      orgIndex >= 0 && orgIndex + 1 < pathParts.length ? pathParts[orgIndex + 1] : '';
+
+    // Navigate to equipment details page
+    if (organizationId) {
+      router.push(`/organizations/${organizationId}/equipment/${id}`);
+    }
   };
 
   // State for edit dialog

@@ -1,5 +1,4 @@
 import { ApiResponse, apiClient } from './api-client';
-import type { z } from 'zod';
 
 // Re-export the UpdateProfileInput type to avoid dependency on route file
 export interface UpdateProfileInput {

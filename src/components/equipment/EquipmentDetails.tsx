@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { EditEquipmentDialog } from './EditEquipmentDialog';
 import { Pencil, Trash, AlertTriangle, CheckCircle } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface EquipmentDetailsProps {
   equipment: EquipmentResponse | null;

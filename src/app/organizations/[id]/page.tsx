@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Building, Edit } from 'lucide-react';
+import { ArrowLeft, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useOrganization, useDeleteOrganization } from '@/hooks';

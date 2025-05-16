@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { EquipmentTable } from './EquipmentTable';
 import { CreateEquipmentDialog } from './CreateEquipmentDialog';
-import { EditEquipmentDialog } from './EditEquipmentDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useEquipmentList, useDeleteEquipment } from '@/hooks';
@@ -29,7 +28,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PaginationMeta } from '@/lib/pagination/types';
-import { Pagination } from '@/components/ui/pagination';
 
 interface EquipmentTabProps {
   areaId: string;

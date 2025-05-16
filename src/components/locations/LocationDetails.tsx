@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { X, MapPin, Calendar, Trash, Edit, Loader2, Building, Map } from 'lucide-react';
+import { X, MapPin, Calendar, Trash, Edit, Loader2, Map } from 'lucide-react';
 import { useLocation, useDeleteLocation } from '@/hooks';
 import { EditLocationDialog } from './EditLocationDialog';
 

@@ -52,13 +52,7 @@ export function OrganizationDashboard() {
   });
 
   // Initialize organization deletion hook
-  const {
-    deleteOrg,
-    isLoading: isDeleting,
-    isError: isDeleteError,
-    error: deleteError,
-    isSuccess: isDeleteSuccess,
-  } = useDeleteOrganization();
+  const { deleteOrg } = useDeleteOrganization();
 
   // Update URL with new pagination/filters
   const updateParams = (params: Record<string, string | number | null>) => {

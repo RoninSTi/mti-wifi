@@ -1,9 +1,7 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LocationResponse } from '@/app/api/locations/schemas';
 import {
   Table,
   TableBody,
@@ -12,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { MoreHorizontal, Edit, Trash, Eye, Loader2, MapPin } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash, Eye, MapPin } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -199,18 +197,16 @@ export function LocationsTable({
                         <Eye className="mr-2 h-4 w-4" />
                         View details
                       </DropdownMenuItem>
-                      <Link href={detailsUrl} passHref legacyBehavior>
-                        <DropdownMenuItem
-                          onClick={e => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            router.push(detailsUrl);
-                          }}
-                        >
-                          <MapPin className="mr-2 h-4 w-4" />
-                          Full details page
-                        </DropdownMenuItem>
-                      </Link>
+                      <DropdownMenuItem
+                        onClick={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          router.push(detailsUrl);
+                        }}
+                      >
+                        <MapPin className="mr-2 h-4 w-4" />
+                        Full details page
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={e => {
                           e.preventDefault();

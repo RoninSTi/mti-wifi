@@ -76,7 +76,7 @@ export function CreateEquipmentDialog({
         return;
       }
 
-      toast.success('Equipment created successfully');
+      // Toast is already shown in the hook
       setFormData({
         name: '',
         description: '',

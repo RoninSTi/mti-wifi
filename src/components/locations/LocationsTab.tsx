@@ -50,12 +50,7 @@ export function LocationsTab({ organizationId }: LocationsTabProps) {
   });
 
   // Initialize location deletion hook
-  const {
-    deleteLocation,
-    isLoading: isDeleting,
-    isError: isDeleteError,
-    error: deleteError,
-  } = useDeleteLocation();
+  const { deleteLocation } = useDeleteLocation();
 
   // Handle location actions
   const handleViewDetails = (id: string) => {
@@ -84,7 +79,7 @@ export function LocationsTab({ organizationId }: LocationsTabProps) {
   };
 
   // This only handles UI updates after deletion from the details panel
-  const handleDeleteFromDetails = (id: string) => {
+  const handleDeleteFromDetails = (_id: string) => {
     setSelectedLocationId(null);
   };
 

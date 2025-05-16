@@ -19,14 +19,15 @@ const updateProfileSchema = z.object({
   newPassword: z.string().min(8, 'Password must be at least 8 characters').optional(),
 });
 
-// Define type locally without exporting it
-type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+// Type for the schema - defined but not used directly
+// The schema is used for validation within the API handler
+// type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
 /**
  * GET /api/users/profile - Get the profile of the currently authenticated user
  * Returns the user data without the password
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   return await createApiSpan('users.profile.get', async () => {
     try {
       // Get the authenticated user from the session

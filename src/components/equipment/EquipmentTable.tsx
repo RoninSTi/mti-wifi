@@ -132,22 +132,27 @@ export function EquipmentTable({
         </TableHeader>
         <TableBody>
           {equipment.map(item => (
-            <TableRow key={item._id}>
+            <TableRow
+              key={item._id}
+              className="cursor-pointer hover:bg-muted/50"
+              onClick={e => {
+                // Prevent row click when clicking on the dropdown menu
+                if ((e.target as HTMLElement).closest('.dropdown-trigger')) {
+                  return;
+                }
+                onView(item._id);
+              }}
+            >
               <TableCell className="font-medium">
-                <span
-                  className="hover:underline text-primary cursor-pointer"
-                  onClick={() => onView(item._id)}
-                >
-                  {item.name}
-                </span>
+                <span className="text-primary">{item.name}</span>
               </TableCell>
               <TableCell>{item.equipmentType}</TableCell>
               <TableCell>{item.status}</TableCell>
               <TableCell>{item.manufacturer || '—'}</TableCell>
-              <TableCell>
+              <TableCell onClick={e => e.stopPropagation()}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" className="dropdown-trigger">
                       <MoreHorizontal className="h-4 w-4" />
                       <span className="sr-only">More options</span>
                     </Button>

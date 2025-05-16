@@ -39,7 +39,7 @@ export function AreasTab({ locationId, organizationId }: AreasTabProps) {
   const { area: editingArea } = useArea(editingAreaId || '');
 
   // Fetch areas with React Query hook
-  const { areas, isLoading, isError, error, pagination, refetch } = useAreas({
+  const { areas, isLoading, isError, error, pagination } = useAreas({
     page,
     limit,
     q: searchQuery || undefined,
@@ -49,12 +49,7 @@ export function AreasTab({ locationId, organizationId }: AreasTabProps) {
   });
 
   // Initialize area deletion hook
-  const {
-    deleteArea,
-    isLoading: isDeleting,
-    isError: isDeleteError,
-    error: deleteError,
-  } = useDeleteArea();
+  const { deleteArea } = useDeleteArea();
 
   // Handle area actions
   const handleViewDetails = (id: string) => {

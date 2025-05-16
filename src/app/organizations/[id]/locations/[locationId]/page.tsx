@@ -12,7 +12,6 @@ import { DeleteButton } from '@/components/ui/delete-button';
 import { SiteBreadcrumb } from '@/components/ui/site-breadcrumb';
 import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
-import Link from 'next/link';
 
 export default function LocationDetailsPage() {
   const params = useParams();

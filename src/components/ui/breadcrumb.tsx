@@ -83,8 +83,11 @@ BreadcrumbLink.displayName = 'BreadcrumbLink';
 const BreadcrumbSeparator = ({
   children,
   className,
+  isLastItem,
   ...props
-}: React.ComponentPropsWithoutRef<'span'>) => {
+}: React.ComponentPropsWithoutRef<'span'> & {
+  isLastItem?: boolean;
+}) => {
   return (
     <span className={cn('text-muted-foreground/40', className)} {...props}>
       {children || <ChevronRight className="h-4 w-4" />}

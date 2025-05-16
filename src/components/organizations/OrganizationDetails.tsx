@@ -23,7 +23,7 @@ import { EditOrganizationDialog } from './EditOrganizationDialog';
 
 interface OrganizationDetailsProps {
   organizationId: string;
-  onClose: () => void;
+  onClose?: () => void;
   onDelete: (id: string) => void;
 }
 
@@ -80,8 +80,14 @@ export function OrganizationDetails({
 
     return (
       <Card>
-        <CardHeader>
+        <CardHeader className="flex justify-between items-start">
           <CardTitle>Error</CardTitle>
+          {onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <p className="text-destructive">{errorMessage}</p>
@@ -92,11 +98,17 @@ export function OrganizationDetails({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex justify-between items-start">
         <div className="flex items-center gap-2">
           <Building className="h-6 w-6" />
           <CardTitle>{organization.name}</CardTitle>
         </div>
+        {onClose && (
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-6">
         {organization.description && (

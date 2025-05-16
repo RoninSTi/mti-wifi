@@ -1,11 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateOrganization } from '@/lib/api/organizations';
-import {
-  UpdateOrganizationInput,
-  OrganizationResponse,
-  updateOrganizationSchema,
-} from '@/app/api/organizations/schemas';
-import { ApiResponse } from '@/lib/api/api-client';
+import { UpdateOrganizationInput, updateOrganizationSchema } from '@/app/api/organizations/schemas';
 import { z } from 'zod';
 
 export interface UseUpdateOrganizationResult {

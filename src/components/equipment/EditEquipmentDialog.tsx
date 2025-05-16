@@ -177,7 +177,7 @@ export function EditEquipmentDialog({
         return;
       }
 
-      toast.success('Equipment updated successfully');
+      // Toast is already shown in the hook
       setOpen(false);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update equipment';
@@ -199,6 +199,9 @@ export function EditEquipmentDialog({
           </DialogTrigger>
         )}
         <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle className="sr-only">Edit Equipment</DialogTitle>
+          </DialogHeader>
           <div className="flex justify-center items-center p-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <span className="ml-2">Loading equipment data...</span>

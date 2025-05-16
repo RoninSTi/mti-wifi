@@ -1,44 +1,46 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { useEquipment, useDeleteEquipment } from '@/hooks';
 import { toast } from 'sonner';
-import { EquipmentDetails } from '@/components/equipment/EquipmentDetails';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+// import { EquipmentDetails } from '@/components/equipment/EquipmentDetails';
+import { SensorsTable } from '@/components/sensors/SensorsTable';
+import { DeleteButton } from '@/components/ui/delete-button';
+import { SiteBreadcrumb, BreadcrumbItem } from '@/components/ui/site-breadcrumb';
+import { Card } from '@/components/ui/card';
+import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
+import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface EquipmentDetailsPageProps {
-  params: {
-    id: string;
-    equipmentId: string;
-  };
-}
-
-export default function EquipmentDetailsPage({ params }: EquipmentDetailsPageProps) {
-  const { id: organizationId, equipmentId } = params;
+export default function EquipmentDetailsPage() {
+  const params = useParams();
   const router = useRouter();
-  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
+
+  // Type-safe parameter extraction with proper type narrowing
+  const id = params?.id;
+  const equipmentId = params?.equipmentId;
+
+  if (!id || Array.isArray(id) || !equipmentId || Array.isArray(equipmentId)) {
+    throw new Error('Missing or invalid route parameters');
+  }
+
+  const organizationId = id; // Now TypeScript knows these are strings
 
   // Fetch equipment details
-  const { equipment, isLoading, isError, error, refetch } = useEquipment(equipmentId);
+  const { equipment, isLoading, isError, error } = useEquipment(equipmentId);
   const { deleteEquipment, isLoading: isDeleting } = useDeleteEquipment();
+
+  // Handle back navigation - currently unused but keep for future use
+  const _handleBack = () => {
+    if (equipment?.area?._id) {
+      router.push(`/organizations/${organizationId}/areas/${equipment.area._id}`);
+    } else {
+      router.push(`/organizations/${organizationId}`);
+    }
+  };
 
   // Handle equipment deletion
   const handleDelete = async () => {
@@ -50,7 +52,7 @@ export default function EquipmentDetailsPage({ params }: EquipmentDetailsPagePro
         toast.success('Equipment deleted successfully');
         // Navigate back to area page
         if (equipment?.area?._id) {
-          router.push(`/organizations/${organizationId}/locations/${equipment.area._id}`);
+          router.push(`/organizations/${organizationId}/areas/${equipment.area._id}`);
         } else {
           router.push(`/organizations/${organizationId}`);
         }
@@ -59,109 +61,209 @@ export default function EquipmentDetailsPage({ params }: EquipmentDetailsPagePro
       toast.error(
         error instanceof Error ? error.message : 'An error occurred while deleting equipment'
       );
-    } finally {
-      setIsAlertDialogOpen(false);
     }
   };
 
-  // If no equipment data yet, show loading state
+  // Format date helper
+  const formatDate = (dateString?: string | Date): string => {
+    if (!dateString) return 'Not specified';
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  // Loading state
   if (isLoading) {
     return (
-      <div className="container py-8 max-w-7xl mx-auto">
-        <div className="flex justify-center items-center min-h-[200px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading equipment details...</span>
+      <div className="container py-10 mx-auto">
+        <div className="flex items-center gap-2 mb-6">
+          <Skeleton className="h-8 w-[250px]" />
+        </div>
+
+        <div className="grid grid-cols-1 gap-8">
+          <Skeleton className="h-[500px] w-full" />
         </div>
       </div>
     );
   }
 
-  // If error or no equipment found, show error state
+  // Error state
   if (isError || !equipment) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to load equipment details';
+
     return (
-      <div className="container py-8 max-w-7xl mx-auto">
-        <div className="rounded-lg border p-8 text-center">
-          <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-          <h2 className="text-lg font-medium">Error loading equipment</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {error instanceof Error ? error.message : 'The requested equipment could not be found'}
-          </p>
-          <Button variant="outline" className="mt-4" onClick={() => router.back()}>
-            Go Back
+      <div className="container py-10 mx-auto">
+        <div className="flex items-center gap-2 mb-6">
+          <h1 className="text-2xl font-bold">Equipment not found</h1>
+        </div>
+
+        <div className="bg-destructive/10 text-destructive rounded-lg p-4 mt-6">
+          <p>{errorMessage}</p>
+          <Button className="mt-4" onClick={() => router.back()}>
+            Return to Organization
           </Button>
         </div>
       </div>
     );
   }
 
+  // Build breadcrumb items based on available data
+  const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Organizations', href: '/organizations' }];
+
+  if (equipment.area?.organization) {
+    breadcrumbItems.push({
+      label: equipment.area.organization.name,
+      href: `/organizations/${organizationId}`,
+    });
+  }
+
+  if (equipment.area) {
+    breadcrumbItems.push({
+      label: equipment.area.name,
+      href: `/organizations/${organizationId}/areas/${equipment.area._id}`,
+    });
+  }
+
+  breadcrumbItems.push({
+    label: equipment.name,
+    isCurrentPage: true,
+  });
+
   return (
-    <div className="container py-6 max-w-7xl mx-auto">
-      {/* Breadcrumb navigation */}
-      <Breadcrumb className="mb-6">
-        <BreadcrumbItem>
-          <BreadcrumbLink href="/organizations">Organizations</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        {equipment.area && (
-          <>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={`/organizations/${organizationId}`}>
-                {equipment.area?.organization?.name || 'Organization'}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink
-                href={`/organizations/${organizationId}/locations/${equipment.area._id}`}
-              >
-                {equipment.area.name}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-          </>
-        )}
-        <BreadcrumbItem>{equipment.name}</BreadcrumbItem>
-      </Breadcrumb>
+    <div className="container py-10 mx-auto">
+      {/* Breadcrumb Navigation */}
+      <SiteBreadcrumb className="mb-6" items={breadcrumbItems} />
 
-      {/* Back button */}
-      <Button variant="outline" size="sm" className="mb-6" onClick={() => router.back()}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
-      </Button>
+      {/* Header with title and actions */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+        <div className="flex items-center gap-2">
+          <Settings className="h-6 w-6" />
+          <span className="text-xl font-medium">Equipment Details</span>
+        </div>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <EditEquipmentDialog
+            equipmentId={equipmentId}
+            trigger={
+              <Button variant="outline" size="sm">
+                Edit Equipment
+              </Button>
+            }
+          />
+          <DeleteButton
+            onDelete={handleDelete}
+            resourceName="equipment"
+            isDeleting={isDeleting}
+            size="sm"
+          />
+        </div>
+      </div>
 
-      {/* Equipment details */}
-      <EquipmentDetails
-        equipment={equipment}
-        isLoading={isLoading}
-        isError={isError}
-        error={error}
-        onDelete={() => setIsAlertDialogOpen(true)}
-        onRefresh={refetch}
+      {/* Equipment header */}
+      <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center mb-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">{equipment.name}</h1>
+          </div>
+          <p className="text-muted-foreground mt-1">
+            {equipment.equipmentType}
+            {equipment.manufacturer && ` • ${equipment.manufacturer}`}
+          </p>
+        </div>
+      </div>
+
+      {/* Equipment Metadata */}
+      <EntityMeta
+        className="mb-6"
+        items={[
+          {
+            label: 'Status',
+            value: equipment.status.charAt(0).toUpperCase() + equipment.status.slice(1),
+          },
+          {
+            label: 'Manufacturer',
+            value: equipment.manufacturer || 'Not specified',
+          },
+          {
+            label: 'Model Number',
+            value: equipment.modelNumber || 'Not specified',
+          },
+          {
+            label: 'Serial Number',
+            value: equipment.serialNumber || 'Not specified',
+          },
+          {
+            label: 'Criticality',
+            value: equipment.criticalityLevel
+              ? equipment.criticalityLevel.charAt(0).toUpperCase() +
+                equipment.criticalityLevel.slice(1)
+              : 'Medium',
+          },
+          {
+            label: 'Installation Date',
+            value: formatDate(equipment.installationDate),
+          },
+        ]}
       />
 
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this equipment and any
-              associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={isDeleting}
+      {/* Description */}
+      {equipment.description && <EntityDescription>{equipment.description}</EntityDescription>}
+
+      {/* Notes */}
+      {equipment.notes && (
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-2">Notes</h3>
+          <div className="p-4 rounded-lg border bg-card">
+            <p>{equipment.notes}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Maintenance Information */}
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold mb-2">Maintenance Information</h3>
+        <div className="p-4 rounded-lg border bg-card grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <span className="font-medium">Last Maintenance:</span>
+            <p className="text-muted-foreground">
+              {equipment.lastMaintenanceDate
+                ? formatDate(equipment.lastMaintenanceDate)
+                : 'Not specified'}
+            </p>
+          </div>
+          <div>
+            <span className="font-medium">Next Maintenance:</span>
+            <p className="text-muted-foreground">
+              {equipment.nextMaintenanceDate
+                ? formatDate(equipment.nextMaintenanceDate)
+                : 'Not scheduled'}
+            </p>
+          </div>
+          <div>
+            <span className="font-medium">Maintenance Interval:</span>
+            <p className="text-muted-foreground">
+              {equipment.maintenanceInterval
+                ? `${equipment.maintenanceInterval} days`
+                : 'Not specified'}
+            </p>
+          </div>
+          <div>
+            <span className="font-medium">Maintenance Status:</span>
+            <p
+              className={`${equipment.maintenanceDue ? 'text-orange-500' : 'text-muted-foreground'}`}
             >
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete Equipment
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              {equipment.maintenanceDue ? 'Maintenance Due' : 'Up to date'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Sensors Section */}
+      <div className="grid grid-cols-1 gap-8 mt-8">
+        <Card className="overflow-hidden">
+          <div className="p-6">
+            <SensorsTable equipmentId={equipmentId} />
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
