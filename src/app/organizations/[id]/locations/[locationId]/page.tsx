@@ -9,20 +9,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { AreasTab } from '@/components/areas/AreasTab';
 import { DeleteButton } from '@/components/ui/delete-button';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
+import { SiteBreadcrumb } from '@/components/ui/site-breadcrumb';
 import { Card } from '@/components/ui/card';
 import Link from 'next/link';
 
 export default function LocationDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const organizationId = params?.id as string;
-  const locationId = params?.locationId as string;
+  // Type-safe parameter extraction with proper type narrowing
+  const id = params?.id;
+  const locationId = params?.locationId;
+
+  if (!id || Array.isArray(id) || !locationId || Array.isArray(locationId)) {
+    throw new Error('Missing or invalid route parameters');
+  }
+
+  const organizationId = id; // Now TypeScript knows these are strings
 
   // Use the custom hooks to fetch location data and handle deletion
   const { location, isLoading, isError, error } = useLocation(locationId);
@@ -90,23 +92,14 @@ export default function LocationDetailsPage() {
   return (
     <div className="container py-10 mx-auto">
       {/* Breadcrumb Navigation */}
-      <Breadcrumb className="mb-6">
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href="/organizations">Organizations</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href={`/organizations/${organizationId}`}>{location.organization.name}</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink className="font-semibold">{location.name}</BreadcrumbLink>
-        </BreadcrumbItem>
-      </Breadcrumb>
+      <SiteBreadcrumb
+        className="mb-6"
+        items={[
+          { label: 'Organizations', href: '/organizations' },
+          { label: location.organization.name, href: `/organizations/${organizationId}` },
+          { label: location.name, isCurrentPage: true },
+        ]}
+      />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">

@@ -8,12 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useArea, useDeleteArea } from '@/hooks';
 import { toast } from 'sonner';
 import { EquipmentTab } from '@/components/areas/EquipmentTab';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
+import { SiteBreadcrumb } from '@/components/ui/site-breadcrumb';
 import { DeleteButton } from '@/components/ui/delete-button';
 import { Card } from '@/components/ui/card';
 import {
@@ -134,24 +129,21 @@ export default function AreaDetailsPage() {
   return (
     <div className="container py-10 mx-auto">
       {/* Breadcrumb navigation */}
-      <Breadcrumb className="mb-6">
-        <BreadcrumbItem>
-          <BreadcrumbLink href="/organizations">Organizations</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbItem>
-          <BreadcrumbLink href={`/organizations/${organizationId}`}>
-            {area.location?.organization?.name || organizationId}
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbItem>
-          <BreadcrumbLink href={`/organizations/${organizationId}/locations/${locationId}`}>
-            {area.location?.name || locationId}
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbItem>
-          <BreadcrumbLink className="font-semibold">{area.name}</BreadcrumbLink>
-        </BreadcrumbItem>
-      </Breadcrumb>
+      <SiteBreadcrumb
+        className="mb-6"
+        items={[
+          { label: 'Organizations', href: '/organizations' },
+          {
+            label: area.location?.organization?.name || organizationId,
+            href: `/organizations/${organizationId}`,
+          },
+          {
+            label: area.location?.name || locationId,
+            href: `/organizations/${organizationId}/locations/${locationId}`,
+          },
+          { label: area.name, isCurrentPage: true },
+        ]}
+      />
 
       {/* Header with back button, title and actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
