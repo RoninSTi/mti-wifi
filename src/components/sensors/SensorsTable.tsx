@@ -10,8 +10,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, Wifi, WifiOff, MoreHorizontal } from 'lucide-react';
+import { PlusCircle, Wifi, WifiOff, MoreHorizontal, Search, X } from 'lucide-react';
 import { CreateSensorDialog } from './CreateSensorDialog';
 import { EditSensorDialog } from './EditSensorDialog';
 import { SensorDetails } from './SensorDetails';
@@ -25,20 +26,38 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { CustomPagination } from '@/components/ui/custom-pagination';
+// Import the specific schema for proper typing
+import { SensorResponse } from '@/app/api/sensors/schemas';
 
 interface SensorsTableProps {
   equipmentId: string;
 }
 
 export function SensorsTable({ equipmentId }: SensorsTableProps) {
-  const { sensors, isLoading, refetch } = useSensors(equipmentId, { limit: 20 });
-  const { mutate: deleteSensor } = useDeleteSensor();
+  // Pagination and search state
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Dialog state
   const [selectedSensor, setSelectedSensor] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  // Dialog state is managed by the DeleteButton component
 
-  // Helper function for status badge
-  const getStatusBadge = (status: string) => {
+  // Fetch sensors with pagination and search
+  const { sensors, isLoading, refetch, pagination, isError } = useSensors(equipmentId, {
+    page,
+    limit,
+    q: searchQuery || undefined,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  });
+
+  const { mutate: deleteSensor } = useDeleteSensor();
+
+  // Helper function for status badge using the correct type from SensorResponse
+  const getStatusBadge = (status: SensorResponse['status']) => {
     switch (status) {
       case 'active':
         return <Badge className="bg-green-500 hover:bg-green-600">Active</Badge>;
@@ -66,6 +85,25 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
     });
   };
 
+  // Handle search form submission
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchQuery(searchInput);
+    setPage(1); // Reset to first page when searching
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchInput('');
+    setSearchQuery('');
+    setPage(1); // Reset to first page when clearing search
+  };
+
+  // Handle pagination
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -79,6 +117,35 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
             </Button>
           }
         />
+      </div>
+
+      {/* Search */}
+      <div className="flex items-center space-x-2">
+        <form onSubmit={handleSearch} className="flex-1 flex space-x-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search sensors..."
+              className="pl-8 [&::-webkit-search-cancel-button]:hidden [&::-ms-clear]:hidden"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+            />
+            {searchInput && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-9 w-9 p-0"
+                onClick={clearSearch}
+                type="button"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Clear</span>
+              </Button>
+            )}
+          </div>
+          <Button type="submit">Search</Button>
+        </form>
       </div>
 
       <div className="rounded-lg border">
@@ -113,6 +180,17 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
                   </TableCell>
                 </TableRow>
               ))
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  <div className="flex flex-col items-center justify-center space-y-3">
+                    <p className="text-destructive">Error loading sensors</p>
+                    <Button variant="outline" size="sm" onClick={() => refetch()}>
+                      Try again
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
             ) : sensors && sensors.length > 0 ? (
               sensors.map(sensor => (
                 <TableRow key={sensor._id}>
@@ -176,10 +254,23 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8">
                   <div className="flex flex-col items-center justify-center space-y-3">
-                    <p className="text-muted-foreground text-sm">No sensors found</p>
-                    <p className="text-xs text-muted-foreground">
-                      Add sensors to start monitoring this equipment
-                    </p>
+                    {searchQuery ? (
+                      <>
+                        <p className="text-muted-foreground text-sm">
+                          No sensors match your search
+                        </p>
+                        <Button variant="ghost" size="sm" onClick={clearSearch}>
+                          Clear search
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-muted-foreground text-sm">No sensors found</p>
+                        <p className="text-xs text-muted-foreground">
+                          Add sensors to start monitoring this equipment
+                        </p>
+                      </>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -187,6 +278,45 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 0 && (
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {isLoading ? (
+              <div className="h-5 w-[160px] bg-muted animate-pulse rounded"></div>
+            ) : (
+              <>
+                Showing {sensors.length} of {pagination.totalItems} sensors
+              </>
+            )}
+          </div>
+
+          <CustomPagination
+            currentPage={page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
+
+          {/* Items per page selector */}
+          <div className="flex items-center gap-2">
+            <select
+              className="text-sm h-8 rounded-md border border-input bg-background px-2"
+              value={limit}
+              onChange={e => {
+                setLimit(Number(e.target.value));
+                setPage(1); // Reset to first page when changing limit
+              }}
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+            <span className="text-sm text-muted-foreground">per page</span>
+          </div>
+        </div>
+      )}
 
       {/* Sensor Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
@@ -205,8 +335,6 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* We're handling delete via the dropdown menu directly */}
     </div>
   );
 }

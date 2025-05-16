@@ -11,7 +11,7 @@ export function useDeleteSensor() {
       toast.success('Sensor deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['sensors'] });
     },
-    onError: error => {
+    onError: (error: Error) => {
       toast.error(`Failed to delete sensor: ${error.message}`);
     },
   });

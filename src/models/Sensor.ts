@@ -69,9 +69,7 @@ const SensorSchema: Schema = new Schema(
     serial: {
       type: Number,
       required: false,
-      unique: false, // Only make it unique if it's provided
-      sparse: true, // Index only non-null values
-      index: true,
+      index: false, // No index, no uniqueness constraints
     },
     partNumber: {
       type: String,
@@ -139,8 +137,8 @@ const SensorSchema: Schema = new Schema(
   }
 );
 
-// Compound index for uniqueness within equipment
-SensorSchema.index({ name: 1, equipment: 1 }, { unique: true });
+// Only index equipment for lookup by equipment ID
+SensorSchema.index({ equipment: 1 });
 
 // Method to update sensor data from CTC API
 SensorSchema.methods.updateFromCTCData = function (ctcData: ICTCSensorData) {
