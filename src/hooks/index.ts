@@ -34,3 +34,7 @@ export * from './useCreateEquipment';
 export * from './useUpdateEquipment';
 export * from './useDeleteEquipment';
 export * from './useEquipmentQueries';
+
+// Sensor hooks
+export * from './useSensors';
+export * from './useCreateSensor';

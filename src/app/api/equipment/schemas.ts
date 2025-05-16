@@ -70,6 +70,14 @@ export const areaReferenceSchema = z.object({
   organization: organizationReferenceSchema.optional(),
 });
 
+// Equipment reference schema for responses (used by sensors)
+export const equipmentReferenceSchema = z.object({
+  _id: z.string(),
+  name: z.string(),
+  area: areaReferenceSchema.optional(),
+  equipmentType: z.string().optional(),
+});
+
 // Response schema and type
 export const equipmentResponseSchema = z.object({
   _id: z.string(),

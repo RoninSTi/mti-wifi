@@ -315,4 +315,38 @@ export const apiClient = {
       };
     }
   },
+
+  /**
+   * Make a PATCH request
+   * @param url API endpoint URL
+   * @param data Request body data
+   * @param options Additional request options
+   * @returns Typed API response
+   */
+  async patch<T, D = unknown>(
+    url: string,
+    data: D,
+    options?: RequestOptions
+  ): Promise<ApiResponse<T>> {
+    try {
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        body: JSON.stringify(data),
+      });
+
+      return handleResponse<T>(response);
+    } catch (error) {
+      return {
+        error: {
+          error: 'Request Failed',
+          message: error instanceof Error ? error.message : 'Network request failed',
+          status: 0,
+        },
+      };
+    }
+  },
 };
