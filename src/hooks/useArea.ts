@@ -8,6 +8,7 @@ interface UseAreaResult {
   isLoading: boolean;
   isError: boolean;
   error: unknown;
+  refetch: () => Promise<unknown>;
 }
 
 /**
@@ -18,11 +19,12 @@ interface UseAreaResult {
 export function useArea(id: string): UseAreaResult {
   const shouldFetch = id && id.length > 0;
 
-  const { data, isLoading, isError, error } = useQuery<ApiResponse<AreaResponse>, Error>({
+  const { data, isLoading, isError, error, refetch } = useQuery<ApiResponse<AreaResponse>, Error>({
     queryKey: ['area', id],
     queryFn: () => getArea(id),
     enabled: !!shouldFetch,
     staleTime: 60 * 1000, // 1 minute
+    refetchOnWindowFocus: true, // Refetch when window gains focus
   });
 
   // Get the area from data
@@ -33,5 +35,6 @@ export function useArea(id: string): UseAreaResult {
     isLoading: !!shouldFetch && isLoading,
     isError,
     error,
+    refetch,
   };
 }

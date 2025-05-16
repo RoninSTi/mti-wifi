@@ -57,7 +57,7 @@ export default function AreaDetailsPage() {
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
 
   // Fetch area details
-  const { area, isLoading, isError, error } = useArea(areaId);
+  const { area, isLoading, isError, error, refetch } = useArea(areaId);
   const { deleteArea, isLoading: isDeleting } = useDeleteArea();
 
   // Handle area deletion
@@ -138,19 +138,16 @@ export default function AreaDetailsPage() {
         <BreadcrumbItem>
           <BreadcrumbLink href="/organizations">Organizations</BreadcrumbLink>
         </BreadcrumbItem>
-        <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink href={`/organizations/${organizationId}`}>
             {area.location?.organization?.name || organizationId}
           </BreadcrumbLink>
         </BreadcrumbItem>
-        <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink href={`/organizations/${organizationId}/locations/${locationId}`}>
             {area.location?.name || locationId}
           </BreadcrumbLink>
         </BreadcrumbItem>
-        <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink className="font-semibold">{area.name}</BreadcrumbLink>
         </BreadcrumbItem>
@@ -222,43 +219,24 @@ export default function AreaDetailsPage() {
         <Card className="overflow-hidden">
           <div className="p-6">
             <h2 className="text-xl font-semibold mb-4">Area Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                  Basic Information
-                </h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <span className="text-sm font-medium">Name:</span>
-                  <span className="text-sm">{area.name}</span>
-                  <span className="text-sm font-medium">Area Type:</span>
-                  <span className="text-sm">
-                    {area.areaType
-                      ? area.areaType.charAt(0).toUpperCase() + area.areaType.slice(1)
-                      : 'Not specified'}
-                  </span>
-                  <span className="text-sm font-medium">Building Section:</span>
-                  <span className="text-sm">{area.buildingSection || 'Not specified'}</span>
-                  <span className="text-sm font-medium">Floor Level:</span>
-                  <span className="text-sm">
-                    {area.floorLevel !== undefined ? area.floorLevel : 'Not specified'}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                  Location Information
-                </h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <span className="text-sm font-medium">Location:</span>
-                  <span className="text-sm">{area.location?.name || 'Not specified'}</span>
-                  <span className="text-sm font-medium">Organization:</span>
-                  <span className="text-sm">
-                    {area.location?.organization?.name || 'Not specified'}
-                  </span>
-                  <span className="text-sm font-medium">Address:</span>
-                  <span className="text-sm">{area.location?.address || 'Not specified'}</span>
-                </div>
-              </div>
+            <div className="grid grid-cols-4 gap-y-2">
+              <span className="text-sm font-medium">Name:</span>
+              <span className="text-sm col-span-3">{area.name}</span>
+
+              <span className="text-sm font-medium">Area Type:</span>
+              <span className="text-sm col-span-3">
+                {area.areaType
+                  ? area.areaType.charAt(0).toUpperCase() + area.areaType.slice(1)
+                  : 'Not specified'}
+              </span>
+
+              <span className="text-sm font-medium">Building Section:</span>
+              <span className="text-sm col-span-3">{area.buildingSection || 'Not specified'}</span>
+
+              <span className="text-sm font-medium">Floor Level:</span>
+              <span className="text-sm col-span-3">
+                {area.floorLevel !== undefined ? area.floorLevel : 'Not specified'}
+              </span>
             </div>
           </div>
         </Card>
