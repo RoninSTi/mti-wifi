@@ -279,7 +279,7 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
         </Table>
       </div>
 
-      {/* Pagination */}
+      {/* Results count display */}
       {pagination && pagination.totalPages > 0 && (
         <div className="mt-4 flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
@@ -291,12 +291,6 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
               </>
             )}
           </div>
-
-          <CustomPagination
-            currentPage={page}
-            totalPages={pagination.totalPages}
-            onPageChange={handlePageChange}
-          />
 
           {/* Items per page selector */}
           <div className="flex items-center gap-2">
@@ -315,6 +309,17 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
             </select>
             <span className="text-sm text-muted-foreground">per page</span>
           </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex justify-center mt-4">
+          <CustomPagination
+            currentPage={page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         </div>
       )}
 
