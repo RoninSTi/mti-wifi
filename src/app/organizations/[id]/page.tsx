@@ -53,9 +53,6 @@ export default function OrganizationDetailsPage() {
       <div className="container py-10 mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={handleBack}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
             <Skeleton className="h-8 w-[250px]" />
           </div>
           <div className="flex gap-2">
