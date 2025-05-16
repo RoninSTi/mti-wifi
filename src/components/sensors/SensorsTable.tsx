@@ -90,7 +90,7 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
               sensors.map(sensor => (
                 <TableRow key={sensor._id}>
                   <TableCell className="font-medium">{sensor.name}</TableCell>
-                  <TableCell>{sensor.serial}</TableCell>
+                  <TableCell>{sensor.serial || 'N/A'}</TableCell>
                   <TableCell>{getStatusBadge(sensor.status)}</TableCell>
                   <TableCell>
                     <div className="flex items-center">

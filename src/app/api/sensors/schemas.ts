@@ -6,8 +6,9 @@ const sensorBaseSchema = {
   name: z.string().min(1, 'Sensor name is required').max(100, 'Name cannot exceed 100 characters'),
   description: z.string().max(1000, 'Description cannot exceed 1000 characters').optional(),
   equipment: z.string().min(1, 'Equipment ID is required'),
-  serial: z.number().int().positive('Serial number must be a positive integer'),
-  partNumber: z.string().min(1, 'Part number is required'),
+  // Make serial and partNumber optional
+  serial: z.number().int().positive('Serial number must be a positive integer').optional(),
+  partNumber: z.string().min(1, 'Part number is required').optional(),
   hardwareVersion: z.string().optional(),
   firmwareVersion: z.string().optional(),
   position: z
@@ -18,6 +19,7 @@ const sensorBaseSchema = {
     })
     .optional(),
   accessPoint: z.number().int().optional(),
+  // System-managed fields with defaults
   connected: z.boolean().default(false),
   lastConnectedAt: z.string().or(z.date()).optional(),
   readRate: z.number().optional(),
@@ -68,8 +70,8 @@ export const sensorResponseSchema = z.object({
   name: sensorBaseSchema.name,
   description: sensorBaseSchema.description,
   equipment: equipmentReferenceSchema,
-  serial: z.number(),
-  partNumber: z.string(),
+  serial: z.number().optional(),
+  partNumber: z.string().optional(),
   hardwareVersion: z.string().optional(),
   firmwareVersion: z.string().optional(),
   position: sensorBaseSchema.position,

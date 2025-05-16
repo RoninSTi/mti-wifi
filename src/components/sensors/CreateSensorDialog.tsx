@@ -58,32 +58,25 @@ export function CreateSensorDialog({
     }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleConnectedChange = (value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      connected: value === 'true',
-    }));
-  };
+  // Remove unused handlers
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (formData.serial <= 0) {
+    // Only validate serial if provided
+    if (formData.serial && formData.serial <= 0) {
       toast.error('Serial number must be a positive number');
       return;
     }
 
     try {
+      // Add default values for required fields in the database
       const result = await createSensor({
         ...formData,
         equipment: equipmentId,
+        // Add defaults for required DB fields that shouldn't be user-editable
+        status: 'inactive',
+        connected: false,
       });
 
       if (result.error) {
@@ -137,7 +130,7 @@ export function CreateSensorDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="serial">Serial Number*</Label>
+              <Label htmlFor="serial">Serial Number (optional)</Label>
               <Input
                 id="serial"
                 name="serial"
@@ -145,54 +138,17 @@ export function CreateSensorDialog({
                 placeholder="Enter serial number"
                 value={formData.serial === 0 ? '' : formData.serial}
                 onChange={handleChange}
-                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="partNumber">Part Number*</Label>
+              <Label htmlFor="partNumber">Part Number (optional)</Label>
               <Input
                 id="partNumber"
                 name="partNumber"
                 placeholder="Enter part number"
                 value={formData.partNumber}
                 onChange={handleChange}
-                required
               />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="status">Status*</Label>
-              <Select
-                value={formData.status}
-                onValueChange={value => handleSelectChange('status', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="warning">Warning</SelectItem>
-                  <SelectItem value="error">Error</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="connected">Connected*</Label>
-              <Select
-                value={formData.connected ? 'true' : 'false'}
-                onValueChange={handleConnectedChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select connection status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">Connected</SelectItem>
-                  <SelectItem value="false">Disconnected</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
 
