@@ -7,8 +7,13 @@ const sensorBaseSchema = {
   description: z.string().max(1000, 'Description cannot exceed 1000 characters').optional(),
   equipment: z.string().min(1, 'Equipment ID is required'),
   // Make serial and partNumber optional
-  serial: z.number().int().positive('Serial number must be a positive integer').optional(),
-  partNumber: z.string().min(1, 'Part number is required').optional(),
+  serial: z
+    .number()
+    .int()
+    .positive('Serial number must be a positive integer')
+    .optional()
+    .nullable(),
+  partNumber: z.string().optional(),
   hardwareVersion: z.string().optional(),
   firmwareVersion: z.string().optional(),
   position: z
@@ -39,8 +44,8 @@ export const updateSensorSchema = z
   .object({
     name: sensorBaseSchema.name.optional(),
     description: sensorBaseSchema.description,
-    serial: z.number().int().positive().optional(),
-    partNumber: z.string().optional(),
+    serial: z.number().int().positive().optional().nullable(),
+    partNumber: z.string().optional().nullable(),
     hardwareVersion: sensorBaseSchema.hardwareVersion,
     firmwareVersion: sensorBaseSchema.firmwareVersion,
     position: sensorBaseSchema.position,
@@ -70,8 +75,8 @@ export const sensorResponseSchema = z.object({
   name: sensorBaseSchema.name,
   description: sensorBaseSchema.description,
   equipment: equipmentReferenceSchema,
-  serial: z.number().optional(),
-  partNumber: z.string().optional(),
+  serial: z.number().optional().nullable(),
+  partNumber: z.string().optional().nullable(),
   hardwareVersion: z.string().optional(),
   firmwareVersion: z.string().optional(),
   position: sensorBaseSchema.position,

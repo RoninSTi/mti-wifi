@@ -39,7 +39,7 @@ export function CreateSensorDialog({
   const [formData, setFormData] = useState<Omit<CreateSensorInput, 'equipment'>>({
     name: '',
     description: '',
-    serial: 0,
+    serial: null,
     partNumber: '',
     status: 'inactive',
     connected: false,
@@ -51,10 +51,22 @@ export function CreateSensorDialog({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    const newValue = name === 'serial' ? parseInt(value, 10) || 0 : value;
+
+    // For serial number field, handle empty values correctly
+    if (name === 'serial') {
+      // If empty or invalid, set to null
+      const serialValue = value === '' ? null : parseInt(value, 10) || null;
+      setFormData(prev => ({
+        ...prev,
+        [name]: serialValue,
+      }));
+      return;
+    }
+
+    // For all other fields
     setFormData(prev => ({
       ...prev,
-      [name]: newValue,
+      [name]: value,
     }));
   };
 
@@ -63,8 +75,9 @@ export function CreateSensorDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Only validate serial if provided
-    if (formData.serial && formData.serial <= 0) {
+    // Only validate serial if provided and not null
+    const { serial } = formData;
+    if (serial !== null && serial !== undefined && serial <= 0) {
       toast.error('Serial number must be a positive number');
       return;
     }
@@ -88,7 +101,7 @@ export function CreateSensorDialog({
       setFormData({
         name: '',
         description: '',
-        serial: 0,
+        serial: null,
         partNumber: '',
         status: 'inactive',
         connected: false,
@@ -136,7 +149,7 @@ export function CreateSensorDialog({
                 name="serial"
                 type="number"
                 placeholder="Enter serial number"
-                value={formData.serial === 0 ? '' : formData.serial}
+                value={formData.serial === null ? '' : formData.serial}
                 onChange={handleChange}
               />
             </div>
