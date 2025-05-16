@@ -43,7 +43,15 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Sensors</h3>
-        <CreateSensorDialog equipmentId={equipmentId} />
+        <CreateSensorDialog
+          equipmentId={equipmentId}
+          trigger={
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Sensor
+            </Button>
+          }
+        />
       </div>
 
       <div className="rounded-lg border">
