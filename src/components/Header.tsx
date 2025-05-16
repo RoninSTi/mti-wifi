@@ -6,10 +6,7 @@ import { cn } from '@/lib/utils';
 import { ModeToggle } from './ui/mode-toggle';
 
 export default function Header() {
-  const navItems = [
-    { href: '/', label: 'Home' },
-    { href: '/organizations', label: 'Organizations' },
-  ];
+  const navItems = [{ href: '/organizations', label: 'Organizations' }];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
