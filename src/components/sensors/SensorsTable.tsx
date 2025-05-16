@@ -26,7 +26,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { CustomPagination } from '@/components/ui/custom-pagination';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 // Import the specific schema for proper typing
 import { SensorResponse } from '@/app/api/sensors/schemas';
 
@@ -279,7 +286,7 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
         </Table>
       </div>
 
-      {/* Results count display */}
+      {/* Pagination */}
       {pagination && pagination.totalPages > 0 && (
         <div className="mt-4 flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
@@ -291,6 +298,69 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
               </>
             )}
           </div>
+
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={e => {
+                    e.preventDefault();
+                    if (pagination.hasPreviousPage) {
+                      handlePageChange(page - 1);
+                    }
+                  }}
+                  className={!pagination.hasPreviousPage ? 'pointer-events-none opacity-50' : ''}
+                />
+              </PaginationItem>
+
+              {/* Page numbers */}
+              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                .filter(p => {
+                  // Show current page, first, last, and adjacent pages
+                  return p === 1 || p === pagination.totalPages || Math.abs(p - page) <= 1;
+                })
+                .map((p, i, arr) => {
+                  // Add ellipsis when there are gaps
+                  const showEllipsisBefore = i > 0 && arr[i - 1] !== p - 1;
+
+                  return (
+                    <React.Fragment key={p}>
+                      {showEllipsisBefore && (
+                        <PaginationItem>
+                          <span className="flex h-9 w-9 items-center justify-center">...</span>
+                        </PaginationItem>
+                      )}
+                      <PaginationItem>
+                        <PaginationLink
+                          href="#"
+                          onClick={e => {
+                            e.preventDefault();
+                            handlePageChange(p);
+                          }}
+                          isActive={page === p}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    </React.Fragment>
+                  );
+                })}
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={e => {
+                    e.preventDefault();
+                    if (pagination.hasNextPage) {
+                      handlePageChange(page + 1);
+                    }
+                  }}
+                  className={!pagination.hasNextPage ? 'pointer-events-none opacity-50' : ''}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
 
           {/* Items per page selector */}
           <div className="flex items-center gap-2">
@@ -309,17 +379,6 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
             </select>
             <span className="text-sm text-muted-foreground">per page</span>
           </div>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
-        <div className="flex justify-center mt-4">
-          <CustomPagination
-            currentPage={page}
-            totalPages={pagination.totalPages}
-            onPageChange={handlePageChange}
-          />
         </div>
       )}
 

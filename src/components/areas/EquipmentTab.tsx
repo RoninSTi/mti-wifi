@@ -61,9 +61,9 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
     const organizationId =
       orgIndex >= 0 && orgIndex + 1 < pathParts.length ? pathParts[orgIndex + 1] : '';
 
-    // Navigate to equipment details page
+    // Navigate to equipment details page with nested URL structure
     if (organizationId) {
-      router.push(`/organizations/${organizationId}/equipment/${id}`);
+      router.push(`/organizations/${organizationId}/areas/${areaId}/equipment/${id}`);
     }
   };
 

@@ -85,7 +85,7 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
     const organizationId =
       orgIndex >= 0 && orgIndex + 1 < pathParts.length ? pathParts[orgIndex + 1] : '';
 
-    router.push(`/organizations/${organizationId}/equipment/${id}`);
+    router.push(`/organizations/${organizationId}/areas/${areaId}/equipment/${id}`);
   };
 
   // Open edit dialog for equipment
