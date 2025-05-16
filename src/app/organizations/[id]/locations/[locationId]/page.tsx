@@ -164,10 +164,7 @@ export default function LocationDetailsPage() {
 
         {/* Areas Section */}
         <Card className="overflow-hidden">
-          <div className="bg-muted p-4 border-b">
-            <h2 className="text-xl font-semibold">Areas</h2>
-          </div>
-          <div className="p-4">
+          <div className="p-6">
             <AreasTab locationId={locationId} organizationId={organizationId} />
           </div>
         </Card>

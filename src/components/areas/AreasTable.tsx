@@ -140,46 +140,50 @@ export function AreasTable({
         </TableHeader>
         <TableBody>
           {areas.map(area => (
-            <TableRow key={area._id}>
-              <TableCell className="font-medium">
-                <span
-                  className="hover:underline text-primary cursor-pointer"
-                  onClick={() => onView(area._id)}
-                >
-                  {area.name}
-                </span>
-              </TableCell>
+            <TableRow
+              key={area._id}
+              className="cursor-pointer hover:bg-muted/50"
+              onClick={e => {
+                // Only navigate if the click wasn't on the dropdown menu or its children
+                if (!(e.target as HTMLElement).closest('.dropdown-actions')) {
+                  onView(area._id);
+                }
+              }}
+            >
+              <TableCell className="font-medium">{area.name}</TableCell>
               <TableCell>{formatAreaType(area.areaType)}</TableCell>
               <TableCell>{area.floorLevel ?? '—'}</TableCell>
               <TableCell>{area.buildingSection || '—'}</TableCell>
               <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">More options</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onView(area._id)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onEdit(area._id)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => onDelete(area._id)}
-                    >
-                      <Trash className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="dropdown-actions" onClick={e => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">More options</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onView(area._id)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onEdit(area._id)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => onDelete(area._id)}
+                      >
+                        <Trash className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </TableCell>
             </TableRow>
           ))}

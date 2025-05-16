@@ -63,8 +63,12 @@ export function AreasTab({ locationId, organizationId }: AreasTabProps) {
       return;
     }
 
-    // Navigate to area details page
-    router.push(`/organizations/${organizationId}/areas/${id}`);
+    // Navigate to area details page - location-specific route when locationId is available
+    if (locationId) {
+      router.push(`/organizations/${organizationId}/locations/${locationId}/areas/${id}`);
+    } else {
+      router.push(`/organizations/${organizationId}/areas/${id}`);
+    }
   };
 
   const handleEditArea = (id: string) => {

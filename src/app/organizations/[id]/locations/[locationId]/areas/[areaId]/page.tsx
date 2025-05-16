@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowLeft, Grid3X3 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useArea, useDeleteArea } from '@/hooks';
 import { toast } from 'sonner';
 import { EquipmentTab } from '@/components/areas/EquipmentTab';
@@ -15,6 +15,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { DeleteButton } from '@/components/ui/delete-button';
+import { Card } from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,19 +27,34 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-interface AreaDetailsPageProps {
-  params: {
-    id: string;
-    locationId: string;
-    areaId: string;
-  };
+interface RouteParams {
+  id: string;
+  locationId: string;
+  areaId: string;
 }
 
-export default function AreaDetailsPage({ params }: AreaDetailsPageProps) {
-  const { id: organizationId, locationId, areaId } = params;
+export default function AreaDetailsPage() {
+  const params = useParams();
+
+  // Type-safe parameter extraction with proper type narrowing
+  const id = params?.id;
+  const locationId = params?.locationId;
+  const areaId = params?.areaId;
+
+  if (
+    !id ||
+    Array.isArray(id) ||
+    !locationId ||
+    Array.isArray(locationId) ||
+    !areaId ||
+    Array.isArray(areaId)
+  ) {
+    throw new Error('Missing or invalid route parameters');
+  }
+
+  const organizationId = id; // Now TypeScript knows these are strings
   const router = useRouter();
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('equipment');
 
   // Fetch area details
   const { area, isLoading, isError, error } = useArea(areaId);
@@ -65,10 +81,20 @@ export default function AreaDetailsPage({ params }: AreaDetailsPageProps) {
   // If still loading, show loading state
   if (isLoading) {
     return (
-      <div className="container py-8 max-w-7xl mx-auto">
-        <div className="flex justify-center items-center min-h-[200px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading area details...</span>
+      <div className="container py-10 mx-auto">
+        <div className="flex items-center gap-2 mb-6">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.push(`/organizations/${organizationId}/locations/${locationId}`)}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <Skeleton className="h-8 w-[250px]" />
+        </div>
+
+        <div className="grid grid-cols-1 gap-8">
+          <Skeleton className="h-[500px] w-full" />
         </div>
       </div>
     );
@@ -76,20 +102,29 @@ export default function AreaDetailsPage({ params }: AreaDetailsPageProps) {
 
   // If error, show error state
   if (isError || !area) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'The requested area could not be found';
+
     return (
-      <div className="container py-8 max-w-7xl mx-auto">
-        <div className="rounded-lg border p-8 text-center">
-          <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-          <h2 className="text-lg font-medium">Error loading area</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {error instanceof Error ? error.message : 'The requested area could not be found'}
-          </p>
+      <div className="container py-10 mx-auto">
+        <div className="flex items-center gap-2 mb-6">
           <Button
             variant="outline"
+            size="icon"
+            onClick={() => router.push(`/organizations/${organizationId}/locations/${locationId}`)}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-2xl font-bold">Area not found</h1>
+        </div>
+
+        <div className="bg-destructive/10 text-destructive rounded-lg p-4 mt-6">
+          <p>{errorMessage}</p>
+          <Button
             className="mt-4"
             onClick={() => router.push(`/organizations/${organizationId}/locations/${locationId}`)}
           >
-            Back to Location
+            Return to Location
           </Button>
         </div>
       </div>
@@ -97,9 +132,9 @@ export default function AreaDetailsPage({ params }: AreaDetailsPageProps) {
   }
 
   return (
-    <div className="container py-6 max-w-7xl mx-auto space-y-6">
+    <div className="container py-10 mx-auto">
       {/* Breadcrumb navigation */}
-      <Breadcrumb>
+      <Breadcrumb className="mb-6">
         <BreadcrumbItem>
           <BreadcrumbLink href="/organizations">Organizations</BreadcrumbLink>
         </BreadcrumbItem>
@@ -116,34 +151,30 @@ export default function AreaDetailsPage({ params }: AreaDetailsPageProps) {
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
-        <BreadcrumbItem>{area.name}</BreadcrumbItem>
+        <BreadcrumbItem>
+          <BreadcrumbLink className="font-semibold">{area.name}</BreadcrumbLink>
+        </BreadcrumbItem>
       </Breadcrumb>
 
-      {/* Header and action buttons */}
-      <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
-        <div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() =>
-                router.push(`/organizations/${organizationId}/locations/${locationId}`)
-              }
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-2xl font-bold">{area.name}</h1>
-          </div>
-          <p className="text-muted-foreground mt-1">
-            {area.areaType &&
-              `${area.areaType.charAt(0).toUpperCase() + area.areaType.slice(1)} Area`}
-            {area.floorLevel !== undefined && ` • Floor ${area.floorLevel}`}
-            {area.buildingSection && ` • ${area.buildingSection}`}
-          </p>
-        </div>
+      {/* Header with back button, title and actions */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
+            size="icon"
+            onClick={() => router.push(`/organizations/${organizationId}/locations/${locationId}`)}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <Grid3X3 className="h-6 w-6" />
+            <span className="text-xl font-medium">Area Details</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() =>
               router.push(
                 `/organizations/${organizationId}/locations/${locationId}/areas/${areaId}/edit`
@@ -158,81 +189,87 @@ export default function AreaDetailsPage({ params }: AreaDetailsPageProps) {
             isDeleting={isDeleting}
             confirmWithDialog={false}
             onClick={() => setIsAlertDialogOpen(true)}
+            size="sm"
           />
+        </div>
+      </div>
+
+      {/* Area header */}
+      <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">{area.name}</h1>
+          </div>
+          <p className="text-muted-foreground mt-1">
+            {area.areaType &&
+              `${area.areaType.charAt(0).toUpperCase() + area.areaType.slice(1)} Area`}
+            {area.floorLevel !== undefined && ` • Floor ${area.floorLevel}`}
+            {area.buildingSection && ` • ${area.buildingSection}`}
+          </p>
         </div>
       </div>
 
       {/* Description */}
       {area.description && (
-        <div className="rounded-lg border p-4 bg-card">
+        <div className="rounded-lg border p-4 bg-card mb-8">
           <p className="text-card-foreground text-sm">{area.description}</p>
         </div>
       )}
 
-      {/* Tabs section */}
-      <Tabs
-        defaultValue="equipment"
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="w-full"
-      >
-        <TabsList>
-          <TabsTrigger value="equipment">Equipment</TabsTrigger>
-          <TabsTrigger value="details">Details</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="equipment" className="pt-4">
-          <EquipmentTab areaId={areaId} />
-        </TabsContent>
-
-        <TabsContent value="details" className="pt-4">
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Area Details</h2>
+      {/* Area Details */}
+      <div className="grid grid-cols-1 gap-8">
+        {/* Area Information Card */}
+        <Card className="overflow-hidden">
+          <div className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Area Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="rounded-lg border p-4">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                    Basic Information
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <span className="text-sm font-medium">Name:</span>
-                    <span className="text-sm">{area.name}</span>
-                    <span className="text-sm font-medium">Area Type:</span>
-                    <span className="text-sm">
-                      {area.areaType
-                        ? area.areaType.charAt(0).toUpperCase() + area.areaType.slice(1)
-                        : 'Not specified'}
-                    </span>
-                    <span className="text-sm font-medium">Building Section:</span>
-                    <span className="text-sm">{area.buildingSection || 'Not specified'}</span>
-                    <span className="text-sm font-medium">Floor Level:</span>
-                    <span className="text-sm">
-                      {area.floorLevel !== undefined ? area.floorLevel : 'Not specified'}
-                    </span>
-                  </div>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                  Basic Information
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <span className="text-sm font-medium">Name:</span>
+                  <span className="text-sm">{area.name}</span>
+                  <span className="text-sm font-medium">Area Type:</span>
+                  <span className="text-sm">
+                    {area.areaType
+                      ? area.areaType.charAt(0).toUpperCase() + area.areaType.slice(1)
+                      : 'Not specified'}
+                  </span>
+                  <span className="text-sm font-medium">Building Section:</span>
+                  <span className="text-sm">{area.buildingSection || 'Not specified'}</span>
+                  <span className="text-sm font-medium">Floor Level:</span>
+                  <span className="text-sm">
+                    {area.floorLevel !== undefined ? area.floorLevel : 'Not specified'}
+                  </span>
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="rounded-lg border p-4">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                    Location Information
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <span className="text-sm font-medium">Location:</span>
-                    <span className="text-sm">{area.location?.name || 'Not specified'}</span>
-                    <span className="text-sm font-medium">Organization:</span>
-                    <span className="text-sm">
-                      {area.location?.organization?.name || 'Not specified'}
-                    </span>
-                    <span className="text-sm font-medium">Address:</span>
-                    <span className="text-sm">{area.location?.address || 'Not specified'}</span>
-                  </div>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                  Location Information
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <span className="text-sm font-medium">Location:</span>
+                  <span className="text-sm">{area.location?.name || 'Not specified'}</span>
+                  <span className="text-sm font-medium">Organization:</span>
+                  <span className="text-sm">
+                    {area.location?.organization?.name || 'Not specified'}
+                  </span>
+                  <span className="text-sm font-medium">Address:</span>
+                  <span className="text-sm">{area.location?.address || 'Not specified'}</span>
                 </div>
               </div>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </Card>
+
+        {/* Equipment Card */}
+        <Card className="overflow-hidden">
+          <div className="p-6">
+            <EquipmentTab areaId={areaId} />
+          </div>
+        </Card>
+      </div>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
