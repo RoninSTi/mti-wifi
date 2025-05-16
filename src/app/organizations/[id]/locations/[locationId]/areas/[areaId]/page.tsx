@@ -11,6 +11,7 @@ import { EquipmentTab } from '@/components/areas/EquipmentTab';
 import { SiteBreadcrumb } from '@/components/ui/site-breadcrumb';
 import { DeleteButton } from '@/components/ui/delete-button';
 import { Card } from '@/components/ui/card';
+import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -145,20 +146,11 @@ export default function AreaDetailsPage() {
         ]}
       />
 
-      {/* Header with back button, title and actions */}
+      {/* Header with title and actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.push(`/organizations/${organizationId}/locations/${locationId}`)}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Grid3X3 className="h-6 w-6" />
-            <span className="text-xl font-medium">Area Details</span>
-          </div>
+          <Grid3X3 className="h-6 w-6" />
+          <span className="text-xl font-medium">Area Details</span>
         </div>
         <div className="flex items-center gap-2 self-end sm:self-auto">
           <Button
@@ -184,7 +176,7 @@ export default function AreaDetailsPage() {
       </div>
 
       {/* Area header */}
-      <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
+      <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center mb-6">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">{area.name}</h1>
@@ -198,41 +190,36 @@ export default function AreaDetailsPage() {
         </div>
       </div>
 
+      {/* Area Metadata */}
+      <EntityMeta
+        className="mb-6"
+        items={[
+          {
+            label: 'Area Type',
+            value: area.areaType
+              ? area.areaType.charAt(0).toUpperCase() + area.areaType.slice(1)
+              : null,
+          },
+          {
+            label: 'Building Section',
+            value: area.buildingSection,
+          },
+          {
+            label: 'Floor Level',
+            value: area.floorLevel !== undefined ? area.floorLevel : null,
+          },
+          {
+            label: 'Location',
+            value: area.location?.name,
+          },
+        ]}
+      />
+
       {/* Description */}
-      {area.description && (
-        <div className="rounded-lg border p-4 bg-card mb-8">
-          <p className="text-card-foreground text-sm">{area.description}</p>
-        </div>
-      )}
+      {area.description && <EntityDescription>{area.description}</EntityDescription>}
 
       {/* Area Details */}
-      <div className="grid grid-cols-1 gap-8">
-        {/* Area Information Card */}
-        <Card className="overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Area Information</h2>
-            <div className="grid grid-cols-4 gap-y-2">
-              <span className="text-sm font-medium">Name:</span>
-              <span className="text-sm col-span-3">{area.name}</span>
-
-              <span className="text-sm font-medium">Area Type:</span>
-              <span className="text-sm col-span-3">
-                {area.areaType
-                  ? area.areaType.charAt(0).toUpperCase() + area.areaType.slice(1)
-                  : 'Not specified'}
-              </span>
-
-              <span className="text-sm font-medium">Building Section:</span>
-              <span className="text-sm col-span-3">{area.buildingSection || 'Not specified'}</span>
-
-              <span className="text-sm font-medium">Floor Level:</span>
-              <span className="text-sm col-span-3">
-                {area.floorLevel !== undefined ? area.floorLevel : 'Not specified'}
-              </span>
-            </div>
-          </div>
-        </Card>
-
+      <div className="grid grid-cols-1 gap-8 mt-8">
         {/* Equipment Card */}
         <Card className="overflow-hidden">
           <div className="p-6">

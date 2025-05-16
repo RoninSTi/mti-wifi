@@ -190,7 +190,6 @@ export function EquipmentDetails({
         <div className="flex items-center gap-2">
           <EditEquipmentDialog
             equipmentId={equipment._id}
-            onSuccess={onRefresh}
             trigger={
               <Button variant="outline" size="sm">
                 <Pencil className="mr-2 h-4 w-4" />

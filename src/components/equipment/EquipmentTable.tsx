@@ -31,7 +31,7 @@ interface EquipmentTableProps {
   onView: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
-  onRetry: () => void;
+  onRetry?: () => void;
   filterApplied?: boolean;
 }
 
@@ -96,9 +96,11 @@ export function EquipmentTable({
         <p className="mt-1 text-sm text-muted-foreground">
           {error instanceof Error ? error.message : 'Failed to load equipment'}
         </p>
-        <Button variant="outline" className="mt-4" onClick={onRetry}>
-          Try again
-        </Button>
+        {onRetry && (
+          <Button variant="outline" className="mt-4" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
       </div>
     );
   }

@@ -11,6 +11,7 @@ import { AreasTab } from '@/components/areas/AreasTab';
 import { DeleteButton } from '@/components/ui/delete-button';
 import { SiteBreadcrumb } from '@/components/ui/site-breadcrumb';
 import { Card } from '@/components/ui/card';
+import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import Link from 'next/link';
 
 export default function LocationDetailsPage() {
@@ -103,13 +104,8 @@ export default function LocationDetailsPage() {
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <MapPin className="h-6 w-6" />
-            <span className="text-xl font-medium">Location Details</span>
-          </div>
+          <MapPin className="h-6 w-6" />
+          <span className="text-xl font-medium">Location Details</span>
         </div>
         <div className="flex items-center gap-2 self-end sm:self-auto">
           <Button
@@ -130,31 +126,58 @@ export default function LocationDetailsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
-        {/* Location header */}
-        <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">{location.name}</h1>
-            </div>
-            {(location.address || location.city || location.state || location.zipCode) && (
-              <p className="text-muted-foreground mt-1">
-                {[location.address, location.city, location.state, location.zipCode]
-                  .filter(Boolean)
-                  .join(', ')}
-                {location.country && location.country !== 'USA' && `, ${location.country}`}
-              </p>
-            )}
+      {/* Location header */}
+      <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center mb-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">{location.name}</h1>
           </div>
+          {(location.address || location.city || location.state || location.zipCode) && (
+            <p className="text-muted-foreground mt-1">
+              {[location.address, location.city, location.state, location.zipCode]
+                .filter(Boolean)
+                .join(', ')}
+              {location.country && location.country !== 'USA' && `, ${location.country}`}
+            </p>
+          )}
         </div>
+      </div>
 
-        {/* Description */}
-        {location.description && (
-          <div className="rounded-lg border p-4 bg-card">
-            <p className="text-card-foreground text-sm">{location.description}</p>
-          </div>
-        )}
+      {/* Location Metadata */}
+      <EntityMeta
+        className="mb-6"
+        items={[
+          {
+            label: 'Address',
+            value: location.address,
+          },
+          {
+            label: 'City',
+            value: location.city,
+          },
+          {
+            label: 'State/Province',
+            value: location.state,
+          },
+          {
+            label: 'Postal Code',
+            value: location.zipCode,
+          },
+          {
+            label: 'Country',
+            value: location.country || 'USA',
+          },
+          {
+            label: 'Organization',
+            value: location.organization?.name,
+          },
+        ]}
+      />
 
+      {/* Description */}
+      {location.description && <EntityDescription>{location.description}</EntityDescription>}
+
+      <div className="grid grid-cols-1 gap-8 mt-8">
         {/* Areas Section */}
         <Card className="overflow-hidden">
           <div className="p-6">

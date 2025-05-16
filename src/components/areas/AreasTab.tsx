@@ -172,7 +172,6 @@ export function AreasTab({ locationId, organizationId }: AreasTabProps) {
               onView={handleViewDetails}
               onEdit={handleEditArea}
               onDelete={handleDeleteArea}
-              onRetry={() => refetch()}
               filterApplied={!!searchQuery}
             />
 

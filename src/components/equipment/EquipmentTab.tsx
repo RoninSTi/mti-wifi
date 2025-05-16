@@ -155,7 +155,6 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
         </Button>
         <CreateEquipmentDialog
           areaId={areaId}
-          onSuccess={refetch}
           trigger={
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -195,7 +194,6 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
           </p>
           <CreateEquipmentDialog
             areaId={areaId}
-            onSuccess={refetch}
             trigger={
               <Button className="mt-4">
                 <Plus className="mr-2 h-4 w-4" />

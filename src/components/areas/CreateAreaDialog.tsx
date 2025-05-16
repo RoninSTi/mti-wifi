@@ -27,14 +27,12 @@ import {
 interface CreateAreaDialogProps {
   locationId: string;
   trigger?: React.ReactNode;
-  onSuccess?: () => void;
   defaultOpen?: boolean;
 }
 
 export function CreateAreaDialog({
   locationId,
   trigger,
-  onSuccess,
   defaultOpen = false,
 }: CreateAreaDialogProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -88,11 +86,6 @@ export function CreateAreaDialog({
         areaType: 'other',
       });
       setOpen(false);
-
-      // Call onSuccess callback if provided
-      if (onSuccess) {
-        onSuccess();
-      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create area');
     }

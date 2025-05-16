@@ -9,8 +9,6 @@ export default function Header() {
   const navItems = [
     { href: '/', label: 'Home' },
     { href: '/organizations', label: 'Organizations' },
-    { href: '/about', label: 'About' },
-    { href: '/telemetry-dashboard', label: 'Telemetry' },
   ];
 
   return (
@@ -19,7 +17,7 @@ export default function Header() {
         {/* Desktop logo and navigation */}
         <div className="flex-1 hidden md:flex items-center">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <span className="text-lg font-bold">Next.js Starter</span>
+            <span className="text-lg font-bold">MTI Wi-Fi</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {navItems.map(item => (
@@ -40,7 +38,7 @@ export default function Header() {
         {/* Mobile logo - shown only on small screens */}
         <div className="flex-1 md:hidden">
           <Link href="/" className="flex items-center space-x-2">
-            <span className="font-bold">Next.js</span>
+            <span className="font-bold">MTI Wi-Fi</span>
           </Link>
         </div>
 

@@ -2,10 +2,22 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Server, Plus, Search, X } from 'lucide-react';
-import { useEquipmentList } from '@/hooks';
+import { Server, Plus, Search, X, Loader2 } from 'lucide-react';
+import { useEquipmentList, useDeleteEquipment } from '@/hooks';
 import { CreateEquipmentDialog } from '../equipment/CreateEquipmentDialog';
+import { EditEquipmentDialog } from '../equipment/EditEquipmentDialog';
 import { EquipmentTable } from '../equipment/EquipmentTable';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import {
   Pagination,
@@ -42,14 +54,40 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
     // Implement view functionality
   };
 
+  // State for edit dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingEquipmentId, setEditingEquipmentId] = useState<string>('');
+
+  // Handle edit button click
   const handleEditEquipment = (id: string) => {
-    console.log('Edit equipment:', id);
-    // Implement edit functionality
+    setEditingEquipmentId(id);
+    setEditDialogOpen(true);
   };
 
+  // State for delete dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingEquipmentId, setDeletingEquipmentId] = useState<string>('');
+  const [deletingEquipmentName, setDeletingEquipmentName] = useState<string>('');
+  const { deleteEquipment, isLoading: isDeleting } = useDeleteEquipment();
+
+  // Handle delete button click
   const handleDeleteEquipment = (id: string) => {
-    console.log('Delete equipment:', id);
-    // Implement delete functionality
+    const equipmentItem = equipment.find(item => item._id === id);
+    if (equipmentItem) {
+      setDeletingEquipmentId(id);
+      setDeletingEquipmentName(equipmentItem.name);
+      setDeleteDialogOpen(true);
+    }
+  };
+
+  // Handle confirm delete
+  const handleConfirmDelete = async () => {
+    try {
+      await deleteEquipment(deletingEquipmentId);
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete equipment');
+    }
   };
 
   // Handle search form submission
@@ -77,7 +115,7 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-medium">Equipment</h3>
-          <CreateEquipmentDialog areaId={areaId} onSuccess={() => refetch()} />
+          <CreateEquipmentDialog areaId={areaId} />
         </div>
 
         <div className="rounded-lg border border-dashed p-8 text-center">
@@ -88,7 +126,6 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
           </p>
           <CreateEquipmentDialog
             areaId={areaId}
-            onSuccess={() => refetch()}
             trigger={
               <Button className="mt-4">
                 <Plus className="mr-2 h-4 w-4" />
@@ -105,7 +142,7 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">Equipment</h3>
-        <CreateEquipmentDialog areaId={areaId} onSuccess={() => refetch()} />
+        <CreateEquipmentDialog areaId={areaId} />
       </div>
 
       {/* Search */}
@@ -154,10 +191,43 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
           onView={handleViewEquipment}
           onEdit={handleEditEquipment}
           onDelete={handleDeleteEquipment}
-          onRetry={() => refetch()}
           filterApplied={!!searchQuery}
         />
       )}
+
+      {/* Edit Equipment Dialog - only rendered when dialog should be open */}
+      {editDialogOpen && editingEquipmentId && (
+        <EditEquipmentDialog
+          equipmentId={editingEquipmentId}
+          open={true}
+          onOpenChange={setEditDialogOpen}
+          trigger={<span className="hidden" />}
+        />
+      )}
+
+      {/* Delete Equipment Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the equipment &quot;
+              {deletingEquipmentName}&quot;.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Equipment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Pagination */}
       {pagination && pagination.totalPages > 0 && (

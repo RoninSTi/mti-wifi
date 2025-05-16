@@ -27,14 +27,12 @@ import {
 interface CreateEquipmentDialogProps {
   areaId: string;
   trigger?: React.ReactNode;
-  onSuccess?: () => void;
   defaultOpen?: boolean;
 }
 
 export function CreateEquipmentDialog({
   areaId,
   trigger,
-  onSuccess,
   defaultOpen = false,
 }: CreateEquipmentDialogProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -86,11 +84,6 @@ export function CreateEquipmentDialog({
         status: 'active',
       });
       setOpen(false);
-
-      // Call onSuccess callback if provided
-      if (onSuccess) {
-        onSuccess();
-      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create equipment');
     }

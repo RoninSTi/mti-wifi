@@ -27,7 +27,8 @@ import {
 interface EditEquipmentDialogProps {
   equipmentId: string;
   trigger?: React.ReactNode;
-  onSuccess?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -54,8 +55,24 @@ function formatNumberForInput(numValue: number | undefined): string {
   return String(numValue);
 }
 
-export function EditEquipmentDialog({ equipmentId, trigger, onSuccess }: EditEquipmentDialogProps) {
-  const [open, setOpen] = useState(false);
+export function EditEquipmentDialog({
+  equipmentId,
+  trigger,
+  open: controlledOpen,
+  onOpenChange,
+}: EditEquipmentDialogProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+
+  // Use controlled state if provided, otherwise use internal state
+  const open = controlledOpen !== undefined ? controlledOpen : uncontrolledOpen;
+  const setOpen = (newOpen: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(newOpen);
+    } else {
+      setUncontrolledOpen(newOpen);
+    }
+  };
+
   const [formData, setFormData] = useState<UpdateEquipmentInput>({});
 
   // Get equipment data
@@ -162,11 +179,6 @@ export function EditEquipmentDialog({ equipmentId, trigger, onSuccess }: EditEqu
 
       toast.success('Equipment updated successfully');
       setOpen(false);
-
-      // Call onSuccess callback if provided
-      if (onSuccess) {
-        onSuccess();
-      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update equipment';
       toast.error(errorMessage);
