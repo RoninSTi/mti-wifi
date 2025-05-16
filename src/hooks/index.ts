@@ -1,6 +1,10 @@
 /**
  * Export all custom hooks
  */
+// User/Profile hooks
+export * from './useProfile';
+export * from './useUpdateProfile';
+
 // Organization hooks
 export * from './useOrganizations';
 export * from './useCreateOrganization';
