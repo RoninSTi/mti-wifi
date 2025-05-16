@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,33 +12,48 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Loader2 } from 'lucide-react';
-import { useCreateSensor } from '@/hooks/useCreateSensor';
+import { Loader2 } from 'lucide-react';
+import { useUpdateSensor } from '@/hooks/useUpdateSensor';
+import { useSensor } from '@/hooks/useSensor';
 import { toast } from 'sonner';
-import { CreateSensorInput } from '@/app/api/sensors/schemas';
+import { UpdateSensorInput } from '@/app/api/sensors/schemas';
 
-interface CreateSensorDialogProps {
-  equipmentId: string;
+interface EditSensorDialogProps {
+  sensorId: string;
   trigger?: React.ReactNode;
   defaultOpen?: boolean;
+  onComplete?: () => void;
 }
 
-export function CreateSensorDialog({
-  equipmentId,
+export function EditSensorDialog({
+  sensorId,
   trigger,
   defaultOpen = false,
-}: CreateSensorDialogProps) {
+  onComplete,
+}: EditSensorDialogProps) {
   const [open, setOpen] = useState(defaultOpen);
-  const [formData, setFormData] = useState<Omit<CreateSensorInput, 'equipment'>>({
+  const [formData, setFormData] = useState<Partial<UpdateSensorInput>>({
     name: '',
     description: '',
     serial: null,
     partNumber: '',
-    status: 'inactive',
-    connected: false,
   });
 
-  const { createSensor, isLoading } = useCreateSensor();
+  const { data, isLoading: isLoadingSensor } = useSensor(sensorId);
+  const { mutate: updateSensor, isPending: isUpdating } = useUpdateSensor(sensorId);
+
+  // Populate form when sensor data is loaded
+  useEffect(() => {
+    if (data?.data) {
+      const sensor = data.data;
+      setFormData({
+        name: sensor.name,
+        description: sensor.description || '',
+        serial: sensor.serial,
+        partNumber: sensor.partNumber || '',
+      });
+    }
+  }, [data]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -63,8 +78,6 @@ export function CreateSensorDialog({
     }));
   };
 
-  // Remove unused handlers
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -76,35 +89,22 @@ export function CreateSensorDialog({
     }
 
     try {
-      // Add default values for required fields in the database
-      const result = await createSensor({
-        ...formData,
-        equipment: equipmentId,
-        // Add defaults for required DB fields that shouldn't be user-editable
-        status: 'inactive',
-        connected: false,
+      updateSensor(formData, {
+        onSuccess: () => {
+          setOpen(false);
+          if (onComplete) {
+            onComplete();
+          }
+        },
       });
-
-      if (result.error) {
-        // Handle API errors but don't toast (the hook will handle general errors)
-        console.error('API Error:', result.error);
-        return;
-      }
-
-      // Success toast is shown by the hook
-      setFormData({
-        name: '',
-        description: '',
-        serial: null,
-        partNumber: '',
-        status: 'inactive',
-        connected: false,
-      });
-      setOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create sensor');
+      toast.error(error instanceof Error ? error.message : 'Failed to update sensor');
     }
   };
+
+  if (isLoadingSensor) {
+    return null; // Or a loading state if you prefer
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -112,15 +112,12 @@ export function CreateSensorDialog({
         <DialogTrigger asChild>{trigger}</DialogTrigger>
       ) : (
         <DialogTrigger asChild>
-          <Button>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add Sensor
-          </Button>
+          <Button variant="outline">Edit Sensor</Button>
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle>Add New Sensor</DialogTitle>
+          <DialogTitle>Edit Sensor</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
@@ -138,23 +135,27 @@ export function CreateSensorDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="serial">Serial Number (optional)</Label>
-              <Input
+              {/* Using a standard input to avoid type issues */}
+              <input
                 id="serial"
                 name="serial"
                 type="number"
                 placeholder="Enter serial number"
                 value={formData.serial === null ? '' : formData.serial}
                 onChange={handleChange}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="partNumber">Part Number (optional)</Label>
-              <Input
+              {/* Using a standard input to avoid type issues */}
+              <input
                 id="partNumber"
                 name="partNumber"
                 placeholder="Enter part number"
-                value={formData.partNumber}
+                value={formData.partNumber || ''}
                 onChange={handleChange}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
           </div>
@@ -175,9 +176,9 @@ export function CreateSensorDialog({
             <Button variant="outline" type="button" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Sensor
+            <Button type="submit" disabled={isUpdating}>
+              {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
             </Button>
           </div>
         </form>

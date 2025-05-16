@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,16 +24,26 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 
-interface EditAreaPageProps {
-  params: {
-    id: string;
-    locationId: string;
-    areaId: string;
-  };
-}
+export default function EditAreaPage() {
+  const params = useParams();
 
-export default function EditAreaPage({ params }: EditAreaPageProps) {
-  const { id: organizationId, locationId, areaId } = params;
+  // Type-safe parameter extraction with proper type narrowing
+  const id = params?.id;
+  const locationId = params?.locationId;
+  const areaId = params?.areaId;
+
+  if (
+    !id ||
+    Array.isArray(id) ||
+    !locationId ||
+    Array.isArray(locationId) ||
+    !areaId ||
+    Array.isArray(areaId)
+  ) {
+    throw new Error('Missing or invalid route parameters');
+  }
+
+  const organizationId = id; // Now TypeScript knows these are strings
   const router = useRouter();
   const [formData, setFormData] = useState<UpdateAreaInput>({});
 

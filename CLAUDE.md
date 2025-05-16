@@ -527,9 +527,10 @@ When switching to production, the OpenTelemetry configuration should be updated 
    <p>Don&apos;t forget to check the user&apos;s profile</p>
    ```
 
-2. **Avoid Unused Imports**
+2. **Remove Unused Imports**
 
-   - Remove any unused components or utility imports
+   - Always remove unused imports completely, not comment them out
+   - Delete unused imports entirely, never leave commented out imports
    - ESLint will flag these with the `no-unused-vars` rule
 
 3. **Use Next.js Navigation APIs Instead of Direct DOM Manipulation**

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -11,17 +11,31 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, Wifi, WifiOff } from 'lucide-react';
+import { PlusCircle, Wifi, WifiOff, MoreHorizontal } from 'lucide-react';
 import { CreateSensorDialog } from './CreateSensorDialog';
+import { EditSensorDialog } from './EditSensorDialog';
+import { SensorDetails } from './SensorDetails';
 import { useSensors } from '@/hooks/useSensors';
+import { useDeleteSensor } from '@/hooks/useDeleteSensor';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface SensorsTableProps {
   equipmentId: string;
 }
 
 export function SensorsTable({ equipmentId }: SensorsTableProps) {
-  const { sensors, isLoading } = useSensors(equipmentId, { limit: 20 });
+  const { sensors, isLoading, refetch } = useSensors(equipmentId, { limit: 20 });
+  const { mutate: deleteSensor } = useDeleteSensor();
+  const [selectedSensor, setSelectedSensor] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  // Dialog state is managed by the DeleteButton component
 
   // Helper function for status badge
   const getStatusBadge = (status: string) => {
@@ -37,6 +51,19 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const handleViewDetails = (sensorId: string) => {
+    setSelectedSensor(sensorId);
+    setDetailsOpen(true);
+  };
+
+  const handleDelete = (sensorId: string) => {
+    deleteSensor(sensorId, {
+      onSuccess: () => {
+        refetch();
+      },
+    });
   };
 
   return (
@@ -108,9 +135,40 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm">
-                      Details
-                    </Button>
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewDetails(sensor._id)}
+                      >
+                        Details
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <EditSensorDialog
+                              sensorId={sensor._id}
+                              trigger={<button className="w-full text-left">Edit</button>}
+                              onComplete={refetch}
+                            />
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onSelect={e => {
+                              e.preventDefault();
+                              handleDelete(sensor._id);
+                            }}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -129,6 +187,26 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      {/* Sensor Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Sensor Details</DialogTitle>
+          </DialogHeader>
+          {selectedSensor && (
+            <SensorDetails
+              sensorId={selectedSensor}
+              onDelete={() => {
+                setDetailsOpen(false);
+                refetch();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* We're handling delete via the dropdown menu directly */}
     </div>
   );
 }

@@ -68,13 +68,14 @@ const SensorSchema: Schema = new Schema(
     // CTC API specific fields
     serial: {
       type: Number,
-      required: true,
-      unique: true,
+      required: false,
+      unique: false, // Only make it unique if it's provided
+      sparse: true, // Index only non-null values
       index: true,
     },
     partNumber: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
     },
     hardwareVersion: {

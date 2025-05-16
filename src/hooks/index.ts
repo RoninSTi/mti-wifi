@@ -37,4 +37,7 @@ export * from './useEquipmentQueries';
 
 // Sensor hooks
 export * from './useSensors';
+export * from './useSensor';
 export * from './useCreateSensor';
+export * from './useUpdateSensor';
+export * from './useDeleteSensor';
