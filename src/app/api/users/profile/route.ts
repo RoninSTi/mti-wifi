@@ -7,7 +7,8 @@ import { authOptions } from '@/lib/auth/auth-options';
 import { z } from 'zod';
 
 // Define schema for profile update
-export const updateProfileSchema = z.object({
+// Moved export to type only to fix Next.js route handler constraints
+const updateProfileSchema = z.object({
   username: z
     .string()
     .min(3, 'Username must be at least 3 characters')
@@ -18,7 +19,8 @@ export const updateProfileSchema = z.object({
   newPassword: z.string().min(8, 'Password must be at least 8 characters').optional(),
 });
 
-export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+// Define type locally without exporting it
+type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
 /**
  * GET /api/users/profile - Get the profile of the currently authenticated user

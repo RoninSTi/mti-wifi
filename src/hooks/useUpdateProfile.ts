@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateProfile } from '@/lib/api/users';
-import { UpdateProfileInput } from '@/app/api/users/profile/route';
+import type { UpdateProfileInput } from '@/lib/api/users';
 import { UserProfile } from '@/lib/api/users';
 import { toast } from 'sonner';
 import { ApiResponse } from '@/lib/api/api-client';

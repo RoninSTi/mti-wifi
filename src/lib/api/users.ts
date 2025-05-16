@@ -1,5 +1,13 @@
 import { ApiResponse, apiClient } from './api-client';
-import { UpdateProfileInput } from '@/app/api/users/profile/route';
+import type { z } from 'zod';
+
+// Re-export the UpdateProfileInput type to avoid dependency on route file
+export interface UpdateProfileInput {
+  username?: string;
+  email?: string;
+  currentPassword?: string;
+  newPassword?: string;
+}
 
 export interface UserProfile {
   _id: string;
