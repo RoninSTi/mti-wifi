@@ -23,7 +23,6 @@ interface DeleteButtonProps {
   variant?: 'outline' | 'destructive';
   size?: 'default' | 'sm' | 'lg' | 'icon';
   confirmWithDialog?: boolean;
-  asChild?: boolean;
   onClick?: () => void; // For custom click handler
 }
 
@@ -35,7 +34,6 @@ export function DeleteButton({
   variant = 'destructive',
   size = 'default',
   confirmWithDialog = true,
-  asChild = false,
   onClick,
 }: DeleteButtonProps) {
   const title = `Delete ${resourceName}`;
@@ -53,23 +51,24 @@ export function DeleteButton({
     }
   };
 
+  // Content for button (used in both cases)
+  const buttonContent = (
+    <>
+      {isDeleting ? (
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      ) : (
+        <Trash className="mr-2 h-4 w-4" />
+      )}
+      {title}
+    </>
+  );
+
   if (confirmWithDialog) {
     return (
       <AlertDialog>
-        <AlertDialogTrigger asChild={asChild}>
-          <Button
-            variant={variant}
-            size={size}
-            className={className}
-            onClick={!asChild ? handleDeleteClick : undefined}
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Trash className="mr-2 h-4 w-4" />
-            )}
-            {title}
+        <AlertDialogTrigger asChild>
+          <Button variant={variant} size={size} className={className} disabled={isDeleting}>
+            {buttonContent}
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
@@ -102,12 +101,7 @@ export function DeleteButton({
       onClick={handleDeleteClick}
       disabled={isDeleting}
     >
-      {isDeleting ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      ) : (
-        <Trash className="mr-2 h-4 w-4" />
-      )}
-      {title}
+      {buttonContent}
     </Button>
   );
 }

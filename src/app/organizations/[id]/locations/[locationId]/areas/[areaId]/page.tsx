@@ -79,14 +79,7 @@ export default function AreaDetailsPage() {
   if (isLoading) {
     return (
       <div className="container py-10 mx-auto">
-        <div className="flex items-center gap-2 mb-6">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.push(`/organizations/${organizationId}/locations/${locationId}`)}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+        <div className="mb-6">
           <Skeleton className="h-8 w-[250px]" />
         </div>
 
