@@ -70,4 +70,11 @@ LocationSchema.virtual('areas', {
   foreignField: 'location',
 });
 
+// Virtual for gateways in this location
+LocationSchema.virtual('gateways', {
+  ref: 'Gateway',
+  localField: '_id',
+  foreignField: 'location',
+});
+
 export default mongoose.models.Location || mongoose.model<ILocation>('Location', LocationSchema);

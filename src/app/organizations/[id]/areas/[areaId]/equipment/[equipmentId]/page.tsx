@@ -139,9 +139,6 @@ export default function EquipmentDetailsPage() {
           <span className="text-xl font-medium">Equipment Details</span>
         </div>
         <div className="flex items-center gap-2 self-end sm:self-auto">
-          <Button variant="outline" size="sm" onClick={handleBack}>
-            Back to Area
-          </Button>
           <EditEquipmentDialog
             equipmentId={equipmentId}
             trigger={

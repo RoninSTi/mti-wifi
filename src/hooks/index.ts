@@ -35,6 +35,13 @@ export * from './useUpdateEquipment';
 export * from './useDeleteEquipment';
 export * from './useEquipmentQueries';
 
+// Gateway hooks
+export * from './useGateways';
+export * from './useGateway';
+export * from './useCreateGateway';
+export * from './useUpdateGateway';
+export * from './useDeleteGateway';
+
 // Sensor hooks
 export * from './useSensors';
 export * from './useSensor';

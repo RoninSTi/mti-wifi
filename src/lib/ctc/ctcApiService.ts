@@ -86,6 +86,17 @@ export const ErrorDataSchema = z.object({
   Error: z.string(),
 });
 
+// Login response schema for validation
+export const LoginResponseSchema = z.object({
+  Email: z.string().email(),
+  First: z.string(),
+  Last: z.string(),
+  Success: z.boolean(),
+  AccessLevel: z.number(),
+  Verified: z.boolean(),
+});
+export type LoginResponse = z.infer<typeof LoginResponseSchema>;
+
 // Record options interface
 interface RecordOptions {
   serials?: number[];
@@ -357,6 +368,26 @@ export class CTCApiService {
   }
 
   /**
+   * Login to the CTC API
+   * @param email - User email address
+   * @param password - User password
+   * @returns Promise with login response
+   */
+  public async login(email: string, password: string): Promise<LoginResponse> {
+    const command = {
+      Type: 'POST_LOGIN',
+      From: 'UI',
+      To: 'SERV',
+      Data: {
+        Email: email,
+        Password: password,
+      },
+    };
+
+    return this.sendCommand(command, 'RTN_LOGIN');
+  }
+
+  /**
    * Add event listener for notification events
    * @param event - Event name
    * @param listener - Event handler function
@@ -433,6 +464,15 @@ export class CTCApiService {
                     resolve(result.data as T);
                   } else {
                     reject(new Error(`Invalid BatteryRecords data: ${result.error.message}`));
+                  }
+                  break;
+                }
+                case 'RTN_LOGIN': {
+                  const result = LoginResponseSchema.safeParse(data);
+                  if (result.success) {
+                    resolve(result.data as T);
+                  } else {
+                    reject(new Error(`Invalid LoginResponse data: ${result.error.message}`));
                   }
                   break;
                 }

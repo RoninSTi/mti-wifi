@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { IEquipment } from './Equipment';
+import { IGateway } from './Gateway';
 
 // Interface that matches the CTC API SensorData properties
 export interface ICTCSensorData {
@@ -20,6 +21,7 @@ export interface ISensor extends Document {
   name: string;
   description?: string;
   equipment: IEquipment['_id'];
+  gateway?: IGateway['_id']; // Reference to the gateway this sensor is connected to
   // CTC API specific fields
   serial: number; // Unique identifier from CTC API
   partNumber: string;
@@ -63,6 +65,11 @@ const SensorSchema: Schema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'Equipment',
       required: true,
+      index: true,
+    },
+    gateway: {
+      type: Schema.Types.ObjectId,
+      ref: 'Gateway',
       index: true,
     },
     // CTC API specific fields
@@ -137,8 +144,9 @@ const SensorSchema: Schema = new Schema(
   }
 );
 
-// Only index equipment for lookup by equipment ID
+// Indexes for lookup by equipment ID and gateway ID
 SensorSchema.index({ equipment: 1 });
+SensorSchema.index({ gateway: 1 });
 
 // Method to update sensor data from CTC API
 SensorSchema.methods.updateFromCTCData = function (ctcData: ICTCSensorData) {
