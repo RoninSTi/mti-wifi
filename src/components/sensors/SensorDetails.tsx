@@ -206,6 +206,7 @@ export function SensorDetails({ sensorId, onDelete }: SensorDetailsProps) {
         <DeleteButton onDelete={handleDelete} isDeleting={isDeleting} resourceName="sensor" />
         <EditSensorDialog
           sensorId={sensorId}
+          trigger={<Button variant="outline">Edit Sensor</Button>}
           // No need for manual refetch as query invalidation will automatically trigger updates
           onComplete={() => {}}
         />

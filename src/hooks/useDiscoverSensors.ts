@@ -310,7 +310,9 @@ export function useDiscoverSensors({
         );
       }
 
+      // Update state with discovered sensors and move to next stage
       setDiscoveredSensors(sensors);
+      // We only show a toast for the discovery itself, not for both discovery and creation
       toast.success(`Found ${sensors.length} sensors`);
       setStage(DiscoveryStage.ASSOCIATE);
     } catch (error) {
@@ -374,17 +376,21 @@ export function useDiscoverSensors({
       return data as SensorResponse[];
     },
     onSuccess: sensors => {
-      if (sensors && sensors.length > 0) {
-        // Invalidate related queries to trigger automatic refetching
-        queryClient.invalidateQueries({ queryKey: ['sensors'] });
-        queryClient.invalidateQueries({ queryKey: ['sensors', equipmentId] });
-        queryClient.invalidateQueries({ queryKey: ['equipment', equipmentId] });
+      // Invalidate related queries to trigger automatic refetching
+      queryClient.invalidateQueries({ queryKey: ['sensors'] });
+      queryClient.invalidateQueries({ queryKey: ['sensors', equipmentId] });
+      queryClient.invalidateQueries({ queryKey: ['equipment', equipmentId] });
 
+      // Show toast ONLY in the mutation callback to prevent duplicate notifications
+      // This ensures the toast is only shown once per operation
+      if (sensors && sensors.length > 0) {
         toast.success(`${sensors.length} sensor(s) created successfully`);
-        if (onSuccess) onSuccess(sensors);
       } else {
         toast.info('No sensors were created');
       }
+
+      // Call parent success handler if provided
+      if (onSuccess) onSuccess(sensors);
     },
     onError: (error: Error) => {
       toast.error(`Failed to create sensors: ${error.message}`);

@@ -1327,6 +1327,115 @@ const { id: organizationId, locationId } = useTypedParams<LocationDetailParams>(
 
 This approach should be used in all page components that need to access route parameters.
 
+## Toast Notification Best Practices
+
+The application uses the Sonner toast library for user notifications. Follow these guidelines to ensure a consistent user experience:
+
+### Toast Location and Placement
+
+```tsx
+// Imports
+import { toast } from 'sonner';
+
+// Showing a toast
+toast.success('Operation completed successfully');
+toast.error('Operation failed');
+toast.info('Informational message');
+toast.warning('Warning message');
+```
+
+### Preventing Duplicate Toasts
+
+Always follow these rules to prevent duplicate toast notifications:
+
+1. **Show toasts in a single location only**
+
+   - Place toast calls in mutation hooks' `onSuccess` or `onError` callbacks
+   - Don't call toast functions in both the component and the hook
+   - For React Query mutations, toast notifications should be in the mutation definition, not the component using the mutation
+
+   ```typescript
+   // CORRECT: Toast in mutation hook only
+   const createSensorsMutation = useMutation({
+     mutationFn: async (sensors: SensorAssociation[]) => {
+       // Implementation
+     },
+     onSuccess: data => {
+       // Single place to show success toast
+       toast.success(`${data.length} sensor(s) created successfully`);
+
+       // Other success handling...
+       queryClient.invalidateQueries({ queryKey: ['sensors'] });
+     },
+     onError: error => {
+       // Single place to show error toast
+       toast.error(`Operation failed: ${error.message}`);
+     },
+   });
+
+   // The component using this mutation should NOT show additional toasts
+   // for the same operation
+   ```
+
+2. **Group related actions to avoid multiple toasts**
+
+   - When performing a sequence of related operations, show one summary toast instead of multiple individual toasts
+   - Use more specific messages for grouped operations
+
+   ```typescript
+   // INCORRECT: Multiple separate toasts
+   await updateUser(userData);
+   toast.success('User updated');
+   await updatePermissions(permissions);
+   toast.success('Permissions updated');
+   await sendNotification(notification);
+   toast.success('Notification sent');
+
+   // CORRECT: One summary toast for the entire operation
+   await Promise.all([
+     updateUser(userData),
+     updatePermissions(permissions),
+     sendNotification(notification),
+   ]);
+   toast.success('User profile and permissions updated');
+   ```
+
+3. **Handle multi-step processes appropriately**
+
+   - For multi-step wizards or workflows, show a single toast at completion
+   - Avoid showing redundant toasts for intermediate steps that are obvious to the user
+   - Exception: Show toasts for long-running background operations to confirm progress
+
+   ```typescript
+   // In a multi-step process like sensor discovery:
+   // Step 1: Connect to gateway
+   // Step 2: Discover sensors - Toast OK here to confirm discovery
+   toast.success(`Found ${sensors.length} sensors`);
+   // Step 3: Select sensors - No toast needed for selection
+   // Step 4: Create/associate sensors - Final success toast
+   toast.success(`${selectedSensors.length} sensor(s) created successfully`);
+   ```
+
+4. **Use proper dismissal and duration settings**
+
+   - Set appropriate duration based on message importance
+   - Allow users to dismiss toasts manually
+   - For critical errors, use longer durations or require manual dismissal
+
+   ```typescript
+   // Informational toast with shorter duration
+   toast.info('Filters applied', { duration: 3000 });
+
+   // Error toast with longer duration
+   toast.error('Failed to save changes', { duration: 5000 });
+
+   // Critical error requiring manual dismissal
+   toast.error('Connection lost. Please refresh the page.', {
+     duration: Infinity,
+     dismissible: true,
+   });
+   ```
+
 ## Notes
 
 - The project uses Geist font from Google Fonts (both sans and mono variants)

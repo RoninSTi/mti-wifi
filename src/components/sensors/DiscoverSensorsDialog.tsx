@@ -528,26 +528,31 @@ export function DiscoverSensorsDialog({
 
           {/* Step 3: Associate Sensors with Equipment */}
           <TabsContent value="associate" className="space-y-4 py-4">
-            <div className="flex justify-between items-center mb-2">
+            <div className="mb-2">
               <p className="text-sm">
                 Select the sensors you want to associate with this equipment.
               </p>
-
-              <div className="flex space-x-2">
-                <Button onClick={selectAllSensors} size="sm" variant="outline">
-                  Select All
-                </Button>
-                <Button onClick={deselectAllSensors} size="sm" variant="outline">
-                  Deselect All
-                </Button>
-              </div>
             </div>
 
             <div className="border rounded-md overflow-hidden">
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="py-2 px-4 text-left font-medium">Select</th>
+                    <th className="py-2 px-4 text-left font-medium">
+                      <Checkbox
+                        checked={
+                          discoveredSensors.length > 0 && discoveredSensors.every(s => s.selected)
+                        }
+                        onCheckedChange={checked => {
+                          if (checked) {
+                            selectAllSensors();
+                          } else {
+                            deselectAllSensors();
+                          }
+                        }}
+                        aria-label="Select all sensors"
+                      />
+                    </th>
                     <th className="py-2 px-4 text-left font-medium">Serial</th>
                     <th className="py-2 px-4 text-left font-medium">Part Number</th>
                     <th className="py-2 px-4 text-left font-medium">Status</th>

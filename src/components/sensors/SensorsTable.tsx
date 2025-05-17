@@ -290,6 +290,7 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
           sensorId={selectedSensor}
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
+          trigger={<span style={{ display: 'none' }}></span>}
           onComplete={() => {
             // No need for manual refetch - query invalidation in the update hook
             // will trigger automatic refetching
