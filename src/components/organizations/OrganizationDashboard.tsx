@@ -159,14 +159,21 @@ export function OrganizationDashboard() {
               filterApplied={!!searchQuery}
             />
 
-            {/* Pagination */}
-            {pagination && (
-              <TablePagination
-                pagination={pagination}
-                useURLParams={true}
-                showItemsPerPage={true}
-              />
-            )}
+            {/* Pagination - Standardized across all tabs */}
+            <TablePagination
+              pagination={
+                pagination || {
+                  currentPage: page,
+                  totalPages: 1,
+                  totalItems: organizations.length,
+                  itemsPerPage: limit,
+                  hasNextPage: false,
+                  hasPreviousPage: false,
+                }
+              }
+              useURLParams={true}
+              showItemsPerPage={true}
+            />
           </div>
 
           {/* Organization details moved to separate page */}

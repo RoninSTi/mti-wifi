@@ -75,7 +75,7 @@ npm run db:reset          # Roll back all migrations and reapply them
     - Component files like `button.tsx`, `input.tsx`, etc.
     - `mode-toggle.tsx` - Theme switcher component
 - `/src/lib/` - Utility functions and configurations
-  - `utils.ts` - Utility functions for styling and other operations
+  - `utils.ts` - Utility functions for styling and operations including useTypedParams hook
   - `db/` - Database connection utilities
     - `mongoose.ts` - MongoDB connection with Mongoose
     - `config.ts` - Database configuration for different environments
@@ -1102,6 +1102,65 @@ Maintaining consistency across the application is paramount. Always follow these
      <OrganizationDetails organization={organization} />
    </EntityDetailTemplate>;
    ```
+
+## Route Parameters
+
+### Type-Safe Route Parameters with useTypedParams
+
+The application includes a custom hook called `useTypedParams` for handling route parameters in a type-safe way. This hook wraps the standard Next.js `useParams` hook to provide better type safety and error handling.
+
+```typescript
+import { useTypedParams } from '@/lib/utils';
+
+// Define your route parameter types
+type LocationParams = {
+  id: string; // Organization ID
+  locationId: string; // Location ID
+};
+
+// Use the hook with your type
+const { id, locationId } = useTypedParams<LocationParams>();
+// id and locationId are now guaranteed to be strings, not string[] | undefined
+```
+
+#### Benefits of useTypedParams
+
+- Eliminates the need for manual type guards in page components
+- Automatically converts potential array values to strings
+- Throws helpful error messages for missing or invalid parameters
+- Provides better TypeScript type inference
+- Makes detail pages more concise and consistent
+
+#### Example: Before and After
+
+Before (with manual type guards):
+
+```typescript
+// Manual type narrowing with standard useParams
+const params = useParams();
+const id = params?.id;
+const locationId = params?.locationId;
+
+if (!id || Array.isArray(id) || !locationId || Array.isArray(locationId)) {
+  throw new Error('Missing or invalid route parameters');
+}
+
+// Now TypeScript knows these are strings
+const organizationId = id;
+```
+
+After (with useTypedParams):
+
+```typescript
+// Type-safe params with useTypedParams
+type LocationDetailParams = {
+  id: string; // Organization ID
+  locationId: string; // Location ID
+};
+const { id: organizationId, locationId } = useTypedParams<LocationDetailParams>();
+```
+
+This approach should be used in all page components that need to access route parameters.
 
 ## Notes
 

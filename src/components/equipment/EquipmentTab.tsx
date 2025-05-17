@@ -165,13 +165,20 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
     </div>
   );
 
-  // Render pagination controls if needed
-  const renderPagination = (paginationData: PaginationMeta | null) => {
-    if (!paginationData) return null;
-
+  // Render pagination controls
+  const renderPagination = () => {
     return (
       <TablePagination
-        pagination={paginationData}
+        pagination={
+          pagination || {
+            currentPage: 1,
+            totalPages: 1,
+            totalItems: equipment.length,
+            itemsPerPage: limit,
+            hasNextPage: false,
+            hasPreviousPage: false,
+          }
+        }
         currentPage={page}
         onPageChange={setPage}
         showItemsPerPage={true}
@@ -229,7 +236,7 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
         filterApplied={!!searchQuery || !!statusFilter}
       />
 
-      {renderPagination(pagination)}
+      {renderPagination()}
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog

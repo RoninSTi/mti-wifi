@@ -184,20 +184,27 @@ export function LocationsTab({ organizationId }: LocationsTabProps) {
                 filterApplied={!!searchQuery}
               />
 
-              {/* Pagination */}
-              {pagination && (
-                <TablePagination
-                  pagination={pagination}
-                  currentPage={page}
-                  onPageChange={handlePageChange}
-                  showItemsPerPage={true}
-                  itemsPerPageOptions={[5, 10, 25, 50]}
-                  onItemsPerPageChange={newLimit => {
-                    setLimit(newLimit);
-                    setPage(1); // Reset to first page when changing limit
-                  }}
-                />
-              )}
+              {/* Pagination - Standardized across all tabs */}
+              <TablePagination
+                pagination={
+                  pagination || {
+                    currentPage: 1,
+                    totalPages: 1,
+                    totalItems: locations.length,
+                    itemsPerPage: limit,
+                    hasNextPage: false,
+                    hasPreviousPage: false,
+                  }
+                }
+                currentPage={page}
+                onPageChange={handlePageChange}
+                showItemsPerPage={true}
+                itemsPerPageOptions={[5, 10, 25, 50]}
+                onItemsPerPageChange={newLimit => {
+                  setLimit(newLimit);
+                  setPage(1); // Reset to first page when changing limit
+                }}
+              />
             </>
           )}
         </div>

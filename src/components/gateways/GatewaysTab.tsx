@@ -9,14 +9,7 @@ import { Search, X, Wifi, Plus } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 
 interface GatewaysTabProps {
   locationId: string;
@@ -165,105 +158,27 @@ export function GatewaysTab({ locationId }: GatewaysTabProps) {
               filterApplied={!!searchQuery}
             />
 
-            {/* Pagination */}
-            {pagination && pagination.totalPages > 0 && (
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {isLoading ? (
-                    <div className="h-5 w-[160px] bg-muted animate-pulse rounded"></div>
-                  ) : (
-                    <>
-                      Showing {gateways.length} of {pagination.totalItems} gateways
-                    </>
-                  )}
-                </div>
-
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        onClick={e => {
-                          e.preventDefault();
-                          if (pagination.hasPreviousPage) {
-                            handlePageChange(page - 1);
-                          }
-                        }}
-                        className={
-                          !pagination.hasPreviousPage ? 'pointer-events-none opacity-50' : ''
-                        }
-                      />
-                    </PaginationItem>
-
-                    {/* Page numbers */}
-                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                      .filter(p => {
-                        // Show current page, first, last, and adjacent pages
-                        return p === 1 || p === pagination.totalPages || Math.abs(p - page) <= 1;
-                      })
-                      .map((p, i, arr) => {
-                        // Add ellipsis when there are gaps
-                        const showEllipsisBefore = i > 0 && arr[i - 1] !== p - 1;
-
-                        return (
-                          <React.Fragment key={p}>
-                            {showEllipsisBefore && (
-                              <PaginationItem>
-                                <span className="flex h-9 w-9 items-center justify-center">
-                                  ...
-                                </span>
-                              </PaginationItem>
-                            )}
-                            <PaginationItem>
-                              <PaginationLink
-                                href="#"
-                                onClick={e => {
-                                  e.preventDefault();
-                                  handlePageChange(p);
-                                }}
-                                isActive={page === p}
-                              >
-                                {p}
-                              </PaginationLink>
-                            </PaginationItem>
-                          </React.Fragment>
-                        );
-                      })}
-
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={e => {
-                          e.preventDefault();
-                          if (pagination.hasNextPage) {
-                            handlePageChange(page + 1);
-                          }
-                        }}
-                        className={!pagination.hasNextPage ? 'pointer-events-none opacity-50' : ''}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-
-                {/* Items per page selector */}
-                <div className="flex items-center gap-2">
-                  <select
-                    className="text-sm h-8 rounded-md border border-input bg-background px-2"
-                    value={limit}
-                    onChange={e => {
-                      setLimit(Number(e.target.value));
-                      setPage(1); // Reset to first page when changing limit
-                    }}
-                  >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                  </select>
-                  <span className="text-sm text-muted-foreground">per page</span>
-                </div>
-              </div>
-            )}
+            {/* Pagination - Standardized across all tabs */}
+            <TablePagination
+              pagination={
+                pagination || {
+                  currentPage: 1,
+                  totalPages: 1,
+                  totalItems: gateways.length,
+                  itemsPerPage: limit,
+                  hasNextPage: false,
+                  hasPreviousPage: false,
+                }
+              }
+              currentPage={page}
+              onPageChange={handlePageChange}
+              showItemsPerPage={true}
+              itemsPerPageOptions={[5, 10, 25, 50]}
+              onItemsPerPageChange={newLimit => {
+                setLimit(newLimit);
+                setPage(1); // Reset to first page when changing limit
+              }}
+            />
           </>
         )}
       </div>
