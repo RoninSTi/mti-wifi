@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useTypedParams } from '@/lib/utils';
 import { ArrowLeft, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,16 +15,13 @@ import { DeleteButton } from '@/components/ui/delete-button';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 
 export default function OrganizationDetailsPage() {
-  const params = useParams();
   const router = useRouter();
-  // Type-safe parameter extraction with proper type narrowing
-  const id = params?.id;
 
-  if (!id || Array.isArray(id)) {
-    throw new Error('Missing or invalid route parameters');
-  }
-
-  const organizationId = id; // Now TypeScript knows these are strings
+  // Type-safe params - automatically throws error if params are missing or invalid
+  type OrganizationDetailParams = {
+    id: string; // Organization ID
+  };
+  const { id: organizationId } = useTypedParams<OrganizationDetailParams>();
 
   // Use the custom hook to fetch organization data
   const { organization, isLoading, isError, error } = useOrganization(organizationId);

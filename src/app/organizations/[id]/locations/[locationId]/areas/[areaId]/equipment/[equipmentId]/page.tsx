@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
 import { useEquipment, useDeleteEquipment } from '@/hooks';
@@ -12,31 +12,24 @@ import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTypedParams } from '@/lib/utils';
 
 export default function EquipmentDetailsPage() {
-  const params = useParams();
   const router = useRouter();
 
-  // Type-safe parameter extraction with proper type narrowing
-  const id = params?.id;
-  const locationId = params?.locationId;
-  const areaId = params?.areaId;
-  const equipmentId = params?.equipmentId;
-
-  if (
-    !id ||
-    Array.isArray(id) ||
-    !locationId ||
-    Array.isArray(locationId) ||
-    !areaId ||
-    Array.isArray(areaId) ||
-    !equipmentId ||
-    Array.isArray(equipmentId)
-  ) {
-    throw new Error('Missing or invalid route parameters');
-  }
-
-  const organizationId = id;
+  // Type-safe params - automatically throws error if params are missing or invalid
+  type EquipmentDetailParams = {
+    id: string; // Organization ID
+    locationId: string; // Location ID
+    areaId: string; // Area ID
+    equipmentId: string; // Equipment ID
+  };
+  const {
+    id: organizationId,
+    locationId,
+    areaId,
+    equipmentId,
+  } = useTypedParams<EquipmentDetailParams>();
 
   // Fetch equipment details
   const { equipment, isLoading, isError, error } = useEquipment(equipmentId);

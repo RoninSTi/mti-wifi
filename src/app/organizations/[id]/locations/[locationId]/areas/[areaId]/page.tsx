@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useTypedParams } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, Grid3X3 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,25 +24,13 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function AreaDetailsPage() {
-  const params = useParams();
-
-  // Type-safe parameter extraction with proper type narrowing
-  const id = params?.id;
-  const locationId = params?.locationId;
-  const areaId = params?.areaId;
-
-  if (
-    !id ||
-    Array.isArray(id) ||
-    !locationId ||
-    Array.isArray(locationId) ||
-    !areaId ||
-    Array.isArray(areaId)
-  ) {
-    throw new Error('Missing or invalid route parameters');
-  }
-
-  const organizationId = id; // Now TypeScript knows these are strings
+  // Type-safe params - automatically throws error if params are missing or invalid
+  type AreaDetailParams = {
+    id: string; // Organization ID
+    locationId: string; // Location ID
+    areaId: string; // Area ID
+  };
+  const { id: organizationId, locationId, areaId } = useTypedParams<AreaDetailParams>();
   const router = useRouter();
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
 

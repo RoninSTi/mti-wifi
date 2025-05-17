@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useTypedParams } from '@/lib/utils';
 import { ArrowLeft, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLocation, useDeleteLocation } from '@/hooks';
@@ -15,17 +16,14 @@ import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function LocationDetailsPage() {
-  const params = useParams();
   const router = useRouter();
-  // Type-safe parameter extraction with proper type narrowing
-  const id = params?.id;
-  const locationId = params?.locationId;
 
-  if (!id || Array.isArray(id) || !locationId || Array.isArray(locationId)) {
-    throw new Error('Missing or invalid route parameters');
-  }
-
-  const organizationId = id; // Now TypeScript knows these are strings
+  // Type-safe params - automatically throws error if params are missing or invalid
+  type LocationDetailParams = {
+    id: string; // Organization ID
+    locationId: string; // Location ID
+  };
+  const { id: organizationId, locationId } = useTypedParams<LocationDetailParams>();
 
   // Use the custom hooks to fetch location and organization data and handle deletion
   const { location, isLoading: isLoadingLocation, isError, error } = useLocation(locationId);
