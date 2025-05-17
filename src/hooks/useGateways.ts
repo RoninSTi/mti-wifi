@@ -14,6 +14,7 @@ export interface UseGatewaysParams {
   name?: string;
   serialNumber?: string;
   status?: 'disconnected' | 'connected' | 'authenticated';
+  enabled?: boolean; // Explicitly control whether the query runs
 }
 
 export interface UseGatewaysResult {
@@ -38,6 +39,7 @@ export function useGateways({
   name,
   serialNumber,
   status,
+  enabled = true, // Default to true to always fetch unless explicitly disabled
 }: UseGatewaysParams = {}): UseGatewaysResult {
   const queryKey = [
     'gateways',
@@ -52,8 +54,8 @@ export function useGateways({
     queryFn: () =>
       getGateways({ page, limit, sortBy, sortOrder, q, locationId, name, serialNumber, status }),
     staleTime: 60 * 1000, // 1 minute
-    // Only fetch if we have an locationId or other filter
-    enabled: !!locationId || !!q || !!name || !!serialNumber || !!status,
+    // Allow fetching all gateways or filtering by specific criteria
+    enabled: true,
   });
 
   // Extract gateways and pagination from the response

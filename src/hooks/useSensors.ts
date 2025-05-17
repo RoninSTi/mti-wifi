@@ -31,6 +31,8 @@ export type UseSensorsResult = {
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
+  // We include refetch here but it should rarely be used directly
+  // Prefer using query invalidation in mutation hooks instead
   refetch: () => Promise<unknown>;
 };
 

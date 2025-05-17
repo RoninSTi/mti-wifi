@@ -23,6 +23,8 @@ interface EditSensorDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  // onComplete is kept for backward compatibility but should not be needed
+  // as query invalidation will automatically trigger refetching
   onComplete?: () => void;
 }
 
@@ -93,6 +95,8 @@ export function EditSensorDialog({
       updateSensor(formData, {
         onSuccess: () => {
           onOpenChange(false);
+          // onComplete is no longer necessary as query invalidation
+          // in useUpdateSensor will automatically trigger refetching
           if (onComplete) {
             onComplete();
           }

@@ -772,7 +772,7 @@ export function useResourceList(params: ResourceListParams = {}) {
 
 ### Mutation Hooks
 
-For data mutations (create, update, delete), use `useMutation`:
+For data mutations (create, update, delete), use `useMutation` with proper query invalidation:
 
 ```typescript
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -784,12 +784,166 @@ export function useCreateResource() {
   return useMutation({
     mutationFn: createResource,
     onSuccess: () => {
-      // Invalidate related queries to refresh data
+      // Invalidate related queries to refresh data automatically
       queryClient.invalidateQueries({ queryKey: ['resources'] });
     },
   });
 }
 ```
+
+### Query Invalidation vs. Manual Refetching
+
+React Query is designed to manage the fetching, caching, and updating of data automatically. The refetch method should almost never be needed directly in components. Always follow these best practices:
+
+1. **NEVER use manual refetch calls directly in components - this is a code smell**
+
+   ```typescript
+   // INCORRECT - Using manual refetch in component
+   const { data, refetch } = useResources();
+
+   const handleSubmit = async () => {
+     await createResource(newResource);
+     // Don't do this - it bypasses React Query's automatic updates
+     refetch();
+   };
+
+   // CORRECT - Let React Query handle updates via invalidation
+   const queryClient = useQueryClient();
+   const { data } = useResources();
+   const { mutate } = useCreateResource(); // This mutation internally invalidates the query
+
+   const handleSubmit = async () => {
+     mutate(newResource);
+     // No refetch needed - query will update automatically when invalidated
+   };
+   ```
+
+2. **Use query invalidation in mutation hooks**
+
+   Make sure all mutation hooks (create/update/delete) properly invalidate related queries:
+
+   ```typescript
+   // In useCreateResource.ts
+   export function useCreateResource() {
+     const queryClient = useQueryClient();
+
+     return useMutation({
+       mutationFn: createResource,
+       onSuccess: (data, variables) => {
+         // Invalidate all resource list queries
+         queryClient.invalidateQueries({ queryKey: ['resources'] });
+
+         // Optionally update specific queries directly in the cache
+         queryClient.setQueryData(['resource', data._id], data);
+       },
+     });
+   }
+
+   // In useUpdateResource.ts
+   export function useUpdateResource() {
+     const queryClient = useQueryClient();
+
+     return useMutation({
+       mutationFn: updateResource,
+       onSuccess: data => {
+         // Invalidate all resource list queries
+         queryClient.invalidateQueries({ queryKey: ['resources'] });
+
+         // Update specific resource in the cache
+         queryClient.setQueryData(['resource', data._id], data);
+       },
+     });
+   }
+
+   // In useDeleteResource.ts
+   export function useDeleteResource() {
+     const queryClient = useQueryClient();
+
+     return useMutation({
+       mutationFn: deleteResource,
+       onSuccess: (_, variables) => {
+         // Invalidate all resource list queries
+         queryClient.invalidateQueries({ queryKey: ['resources'] });
+
+         // Remove the deleted item from cache
+         queryClient.removeQueries({ queryKey: ['resource', variables.id] });
+       },
+     });
+   }
+   ```
+
+3. **Invalidation patterns for related entities**
+
+   When updating data that affects multiple entity types, invalidate all related queries:
+
+   ```typescript
+   // When adding a location to an organization
+   queryClient.invalidateQueries({ queryKey: ['organizations'] });
+   queryClient.invalidateQueries({ queryKey: ['locations'] });
+
+   // When updating a nested entity, invalidate the parent too
+   queryClient.invalidateQueries({ queryKey: ['equipment', equipmentId] });
+   queryClient.invalidateQueries({ queryKey: ['areas', areaId] });
+   ```
+
+4. **Only include refetch in query hook return values when absolutely necessary**
+
+   ```typescript
+   // CORRECT - Don't expose refetch in normal cases
+   export function useResources(params) {
+     const query = useQuery({
+       queryKey: ['resources', params],
+       queryFn: () => getResources(params),
+     });
+
+     // Only return what components actually need
+     return {
+       resources: query.data?.data || [],
+       isLoading: query.isLoading,
+       isError: query.isError,
+       error: query.error,
+     };
+   }
+   ```
+
+5. **Proper error state retry handling**
+
+   When showing error states with retry buttons, use query invalidation instead of direct refetch calls:
+
+   ```typescript
+   // INCORRECT - Using refetch directly in error state
+   {isError && (
+     <div className="error-container">
+       <p>Failed to load data</p>
+       <Button onClick={() => refetch()}>Retry</Button>
+     </div>
+   )}
+
+   // CORRECT - Using query invalidation for retry
+   import { useQueryClient } from '@tanstack/react-query';
+
+   function MyComponent() {
+     const queryClient = useQueryClient();
+     const { data, isError } = useResources(params);
+
+     return (
+       <>
+         {isError && (
+           <div className="error-container">
+             <p>Failed to load data</p>
+             <Button
+               onClick={() => queryClient.invalidateQueries({
+                 queryKey: ['resources', params]
+               })}
+             >
+               Retry
+             </Button>
+           </div>
+         )}
+       </>
+     );
+   }
+   ```
 
 ### Best Practices for React Query Hooks
 
@@ -816,17 +970,28 @@ export function useCreateResource() {
    - The API client in `src/lib/api/api-client.ts` already handles response structure and errors
    - It returns an `ApiResponse<T>` type that you should use directly
 
-3. **Proper Query Invalidation**
+3. **Proper Query Invalidation Strategies**
 
-   - When mutating data, invalidate only the relevant queries
-   - For collection queries, invalidate the queryKey without parameters
+   Use these query invalidation patterns for different situations:
 
    ```typescript
-   // Invalidate all 'resources' queries
+   // Broad invalidation (invalidates all queries for an entity type)
    queryClient.invalidateQueries({ queryKey: ['resources'] });
 
-   // Remove specific resource from cache
+   // Targeted invalidation (invalidates specific instance)
+   queryClient.invalidateQueries({ queryKey: ['resource', id] });
+
+   // Exact match invalidation (only invalidates an exact query)
+   queryClient.invalidateQueries({
+     queryKey: ['resources', { status: 'active' }],
+     exact: true,
+   });
+
+   // Remove a query from cache (when entity is deleted)
    queryClient.removeQueries({ queryKey: ['resource', id] });
+
+   // Update a specific query directly without refetching
+   queryClient.setQueryData(['resource', id], updatedResource);
    ```
 
 4. **Consistent Error Handling**

@@ -3,6 +3,7 @@
 import React from 'react';
 import { useSensor } from '@/hooks/useSensor';
 import { useDeleteSensor } from '@/hooks/useDeleteSensor';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Card,
   CardContent,
@@ -25,7 +26,8 @@ interface SensorDetailsProps {
 }
 
 export function SensorDetails({ sensorId, onDelete }: SensorDetailsProps) {
-  const { data, isLoading, isError, error, refetch } = useSensor(sensorId);
+  const { data, isLoading, isError, error } = useSensor(sensorId);
+  const queryClient = useQueryClient();
   const { mutate: deleteSensor, isPending: isDeleting } = useDeleteSensor();
   const router = useRouter();
   // Dialog state is managed by the DeleteButton component
@@ -57,7 +59,10 @@ export function SensorDetails({ sensorId, onDelete }: SensorDetailsProps) {
         <p className="text-destructive">
           Error loading sensor: {error?.message || 'Unknown error'}
         </p>
-        <Button onClick={() => refetch()} className="mt-4">
+        <Button
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['sensor', sensorId] })}
+          className="mt-4"
+        >
           Retry
         </Button>
       </div>
@@ -199,7 +204,11 @@ export function SensorDetails({ sensorId, onDelete }: SensorDetailsProps) {
       </CardContent>
       <CardFooter className="flex justify-between pt-4 border-t">
         <DeleteButton onDelete={handleDelete} isDeleting={isDeleting} resourceName="sensor" />
-        <EditSensorDialog sensorId={sensorId} onComplete={refetch} />
+        <EditSensorDialog
+          sensorId={sensorId}
+          // No need for manual refetch as query invalidation will automatically trigger updates
+          onComplete={() => {}}
+        />
       </CardFooter>
     </Card>
   );

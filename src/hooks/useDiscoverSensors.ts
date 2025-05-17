@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ctcApiService } from '@/lib/ctc/ctcApiService';
 import { toast } from 'sonner';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/api-client';
 import {
   DiscoveryStage,
@@ -75,7 +75,6 @@ export function useDiscoverSensors({
   // Watch for changes in active gateway
   useEffect(() => {
     if (hasActiveGateway) {
-      console.log('Active gateway detected, skipping to discover stage');
       setStage(DiscoveryStage.DISCOVER);
       setGatewayUrl('Already connected');
     }
@@ -178,8 +177,6 @@ export function useDiscoverSensors({
       // Get connected sensors from the gateway
       const sensorData = await ctcApiService.getConnectedDynamicSensors();
 
-      console.log('Sensor data received:', sensorData);
-
       // Check if data is empty
       if (!sensorData) {
         toast.error('No data received from gateway');
@@ -210,8 +207,6 @@ export function useDiscoverSensors({
         });
       }
 
-      console.log('Processed sensor data:', processedSensorData);
-
       if (Object.keys(processedSensorData).length === 0) {
         toast.info('No sensors found');
         setIsDiscovering(false);
@@ -229,15 +224,13 @@ export function useDiscoverSensors({
         if (Array.isArray(existingResponse.data)) {
           existingSensors = existingResponse.data;
         } else {
-          console.warn('existingResponse.data is not an array:', existingResponse.data);
+          // existingResponse.data is not an array, try to convert
           // Try to convert to array if it's an object with enumerable properties
           if (typeof existingResponse.data === 'object') {
             existingSensors = Object.values(existingResponse.data);
           }
         }
       }
-
-      console.log('Existing sensors:', existingSensors);
 
       // Transform the sensor data for the UI
       const sensors: DiscoveredSensor[] = Object.values(processedSensorData)
@@ -267,8 +260,6 @@ export function useDiscoverSensors({
               FmVer: typeof sensorData.FmVer === 'string' ? sensorData.FmVer : '',
             };
 
-            console.log('Processing sensor:', sensor);
-
             // Generate a suggested name based on serial and part number
             const suggestedName = `${sensor.PartNum || 'Sensor'} ${sensor.Serial}`;
 
@@ -286,8 +277,8 @@ export function useDiscoverSensors({
               duplicate: !!existingSensor,
               existingId: existingSensor?._id,
             };
-          } catch (error) {
-            console.error('Error processing sensor:', sensorRaw, error);
+          } catch {
+            // Error occurred while processing sensor data
             // Return a minimal valid sensor object to avoid breaking the UI
             // Use safe defaults for the fallback case
             return {
@@ -357,6 +348,9 @@ export function useDiscoverSensors({
     setDiscoveredSensors(prev => prev.map(sensor => ({ ...sensor, selected: false })));
   }, []);
 
+  // Get query client for cache invalidation
+  const queryClient = useQueryClient();
+
   // Mutation for creating sensors
   const createSensorsMutation = useMutation({
     mutationFn: async (sensors: SensorAssociation[]) => {
@@ -381,6 +375,11 @@ export function useDiscoverSensors({
     },
     onSuccess: sensors => {
       if (sensors && sensors.length > 0) {
+        // Invalidate related queries to trigger automatic refetching
+        queryClient.invalidateQueries({ queryKey: ['sensors'] });
+        queryClient.invalidateQueries({ queryKey: ['sensors', equipmentId] });
+        queryClient.invalidateQueries({ queryKey: ['equipment', equipmentId] });
+
         toast.success(`${sensors.length} sensor(s) created successfully`);
         if (onSuccess) onSuccess(sensors);
       } else {
@@ -401,8 +400,6 @@ export function useDiscoverSensors({
       toast.error('Please select at least one sensor');
       return;
     }
-
-    console.log('Selected sensors for association:', selectedSensors);
 
     // Prepare sensor data for submission
     const sensorAssociations: SensorAssociation[] = selectedSensors.map(sensor => {
@@ -454,12 +451,10 @@ export function useDiscoverSensors({
     // Always reset to initial stage based on gateway connection
     if (hasActiveGateway) {
       // If there's an active gateway, go directly to discover stage
-      console.log('Active gateway in context, resetting to discover stage');
       setStage(DiscoveryStage.DISCOVER);
       setGatewayUrl('Already connected');
     } else {
       // No active gateway, so reset to connect stage
-      console.log('No active gateway, resetting to connect stage');
       setStage(DiscoveryStage.CONNECT);
       setGatewayUrl('');
     }

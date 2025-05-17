@@ -18,6 +18,7 @@ import { SensorDetails } from './SensorDetails';
 import { DiscoverSensorsDialog } from './DiscoverSensorsDialog';
 import { useSensors } from '@/hooks/useSensors';
 import { useDeleteSensor } from '@/hooks/useDeleteSensor';
+import { useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -48,10 +49,13 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
   const [discoverDialogOpen, setDiscoverDialogOpen] = useState(false);
 
   // Fetch sensors without pagination
-  const { sensors, isLoading, refetch, isError } = useSensors(equipmentId, {
+  const { sensors, isLoading, isError } = useSensors(equipmentId, {
     sortBy: 'createdAt',
     sortOrder: 'desc',
   });
+
+  // Get queryClient for direct cache manipulation if needed
+  const queryClient = useQueryClient();
 
   const { mutate: deleteSensor, isPending: isDeleting } = useDeleteSensor();
 
@@ -89,9 +93,10 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
     deleteSensor(sensorToDelete, {
       onSuccess: () => {
         // Toast is handled in the useDeleteSensor hook
-        refetch();
+        // No need to call refetch - query invalidation in the useDeleteSensor hook
+        // will automatically trigger a refetch
       },
-      onError: error => {
+      onError: () => {
         // Error toast is handled in the useDeleteSensor hook
       },
       onSettled: () => {
@@ -160,7 +165,15 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
                 <TableCell colSpan={5} className="text-center py-8">
                   <div className="flex flex-col items-center justify-center space-y-3">
                     <p className="text-destructive">Error loading sensors</p>
-                    <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        queryClient.invalidateQueries({
+                          queryKey: ['sensors', { equipmentId }],
+                        })
+                      }
+                    >
                       Try again
                     </Button>
                   </div>
@@ -263,7 +276,8 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
               sensorId={selectedSensor}
               onDelete={() => {
                 setDetailsOpen(false);
-                refetch();
+                // No need to call refetch - query invalidation in the
+                // deletion hook will trigger automatic refetching
               }}
             />
           )}
@@ -276,7 +290,10 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
           sensorId={selectedSensor}
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
-          onComplete={refetch}
+          onComplete={() => {
+            // No need for manual refetch - query invalidation in the update hook
+            // will trigger automatic refetching
+          }}
         />
       )}
 
@@ -298,8 +315,10 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
         defaultOpen={discoverDialogOpen}
         onComplete={() => {
           setDiscoverDialogOpen(false);
-          refetch();
+          // Refetch is not needed - query invalidation in the useDiscoverSensors hook
+          // will automatically trigger a refetch of the sensors query
         }}
+        trigger={<span style={{ display: 'none' }}>Discover Sensors</span>}
       />
     </div>
   );

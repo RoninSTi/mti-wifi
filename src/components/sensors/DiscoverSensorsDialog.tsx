@@ -11,26 +11,21 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Wifi,
-  WifiOff,
-  Search,
-  Loader,
-  Check,
-  ArrowLeft,
-  ArrowRight,
-  Clipboard,
-  CircleCheck,
-} from 'lucide-react';
+import { Wifi, Search, Loader, Check, CircleCheck, AlertCircle, ArrowRight } from 'lucide-react';
 import { useDiscoverSensors } from '@/hooks/useDiscoverSensors';
 import { ctcApiService } from '@/lib/ctc/ctcApiService';
-import { DiscoveryStage, DiscoveredSensor } from '@/types/discovery';
+import { DiscoveryStage, DiscoveredSensor, StepStatus } from '@/types/discovery';
 import { SensorResponse } from '@/app/api/sensors/schemas';
-import { useGatewayConnection } from '@/contexts/GatewayConnectionContext';
+import { useGateways } from '@/hooks';
+import { useGatewayConnections } from '@/hooks/useGatewayConnections';
+import { GatewayResponse } from '@/app/api/gateways/schemas';
+import { Card } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
+import { GatewayConnectionManagerDialog } from '@/components/gateways/GatewayConnectionManagerDialog';
 
 interface DiscoverSensorsDialogProps {
   equipmentId: string;
@@ -39,18 +34,227 @@ interface DiscoverSensorsDialogProps {
   defaultOpen?: boolean;
 }
 
+// Gateway selector component
+interface GatewaySelectorProps {
+  onSelectGateway: (gateway: GatewayResponse) => Promise<void>;
+  isConnecting: boolean;
+}
+
+function GatewaySelector({ onSelectGateway, isConnecting }: GatewaySelectorProps) {
+  // Get gateway connections to determine which ones are active
+  const { isAuthenticated, isConnected } = useGatewayConnections();
+
+  // Fetch all gateways with required parameter to trigger the query
+  const { gateways, isLoading, isError } = useGateways({
+    limit: 50, // Fetch up to 50 gateways
+    status: undefined, // Explicitly pass a parameter to enable the query
+  });
+
+  // Sort connected gateways first, then by status and name, but only if we have gateways
+  const sortedGateways = gateways.length
+    ? [...gateways].sort((a, b) => {
+        // First, sort by authentication status
+        const aIsAuthenticated = isAuthenticated(a._id);
+        const bIsAuthenticated = isAuthenticated(b._id);
+        if (aIsAuthenticated && !bIsAuthenticated) return -1;
+        if (!aIsAuthenticated && bIsAuthenticated) return 1;
+
+        // Then, sort by connection status
+        const aIsConnected = isConnected(a._id);
+        const bIsConnected = isConnected(b._id);
+        if (aIsConnected && !bIsConnected) return -1;
+        if (!aIsConnected && bIsConnected) return 1;
+
+        // Finally, sort alphabetically by name
+        return a.name.localeCompare(b.name);
+      })
+    : [];
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center space-x-2 p-8">
+        <Loader className="h-5 w-5 animate-spin" />
+        <span>Loading gateways...</span>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-4 border border-destructive/20 bg-destructive/10 rounded-md">
+        <div className="flex items-center gap-2 text-destructive">
+          <AlertCircle className="h-5 w-5" />
+          <span className="font-medium">Failed to load gateways</span>
+        </div>
+        <p className="mt-2 text-sm">Please try again or connect manually.</p>
+      </div>
+    );
+  }
+
+  if (gateways.length === 0) {
+    return (
+      <div className="p-4 border bg-muted/40 rounded-md text-center">
+        <p className="text-sm text-muted-foreground">
+          No gateways found. Please add a gateway or connect manually.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <h3 className="font-medium">Select a Gateway</h3>
+      <div className="grid grid-cols-1 gap-3 max-h-[250px] overflow-y-auto pr-1">
+        {sortedGateways.map(gateway => {
+          const gatewayActive = isAuthenticated(gateway._id);
+          const gatewayConnected = isConnected(gateway._id);
+
+          return (
+            <Card
+              key={gateway._id}
+              className={`p-3 cursor-pointer transition-all border hover:border-primary 
+                ${gatewayActive ? 'border-green-500 bg-green-50 dark:bg-green-950' : ''}
+                ${isConnecting ? 'opacity-50 pointer-events-none' : ''}
+              `}
+              onClick={() => {
+                // Only proceed directly if the gateway is authenticated
+                if (gatewayActive) {
+                  onSelectGateway(gateway);
+                }
+                // Otherwise, don't do anything - the connection dialog trigger will handle it
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`p-1.5 rounded-full 
+                    ${gatewayActive ? 'bg-green-100 dark:bg-green-900' : 'bg-muted'}`}
+                  >
+                    <Wifi
+                      className={`h-4 w-4 
+                      ${
+                        gatewayActive
+                          ? 'text-green-600 dark:text-green-400'
+                          : gatewayConnected
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-muted-foreground'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <div className="font-medium">{gateway.name}</div>
+                    <div className="text-xs text-muted-foreground">{gateway.url}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2 items-center">
+                  {gatewayActive && <Badge className="bg-green-500">Active</Badge>}
+                  {gatewayConnected && !gatewayActive && (
+                    <>
+                      <Badge className="bg-blue-500">Connected</Badge>
+                      <GatewayConnectionManagerDialog
+                        gateway={gateway}
+                        trigger={
+                          <Button size="sm" variant="outline" className="h-7 ml-2">
+                            Authenticate
+                          </Button>
+                        }
+                      />
+                    </>
+                  )}
+                  {!gatewayConnected && (
+                    <>
+                      <Badge variant="outline">Disconnected</Badge>
+                      <GatewayConnectionManagerDialog
+                        gateway={gateway}
+                        trigger={
+                          <Button size="sm" variant="outline" className="h-7 ml-2">
+                            Connect
+                          </Button>
+                        }
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * StepIndicator component for wizard flows
+ * Displays step indicators with proper styling based on status
+ */
+interface StepIndicatorProps {
+  number: number;
+  label: string;
+  status: StepStatus;
+  onClick: () => void;
+}
+
+function StepIndicator({ number, label, status, onClick }: StepIndicatorProps) {
+  // Determine styling and interactivity based on status
+  const isClickable = status !== StepStatus.LOCKED;
+
+  // Determine color styles based on status
+  const getTextColorClass = (): string => {
+    switch (status) {
+      case StepStatus.ACTIVE:
+        return 'text-primary';
+      case StepStatus.COMPLETED:
+        return 'text-green-600 dark:text-green-400';
+      case StepStatus.AVAILABLE:
+        return 'text-muted-foreground font-medium';
+      case StepStatus.LOCKED:
+      default:
+        return 'text-muted-foreground';
+    }
+  };
+
+  const getCircleColorClass = (): string => {
+    switch (status) {
+      case StepStatus.ACTIVE:
+        return 'bg-primary text-primary-foreground';
+      case StepStatus.COMPLETED:
+        return 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400';
+      case StepStatus.AVAILABLE:
+      case StepStatus.LOCKED:
+      default:
+        return 'bg-muted';
+    }
+  };
+
+  return (
+    <button
+      className={`flex flex-col items-center ${
+        isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'
+      } ${getTextColorClass()}`}
+      onClick={isClickable ? onClick : undefined}
+      disabled={!isClickable}
+      aria-current={status === StepStatus.ACTIVE ? 'step' : undefined}
+    >
+      <div
+        className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 ${getCircleColorClass()}`}
+      >
+        {status === StepStatus.COMPLETED ? <Check className="h-5 w-5" /> : number}
+      </div>
+      <span className="text-xs">{label}</span>
+    </button>
+  );
+}
+
+// Simplified main dialog component
 export function DiscoverSensorsDialog({
   equipmentId,
+  trigger,
   onComplete,
   defaultOpen = false,
-}: Omit<DiscoverSensorsDialogProps, 'trigger'>) {
-  const [open, setOpen] = React.useState(defaultOpen);
-  const { state: gatewayState } = useGatewayConnection();
-
-  // Update open state when defaultOpen changes
-  React.useEffect(() => {
-    setOpen(defaultOpen);
-  }, [defaultOpen]);
+}: DiscoverSensorsDialogProps) {
+  // Simple controlled state from props
+  const [isOpen, setIsOpen] = React.useState(defaultOpen);
 
   const {
     // State
@@ -65,9 +269,7 @@ export function DiscoverSensorsDialog({
     // Gateway connection
     gatewayUrl,
     setGatewayUrl,
-    username,
     setUsername,
-    password,
     setPassword,
 
     // Methods
@@ -84,30 +286,29 @@ export function DiscoverSensorsDialog({
     onSuccess: sensors => {
       // Wait a moment before closing to show success state
       setTimeout(() => {
-        setOpen(false);
+        setIsOpen(false);
         if (onComplete) onComplete(sensors);
       }, 1500);
     },
   });
 
-  // Handle dialog open/close
-  const handleOpenChange = (isOpen: boolean) => {
-    // Set the open state first
-    setOpen(isOpen);
+  // Effect to handle defaultOpen prop changes
+  React.useEffect(() => {
+    setIsOpen(defaultOpen);
+  }, [defaultOpen]);
 
-    if (isOpen) {
-      // Dialog is being opened - check gateway status
-      console.log(
-        'Opening discovery dialog. Current gateway connection status:',
-        ctcApiService.isConnectedToGateway() ? 'Connected' : 'Not connected'
-      );
-    } else {
-      // Dialog is being closed - reset state
-      console.log('Closing discovery dialog, resetting state');
-      // Use setTimeout to ensure state reset happens after the dialog animation completes
-      setTimeout(() => {
-        resetDiscovery();
-      }, 300);
+  // Simple handler for dialog open/close
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+
+    // Reset when closing
+    if (!open) {
+      resetDiscovery();
+
+      // Notify parent when dialog is closed
+      if (!open && onComplete && stage === DiscoveryStage.CONFIRM) {
+        onComplete([]);
+      }
     }
   };
 
@@ -127,175 +328,150 @@ export function DiscoverSensorsDialog({
     }
   };
 
-  // Log the current stage for debugging
-  console.log(
-    'Current stage:',
-    stage,
-    'Active tab:',
-    getActiveTab(),
-    'Gateway connection:',
-    ctcApiService.isConnectedToGateway() ? 'Connected' : 'Not connected',
-    'Gateway URL:',
-    gatewayUrl
-  );
+  /**
+   * Determines the status of a specific step based on the current state of the discovery process
+   *
+   * @param step - The discovery stage to check status for
+   * @returns The status of the step (locked, available, active, or completed)
+   */
+  const getStepStatus = (step: DiscoveryStage): StepStatus => {
+    // Special case: ALWAYS lock the associate/select step on initial load to fix the issue
+    if (step === DiscoveryStage.ASSOCIATE && discoveredSensors.length === 0) {
+      return StepStatus.LOCKED;
+    }
+
+    // If this is the current stage, it's active
+    if (stage === step) {
+      return StepStatus.ACTIVE;
+    }
+
+    // Handle first step (always available)
+    if (step === DiscoveryStage.CONNECT) {
+      return stage > DiscoveryStage.CONNECT ? StepStatus.COMPLETED : StepStatus.AVAILABLE;
+    }
+
+    // For the Discover step
+    if (step === DiscoveryStage.DISCOVER) {
+      // If we're past this step, it's completed
+      if (stage > DiscoveryStage.DISCOVER) {
+        return StepStatus.COMPLETED;
+      }
+
+      // If gateway is connected, the step is available
+      const isConnected = ctcApiService.isConnectedToGateway();
+      return isConnected ? StepStatus.AVAILABLE : StepStatus.LOCKED;
+    }
+
+    // For the Associate (select) step
+    if (step === DiscoveryStage.ASSOCIATE) {
+      // If we're past this step, it's completed
+      if (stage > DiscoveryStage.ASSOCIATE) {
+        return StepStatus.COMPLETED;
+      }
+
+      // Only available if we have discovered sensors
+      return discoveredSensors.length > 0 ? StepStatus.AVAILABLE : StepStatus.LOCKED;
+    }
+
+    // For the Confirm step
+    if (step === DiscoveryStage.CONFIRM) {
+      // This step is only active when we reach it (it's never available for direct navigation)
+      // and it's never completed (it's the final step)
+      return StepStatus.LOCKED;
+    }
+
+    // Default fallback (should never happen)
+    return StepStatus.LOCKED;
+  };
+
+  // Removed debug logging for production
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {/* No trigger needed as this dialog is opened programmatically */}
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
 
       <DialogContent className="sm:max-w-[650px]">
         <DialogHeader>
           <div className="flex flex-col space-y-1">
             <DialogTitle>Discover Sensors</DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              {stage === DiscoveryStage.CONNECT && 'Step 1: Connect to a gateway'}
-              {stage === DiscoveryStage.DISCOVER &&
-                'Step 2: Click the green button to scan for sensors'}
-              {stage === DiscoveryStage.ASSOCIATE &&
-                'Step 3: Select sensors to associate with equipment'}
-              {stage === DiscoveryStage.CONFIRM && 'Step 4: Sensors associated successfully'}
-            </p>
           </div>
         </DialogHeader>
 
-        <div className="w-full border-b pb-2 mb-4">
+        <div className="w-full mb-4">
           <div className="flex justify-between w-full">
-            <div
-              className={`flex flex-col items-center ${
-                stage === DiscoveryStage.CONNECT
-                  ? 'text-primary'
-                  : 'text-green-600 dark:text-green-400'
-              }`}
-            >
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${
-                  stage === DiscoveryStage.CONNECT
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400'
-                }`}
-              >
-                {stage !== DiscoveryStage.CONNECT ? <Check className="h-4 w-4" /> : '1'}
-              </div>
-              <span className="text-xs">Connect</span>
-            </div>
-            <div
-              className={`flex flex-col items-center ${stage === DiscoveryStage.DISCOVER ? 'text-primary' : stage > DiscoveryStage.DISCOVER ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}
-            >
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${
-                  stage === DiscoveryStage.DISCOVER
-                    ? 'bg-primary text-primary-foreground'
-                    : stage > DiscoveryStage.DISCOVER
-                      ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400'
-                      : 'bg-muted'
-                }`}
-              >
-                {stage > DiscoveryStage.DISCOVER ? <Check className="h-4 w-4" /> : '2'}
-              </div>
-              <span className="text-xs">Discover</span>
-            </div>
-            <div
-              className={`flex flex-col items-center ${stage === DiscoveryStage.ASSOCIATE ? 'text-primary' : stage > DiscoveryStage.ASSOCIATE ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}
-            >
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${
-                  stage === DiscoveryStage.ASSOCIATE
-                    ? 'bg-primary text-primary-foreground'
-                    : stage > DiscoveryStage.ASSOCIATE
-                      ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400'
-                      : 'bg-muted'
-                }`}
-              >
-                {stage > DiscoveryStage.ASSOCIATE ? <Check className="h-4 w-4" /> : '3'}
-              </div>
-              <span className="text-xs">Select</span>
-            </div>
-            <div
-              className={`flex flex-col items-center ${stage === DiscoveryStage.CONFIRM ? 'text-primary' : 'text-muted-foreground'}`}
-            >
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${stage === DiscoveryStage.CONFIRM ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
-              >
-                <span>4</span>
-              </div>
-              <span className="text-xs">Confirm</span>
-            </div>
+            {/* Connect Step */}
+            <StepIndicator
+              number={1}
+              label="Connect"
+              status={getStepStatus(DiscoveryStage.CONNECT)}
+              onClick={() => setStage(DiscoveryStage.CONNECT)}
+            />
+
+            {/* Discover Step */}
+            <StepIndicator
+              number={2}
+              label="Discover"
+              status={getStepStatus(DiscoveryStage.DISCOVER)}
+              onClick={() => setStage(DiscoveryStage.DISCOVER)}
+            />
+
+            {/* Select Step */}
+            <StepIndicator
+              number={3}
+              label="Select"
+              status={getStepStatus(DiscoveryStage.ASSOCIATE)}
+              onClick={() => setStage(DiscoveryStage.ASSOCIATE)}
+            />
+
+            {/* Confirm Step */}
+            <StepIndicator
+              number={4}
+              label="Confirm"
+              status={getStepStatus(DiscoveryStage.CONFIRM)}
+              onClick={() => setStage(DiscoveryStage.CONFIRM)}
+            />
           </div>
         </div>
 
-        <Tabs value={getActiveTab()} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="connect" disabled={stage !== DiscoveryStage.CONNECT}>
-              1. Connect
-            </TabsTrigger>
-            <TabsTrigger value="discover" disabled={stage !== DiscoveryStage.DISCOVER}>
-              2. Discover
-            </TabsTrigger>
-            <TabsTrigger value="associate" disabled={stage !== DiscoveryStage.ASSOCIATE}>
-              3. Select
-            </TabsTrigger>
-            <TabsTrigger value="confirm" disabled={stage !== DiscoveryStage.CONFIRM}>
-              4. Confirm
-            </TabsTrigger>
+        <Separator className="my-4" />
+
+        <Tabs value={getActiveTab()}>
+          {/* Hidden TabsList for accessibility */}
+          <TabsList className="hidden">
+            <TabsTrigger value="connect">Connect</TabsTrigger>
+            <TabsTrigger value="discover">Discover</TabsTrigger>
+            <TabsTrigger value="associate">Select</TabsTrigger>
+            <TabsTrigger value="confirm">Confirm</TabsTrigger>
           </TabsList>
 
           {/* Step 1: Connect to Gateway */}
           <TabsContent value="connect" className="space-y-4 py-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="gateway-url">Gateway URL</Label>
-                <Input
-                  id="gateway-url"
-                  placeholder="ws://gateway.example.com:8080"
-                  value={gatewayUrl}
-                  onChange={e => setGatewayUrl(e.target.value)}
-                  disabled={isConnecting}
-                />
-              </div>
+            <GatewaySelector
+              onSelectGateway={async gateway => {
+                // If the gateway is already authenticated, proceed directly
+                if (gateway.status === 'authenticated') {
+                  // Set up connection with the already-authenticated gateway
+                  setGatewayUrl(gateway.url);
+                  setUsername(gateway.username);
+                  setPassword(gateway.password || '');
 
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  placeholder="Enter username"
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  disabled={isConnecting}
-                />
-              </div>
+                  // Connect and move to next stage
+                  await connectToGateway();
+                  setStage(DiscoveryStage.DISCOVER);
+                } else {
+                  // Return without proceeding - the gateway control component will handle connection
+                  toast.info(`Please connect to gateway "${gateway.name}" first`);
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  disabled={isConnecting}
-                />
-              </div>
-            </div>
+                  // The gateway must be connected before we can proceed
+                  return;
+                }
+              }}
+              isConnecting={isConnecting}
+            />
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
+              <Button variant="outline" onClick={() => setIsOpen(false)}>
                 Cancel
-              </Button>
-              <Button
-                onClick={connectToGateway}
-                disabled={isConnecting || !gatewayUrl || !username || !password}
-              >
-                {isConnecting ? (
-                  <>
-                    <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    <Wifi className="mr-2 h-4 w-4" />
-                    Connect
-                  </>
-                )}
               </Button>
             </DialogFooter>
           </TabsContent>
@@ -333,21 +509,7 @@ export function DiscoverSensorsDialog({
               </div>
             </div>
 
-            <DialogFooter className="flex justify-between">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setStage(DiscoveryStage.CONNECT);
-                  // Only disconnect if we didn't automatically skip the connection step
-                  if (gatewayUrl !== 'Already connected') {
-                    ctcApiService.disconnect();
-                  }
-                }}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-
+            <DialogFooter className="flex justify-center">
               <Button onClick={discoverSensors} disabled={isDiscovering} variant="discover">
                 {isDiscovering ? (
                   <>
@@ -443,12 +605,7 @@ export function DiscoverSensorsDialog({
               </p>
             </div>
 
-            <DialogFooter className="flex justify-between mt-4">
-              <Button variant="outline" onClick={() => setStage(DiscoveryStage.DISCOVER)}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-
+            <DialogFooter className="flex justify-end mt-4">
               <Button
                 onClick={createAssociatedSensors}
                 disabled={selectedCount === 0 || isCreating}
@@ -481,7 +638,7 @@ export function DiscoverSensorsDialog({
                 {selectedCount} sensors have been associated with this equipment.
               </p>
 
-              <Button onClick={() => setOpen(false)}>Close</Button>
+              <Button onClick={() => setIsOpen(false)}>Close</Button>
             </div>
           </TabsContent>
         </Tabs>

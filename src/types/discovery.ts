@@ -81,3 +81,15 @@ export enum DiscoveryStage {
   ASSOCIATE = 'associate',
   CONFIRM = 'confirm',
 }
+
+// Status type for step indicators in wizard flows
+export enum StepStatus {
+  // Step is not yet eligible to be accessed
+  LOCKED = 'locked',
+  // Step can be accessed but is not the current active step
+  AVAILABLE = 'available',
+  // Step is the current active step
+  ACTIVE = 'active',
+  // Step has been completed
+  COMPLETED = 'completed',
+}
