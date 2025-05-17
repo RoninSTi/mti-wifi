@@ -4,7 +4,7 @@ import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLocation, useDeleteLocation, useOrganization } from '@/hooks';
+import { useLocation, useDeleteLocation } from '@/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { AreasTab } from '@/components/areas/AreasTab';
@@ -29,7 +29,6 @@ export default function LocationDetailsPage() {
 
   // Use the custom hooks to fetch location and organization data and handle deletion
   const { location, isLoading: isLoadingLocation, isError, error } = useLocation(locationId);
-  const { organization } = useOrganization(organizationId);
   const { deleteLocation, isLoading: isDeleting } = useDeleteLocation();
 
   // Combined loading state

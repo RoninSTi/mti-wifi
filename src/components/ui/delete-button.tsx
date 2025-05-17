@@ -1,19 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Button, buttonVariants } from './button';
+import { Button } from './button';
 import { Trash, Loader2 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 
 interface DeleteButtonProps {
   onDelete: () => Promise<void> | void;
@@ -22,7 +11,6 @@ interface DeleteButtonProps {
   className?: string;
   variant?: 'outline' | 'destructive';
   size?: 'default' | 'sm' | 'lg' | 'icon';
-  confirmWithDialog?: boolean;
   onClick?: () => void; // For custom click handler
 }
 
@@ -33,25 +21,21 @@ export function DeleteButton({
   className,
   variant = 'destructive',
   size = 'default',
-  confirmWithDialog = true,
   onClick,
 }: DeleteButtonProps) {
   const title = `Delete ${resourceName}`;
-  const description = `This action cannot be undone. This will permanently delete the ${resourceName}.`;
 
-  const handleDeleteClick = async () => {
+  const handleDeleteClick = () => {
     if (onClick) {
       // Use custom click handler if provided (like opening a custom dialog)
       onClick();
-    } else if (!confirmWithDialog) {
-      // Use window.confirm for simpler cases
-      if (window.confirm(`Are you sure you want to delete this ${resourceName}?`)) {
-        await onDelete();
-      }
+    } else {
+      // Direct delete action
+      onDelete();
     }
   };
 
-  // Content for button (used in both cases)
+  // Content for button
   const buttonContent = (
     <>
       {isDeleting ? (
@@ -63,36 +47,6 @@ export function DeleteButton({
     </>
   );
 
-  if (confirmWithDialog) {
-    return (
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant={variant} size={size} className={className} disabled={isDeleting}>
-            {buttonContent}
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>{description}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={onDelete}
-              className={buttonVariants({ variant: 'destructive' })}
-              disabled={isDeleting}
-            >
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    );
-  }
-
-  // Simple button with window.confirm (for dropdown menus)
   return (
     <Button
       variant={variant}

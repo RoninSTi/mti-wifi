@@ -6,14 +6,7 @@ import { OrganizationsTable } from './OrganizationsTable';
 // Removed import for TabbedOrganizationDetails
 import { EditOrganizationDialog } from './EditOrganizationDialog';
 import { Button } from '@/components/ui/button';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { Search, X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -167,100 +160,12 @@ export function OrganizationDashboard() {
             />
 
             {/* Pagination */}
-            {pagination && pagination.totalPages > 0 && (
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {isLoading ? (
-                    <div className="h-5 w-[160px] bg-muted animate-pulse rounded"></div>
-                  ) : (
-                    <>
-                      Showing {organizations.length} of {pagination.totalItems} organizations
-                    </>
-                  )}
-                </div>
-
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        onClick={e => {
-                          e.preventDefault();
-                          if (pagination.hasPreviousPage) {
-                            updateParams({ page: page - 1 });
-                          }
-                        }}
-                        className={
-                          !pagination.hasPreviousPage ? 'pointer-events-none opacity-50' : ''
-                        }
-                      />
-                    </PaginationItem>
-
-                    {/* Page numbers */}
-                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                      .filter(p => {
-                        // Show current page, first, last, and adjacent pages
-                        return p === 1 || p === pagination.totalPages || Math.abs(p - page) <= 1;
-                      })
-                      .map((p, i, arr) => {
-                        // Add ellipsis when there are gaps
-                        const showEllipsisBefore = i > 0 && arr[i - 1] !== p - 1;
-
-                        return (
-                          <React.Fragment key={p}>
-                            {showEllipsisBefore && (
-                              <PaginationItem>
-                                <span className="flex h-9 w-9 items-center justify-center">
-                                  ...
-                                </span>
-                              </PaginationItem>
-                            )}
-                            <PaginationItem>
-                              <PaginationLink
-                                href="#"
-                                onClick={e => {
-                                  e.preventDefault();
-                                  updateParams({ page: p });
-                                }}
-                                isActive={page === p}
-                              >
-                                {p}
-                              </PaginationLink>
-                            </PaginationItem>
-                          </React.Fragment>
-                        );
-                      })}
-
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={e => {
-                          e.preventDefault();
-                          if (pagination.hasNextPage) {
-                            updateParams({ page: page + 1 });
-                          }
-                        }}
-                        className={!pagination.hasNextPage ? 'pointer-events-none opacity-50' : ''}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-
-                {/* Items per page selector */}
-                <div className="flex items-center gap-2">
-                  <select
-                    className="text-sm h-8 rounded-md border border-input bg-background px-2"
-                    value={limit}
-                    onChange={e => updateParams({ limit: Number(e.target.value), page: 1 })}
-                  >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                  </select>
-                  <span className="text-sm text-muted-foreground">per page</span>
-                </div>
-              </div>
+            {pagination && (
+              <TablePagination
+                pagination={pagination}
+                useURLParams={true}
+                showItemsPerPage={true}
+              />
             )}
           </div>
 

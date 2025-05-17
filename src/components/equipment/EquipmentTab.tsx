@@ -10,7 +10,7 @@ import { useEquipmentList, useDeleteEquipment } from '@/hooks';
 import { Loader2, Search, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { CustomPagination } from '@/components/ui/custom-pagination';
+import { TablePagination } from '@/components/ui/table-pagination';
 import {
   Select,
   SelectContent,
@@ -31,7 +31,7 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
     'active' | 'inactive' | 'maintenance' | 'failed' | undefined
   >(undefined);
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
   const [equipmentToDelete, setEquipmentToDelete] = useState<string | null>(null);
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
 
@@ -167,16 +167,20 @@ export function EquipmentTab({ areaId }: EquipmentTabProps) {
 
   // Render pagination controls if needed
   const renderPagination = (paginationData: PaginationMeta | null) => {
-    if (!paginationData || paginationData.totalPages <= 1) return null;
+    if (!paginationData) return null;
 
     return (
-      <div className="flex justify-center mt-6">
-        <CustomPagination
-          currentPage={paginationData.currentPage}
-          totalPages={paginationData.totalPages}
-          onPageChange={setPage}
-        />
-      </div>
+      <TablePagination
+        pagination={paginationData}
+        currentPage={page}
+        onPageChange={setPage}
+        showItemsPerPage={true}
+        itemsPerPageOptions={[5, 10, 25, 50]}
+        onItemsPerPageChange={newLimit => {
+          setLimit(newLimit);
+          setPage(1); // Reset to first page when changing limit
+        }}
+      />
     );
   };
 

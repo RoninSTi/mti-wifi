@@ -22,13 +22,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-// Using the useParams hook directly, so this interface is no longer needed
-// interface RouteParams {
-//   id: string;
-//   locationId: string;
-//   areaId: string;
-// }
-
 export default function AreaDetailsPage() {
   const params = useParams();
 
@@ -144,7 +137,6 @@ export default function AreaDetailsPage() {
             onDelete={handleDelete}
             resourceName="area"
             isDeleting={isDeleting}
-            confirmWithDialog={false}
             onClick={() => setIsAlertDialogOpen(true)}
             size="sm"
           />

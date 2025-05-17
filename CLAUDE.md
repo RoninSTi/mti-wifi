@@ -840,6 +840,269 @@ export function useCreateResource() {
    }
    ```
 
+## Component Reusability and Consistency
+
+Maintaining consistency across the application is paramount. Always follow these guidelines to ensure that components are reusable and consistent:
+
+### Shared Component Guidelines
+
+1. **Create Shared Components for Repeated Patterns**
+
+   - Any UI pattern that appears in more than one place should be extracted into a shared component
+   - Place shared components in logical folders:
+     - Domain-specific components in folders like `@/components/areas/`, `@/components/organizations/`, etc.
+     - Cross-domain shared components in `@/components/shared/`
+     - Base UI components in `@/components/ui/`
+
+   ```tsx
+   // INCORRECT: Duplicating the same UI pattern in multiple components
+   // In PageA.tsx
+   <div className="flex items-center gap-2 my-4">
+     <SomeIcon />
+     <h2 className="text-lg font-medium">{title}</h2>
+     <Badge>{status}</Badge>
+   </div>
+
+   // In PageB.tsx (duplicated code)
+   <div className="flex items-center gap-2 my-4">
+     <SomeIcon />
+     <h2 className="text-lg font-medium">{otherTitle}</h2>
+     <Badge>{otherStatus}</Badge>
+   </div>
+
+   // CORRECT: Extract to a shared component
+   // In @/components/shared/SectionHeader.tsx
+   export function SectionHeader({ title, status, icon }: SectionHeaderProps) {
+     return (
+       <div className="flex items-center gap-2 my-4">
+         {icon}
+         <h2 className="text-lg font-medium">{title}</h2>
+         {status && <Badge>{status}</Badge>}
+       </div>
+     );
+   }
+
+   // Used consistently in both pages
+   <SectionHeader title={title} status={status} icon={<SomeIcon />} />
+   ```
+
+2. **Make Components Configurable, Not Duplicated**
+
+   - Use props to configure behavior and appearance rather than creating similar components
+   - Avoid creating nearly identical components with slight variations
+
+   ```tsx
+   // INCORRECT: Creating multiple similar components
+   export function UserTable() { /* ... */ }
+   export function AdminTable() { /* ... */ } // Nearly identical to UserTable
+   export function GuestTable() { /* ... */ } // Nearly identical to UserTable
+
+   // CORRECT: One configurable component
+   export function DataTable({
+     role,
+     columns,
+     actions,
+     emptyState
+   }: DataTableProps) {
+     // Render different columns, actions, etc. based on props
+   }
+
+   // Used with different configurations
+   <DataTable role="user" columns={userColumns} actions={userActions} />
+   <DataTable role="admin" columns={adminColumns} actions={adminActions} />
+   ```
+
+3. **Maintain Consistent Component APIs**
+
+   - Use consistent prop names and patterns across similar components
+   - Follow common React patterns for props like `onClick`, `className`, etc.
+   - Allow forwarding of common props like `className` via spread operator
+
+   ```tsx
+   // Consistent prop naming across components
+   interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+     variant?: 'primary' | 'secondary' | 'outline';
+     size?: 'sm' | 'md' | 'lg';
+     isLoading?: boolean;
+   }
+
+   interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+     variant?: 'standard' | 'filled' | 'outlined';
+     size?: 'sm' | 'md' | 'lg';
+     error?: string;
+   }
+
+   // Component implementation with proper prop forwarding
+   export function Button({
+     variant = 'primary',
+     size = 'md',
+     isLoading,
+     children,
+     className,
+     ...props
+   }: ButtonProps) {
+     return (
+       <button
+         className={cn(getVariantClasses(variant), getSizeClasses(size), className)}
+         disabled={isLoading || props.disabled}
+         {...props}
+       >
+         {isLoading ? <Spinner size="sm" /> : children}
+       </button>
+     );
+   }
+   ```
+
+4. **Implement Compound Components for Complex UIs**
+
+   - For complex components, use the compound component pattern
+   - This allows flexible composition while maintaining consistent styling and behavior
+
+   ```tsx
+   // Compound component example
+   export function Tabs({ children, defaultValue }: TabsProps) {
+     // Implementation
+   }
+
+   export function TabsList({ children }: TabsListProps) {
+     // Implementation
+   }
+
+   export function TabsTrigger({ value, children }: TabsTriggerProps) {
+     // Implementation
+   }
+
+   export function TabsContent({ value, children }: TabsContentProps) {
+     // Implementation
+   }
+
+   // Usage
+   <Tabs defaultValue="account">
+     <TabsList>
+       <TabsTrigger value="account">Account</TabsTrigger>
+       <TabsTrigger value="password">Password</TabsTrigger>
+     </TabsList>
+     <TabsContent value="account">Account settings here</TabsContent>
+     <TabsContent value="password">Password settings here</TabsContent>
+   </Tabs>;
+   ```
+
+5. **Create and Use Entity-Specific Components Consistently**
+
+   - For domain entities like Organizations, Areas, etc., create standard component sets
+   - Implement consistent patterns for tables, forms, details, etc.
+
+   ```tsx
+   // For each entity, implement consistent component sets
+   // Example organization structure:
+   // - OrganizationsTable.tsx (list view)
+   // - OrganizationDetails.tsx (detail view)
+   // - CreateOrganizationDialog.tsx (creation form)
+   // - EditOrganizationDialog.tsx (edit form)
+
+   // Apply the same pattern consistently for other entities:
+   // - AreasTable, AreaDetails, CreateAreaDialog, EditAreaDialog
+   // - LocationsTable, LocationDetails, CreateLocationDialog, EditLocationDialog
+   // - etc.
+   ```
+
+6. **Share Logic with Custom Hooks**
+
+   - Extract common component logic into custom hooks
+   - Keep components focused on presentation, hooks on logic
+
+   ```tsx
+   // Custom hook for managing pagination state
+   export function usePagination(totalItems: number, itemsPerPage = 10) {
+     const [page, setPage] = useState(1);
+     const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+     const nextPage = () => setPage(p => Math.min(p + 1, totalPages));
+     const prevPage = () => setPage(p => Math.max(p - 1, 1));
+     const goToPage = (newPage: number) => setPage(Math.min(Math.max(newPage, 1), totalPages));
+
+     return {
+       page,
+       totalPages,
+       nextPage,
+       prevPage,
+       goToPage,
+     };
+   }
+
+   // Used consistently in any component that needs pagination
+   const { page, totalPages, nextPage, prevPage, goToPage } = usePagination(100);
+   ```
+
+### Approaches to Prevent Duplication
+
+1. **Regularly Audit Components for Similarity**
+
+   - Review existing components before creating new ones
+   - Look for opportunities to refactor similar components into shared ones
+   - Use the DRY (Don't Repeat Yourself) principle for component logic and styles
+
+2. **Document Components and Their Use Cases**
+
+   - Maintain documentation of shared components
+   - Include examples of how to use them correctly
+   - Make it easy for team members to find and reuse existing components
+
+3. **Extract Common Patterns into Utility Functions**
+
+   - For common styling patterns, create utility functions
+   - Use consistent formatting helpers across components
+
+   ```tsx
+   // Extract common utilities
+   const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
+   const formatDate = (date: Date) => date.toLocaleDateString();
+
+   // Use consistently throughout components
+   <p>{formatCurrency(product.price)}</p>
+   <span>{formatDate(order.createdAt)}</span>
+   ```
+
+4. **Create Templates for Common Page Layouts**
+
+   - Extract common page layouts into reusable templates
+   - This ensures consistent structure across similar pages
+
+   ```tsx
+   // Template for entity detail pages
+   export function EntityDetailTemplate({
+     title,
+     breadcrumbs,
+     actions,
+     tabs,
+     children,
+   }: EntityDetailTemplateProps) {
+     return (
+       <div>
+         <div className="flex items-center justify-between mb-6">
+           <div>
+             {breadcrumbs}
+             <h1 className="text-2xl font-bold">{title}</h1>
+           </div>
+           <div className="flex gap-2">{actions}</div>
+         </div>
+         {tabs}
+         <div className="mt-6">{children}</div>
+       </div>
+     );
+   }
+
+   // Used consistently across entity detail pages
+   <EntityDetailTemplate
+     title={organization.name}
+     breadcrumbs={<OrganizationBreadcrumbs id={organization.id} />}
+     actions={<OrganizationActions organization={organization} />}
+     tabs={<OrganizationTabs activeTab="details" id={organization.id} />}
+   >
+     <OrganizationDetails organization={organization} />
+   </EntityDetailTemplate>;
+   ```
+
 ## Notes
 
 - The project uses Geist font from Google Fonts (both sans and mono variants)
