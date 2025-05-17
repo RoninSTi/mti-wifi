@@ -10,22 +10,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  PlusCircle,
-  Wifi,
-  WifiOff,
-  MoreHorizontal,
-  Search,
-  X,
-  Eye,
-  Edit,
-  Trash,
-} from 'lucide-react';
+import { PlusCircle, Wifi, WifiOff, MoreHorizontal, Eye, Edit, Trash, Scan } from 'lucide-react';
 import { CreateSensorDialog } from './CreateSensorDialog';
 import { EditSensorDialog } from './EditSensorDialog';
 import { SensorDetails } from './SensorDetails';
+import { DiscoverSensorsDialog } from './DiscoverSensorsDialog';
 import { useSensors } from '@/hooks/useSensors';
 import { useDeleteSensor } from '@/hooks/useDeleteSensor';
 import { Badge } from '@/components/ui/badge';
@@ -41,14 +31,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
 // Import the specific schema for proper typing
 import { SensorResponse } from '@/app/api/sensors/schemas';
 
@@ -57,24 +39,16 @@ interface SensorsTableProps {
 }
 
 export function SensorsTable({ equipmentId }: SensorsTableProps) {
-  // Pagination and search state
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [searchInput, setSearchInput] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-
   // Dialog state
   const [selectedSensor, setSelectedSensor] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sensorToDelete, setSensorToDelete] = useState<string | null>(null);
+  const [discoverDialogOpen, setDiscoverDialogOpen] = useState(false);
 
-  // Fetch sensors with pagination and search
-  const { sensors, isLoading, refetch, pagination, isError } = useSensors(equipmentId, {
-    page,
-    limit,
-    q: searchQuery || undefined,
+  // Fetch sensors without pagination
+  const { sensors, isLoading, refetch, isError } = useSensors(equipmentId, {
     sortBy: 'createdAt',
     sortOrder: 'desc',
   });
@@ -114,11 +88,11 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
 
     deleteSensor(sensorToDelete, {
       onSuccess: () => {
-        toast.success('Sensor deleted successfully');
+        // Toast is handled in the useDeleteSensor hook
         refetch();
       },
       onError: error => {
-        toast.error(error instanceof Error ? error.message : 'Failed to delete sensor');
+        // Error toast is handled in the useDeleteSensor hook
       },
       onSettled: () => {
         // Clean up state
@@ -128,67 +102,25 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
     });
   };
 
-  // Handle search form submission
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearchQuery(searchInput);
-    setPage(1); // Reset to first page when searching
-  };
-
-  // Clear search
-  const clearSearch = () => {
-    setSearchInput('');
-    setSearchQuery('');
-    setPage(1); // Reset to first page when clearing search
-  };
-
-  // Handle pagination
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Sensors</h3>
-        <CreateSensorDialog
-          equipmentId={equipmentId}
-          trigger={
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Sensor
-            </Button>
-          }
-        />
-      </div>
-
-      {/* Search */}
-      <div className="flex items-center space-x-2">
-        <form onSubmit={handleSearch} className="flex-1 flex space-x-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search sensors..."
-              className="pl-8 [&::-webkit-search-cancel-button]:hidden [&::-ms-clear]:hidden"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-            />
-            {searchInput && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-9 w-9 p-0"
-                onClick={clearSearch}
-                type="button"
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Clear</span>
+        <div className="flex items-center gap-2">
+          <CreateSensorDialog
+            equipmentId={equipmentId}
+            trigger={
+              <Button>
+                <PlusCircle className="h-4 w-4" />
+                Add Sensor
               </Button>
-            )}
-          </div>
-          <Button type="submit">Search</Button>
-        </form>
+            }
+          />
+          <Button variant="discover" onClick={() => setDiscoverDialogOpen(true)}>
+            <Scan className="h-4 w-4" />
+            Discover Sensors
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border">
@@ -308,23 +240,10 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8">
                   <div className="flex flex-col items-center justify-center space-y-3">
-                    {searchQuery ? (
-                      <>
-                        <p className="text-muted-foreground text-sm">
-                          No sensors match your search
-                        </p>
-                        <Button variant="ghost" size="sm" onClick={clearSearch}>
-                          Clear search
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-muted-foreground text-sm">No sensors found</p>
-                        <p className="text-xs text-muted-foreground">
-                          Add sensors to start monitoring this equipment
-                        </p>
-                      </>
-                    )}
+                    <p className="text-muted-foreground text-sm">No sensors found</p>
+                    <p className="text-xs text-muted-foreground">
+                      Add sensors to start monitoring this equipment
+                    </p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -332,102 +251,6 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
           </TableBody>
         </Table>
       </div>
-
-      {/* Pagination */}
-      {pagination && pagination.totalPages > 0 && (
-        <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            {isLoading ? (
-              <div className="h-5 w-[160px] bg-muted animate-pulse rounded"></div>
-            ) : (
-              <>
-                Showing {sensors.length} of {pagination.totalItems} sensors
-              </>
-            )}
-          </div>
-
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={e => {
-                    e.preventDefault();
-                    if (pagination.hasPreviousPage) {
-                      handlePageChange(page - 1);
-                    }
-                  }}
-                  className={!pagination.hasPreviousPage ? 'pointer-events-none opacity-50' : ''}
-                />
-              </PaginationItem>
-
-              {/* Page numbers */}
-              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                .filter(p => {
-                  // Show current page, first, last, and adjacent pages
-                  return p === 1 || p === pagination.totalPages || Math.abs(p - page) <= 1;
-                })
-                .map((p, i, arr) => {
-                  // Add ellipsis when there are gaps
-                  const showEllipsisBefore = i > 0 && arr[i - 1] !== p - 1;
-
-                  return (
-                    <React.Fragment key={p}>
-                      {showEllipsisBefore && (
-                        <PaginationItem>
-                          <span className="flex h-9 w-9 items-center justify-center">...</span>
-                        </PaginationItem>
-                      )}
-                      <PaginationItem>
-                        <PaginationLink
-                          href="#"
-                          onClick={e => {
-                            e.preventDefault();
-                            handlePageChange(p);
-                          }}
-                          isActive={page === p}
-                        >
-                          {p}
-                        </PaginationLink>
-                      </PaginationItem>
-                    </React.Fragment>
-                  );
-                })}
-
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={e => {
-                    e.preventDefault();
-                    if (pagination.hasNextPage) {
-                      handlePageChange(page + 1);
-                    }
-                  }}
-                  className={!pagination.hasNextPage ? 'pointer-events-none opacity-50' : ''}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-
-          {/* Items per page selector */}
-          <div className="flex items-center gap-2">
-            <select
-              className="text-sm h-8 rounded-md border border-input bg-background px-2"
-              value={limit}
-              onChange={e => {
-                setLimit(Number(e.target.value));
-                setPage(1); // Reset to first page when changing limit
-              }}
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-            <span className="text-sm text-muted-foreground">per page</span>
-          </div>
-        </div>
-      )}
 
       {/* Sensor Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
@@ -467,6 +290,16 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
         isLoading={isDeleting}
         onConfirm={handleConfirmDelete}
         variant="destructive"
+      />
+
+      {/* Discover Sensors Dialog */}
+      <DiscoverSensorsDialog
+        equipmentId={equipmentId}
+        defaultOpen={discoverDialogOpen}
+        onComplete={() => {
+          setDiscoverDialogOpen(false);
+          refetch();
+        }}
       />
     </div>
   );

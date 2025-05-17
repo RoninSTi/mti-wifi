@@ -11,7 +11,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { EditOrganizationDialog } from '@/components/organizations/EditOrganizationDialog';
 import { DeleteButton } from '@/components/ui/delete-button';
-import { SiteBreadcrumb } from '@/components/ui/site-breadcrumb';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 
 export default function OrganizationDetailsPage() {
@@ -95,15 +94,6 @@ export default function OrganizationDetailsPage() {
 
   return (
     <div className="container py-10 mx-auto">
-      {/* Breadcrumb Navigation */}
-      <SiteBreadcrumb
-        className="mb-6"
-        items={[
-          { label: 'Organizations', href: '/organizations' },
-          { label: organization.name, isCurrentPage: true },
-        ]}
-      />
-
       {/* Header with title and actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">

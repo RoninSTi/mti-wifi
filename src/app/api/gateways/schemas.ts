@@ -66,7 +66,7 @@ export const gatewayResponseSchema = z.object({
   description: gatewayBaseSchema.description,
   url: gatewayBaseSchema.url,
   username: gatewayBaseSchema.username,
-  // Note: password is deliberately excluded from response
+  password: gatewayBaseSchema.password, // Include password for internal use
   serialNumber: gatewayBaseSchema.serialNumber,
   location: locationReferenceSchema,
   status: z.enum(['disconnected', 'connected', 'authenticated']),

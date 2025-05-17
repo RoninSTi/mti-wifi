@@ -68,10 +68,27 @@ function isPaginatedResponse(obj: unknown): obj is PaginatedResponse<unknown> {
  */
 async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   const contentType = response.headers.get('content-type');
+  console.log('Response content type:', contentType);
 
   // Handle JSON responses
   if (contentType && contentType.includes('application/json')) {
-    const rawData = await response.json();
+    const rawText = await response.text();
+    console.log('Raw response text:', rawText);
+
+    let rawData;
+    try {
+      rawData = JSON.parse(rawText);
+      console.log('Parsed response data:', rawData);
+    } catch (e) {
+      console.error('Error parsing JSON response:', e);
+      return {
+        error: {
+          error: 'Invalid JSON',
+          message: 'Server returned invalid JSON',
+          status: response.status,
+        },
+      };
+    }
 
     // Handle error responses
     if (!response.ok) {
@@ -97,6 +114,13 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
     }
 
     // Handle successful responses
+
+    console.log(
+      'Processing successful response, data type:',
+      typeof rawData,
+      'Is Array:',
+      Array.isArray(rawData)
+    );
 
     // Check if this is a paginated response
     if (isPaginatedResponse(rawData)) {
@@ -233,6 +257,8 @@ export const apiClient = {
     options?: RequestOptions
   ): Promise<ApiResponse<T>> {
     try {
+      console.log('API client POST request:', { url, data });
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -242,8 +268,12 @@ export const apiClient = {
         body: JSON.stringify(data),
       });
 
-      return handleResponse<T>(response);
+      console.log('API client POST raw response status:', response.status);
+      const result = await handleResponse<T>(response);
+      console.log('API client POST processed response:', result);
+      return result;
     } catch (error) {
+      console.error('API client POST error:', error);
       return {
         error: {
           error: 'Request Failed',

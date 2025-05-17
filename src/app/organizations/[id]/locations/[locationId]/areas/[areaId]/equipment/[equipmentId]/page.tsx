@@ -8,7 +8,6 @@ import { useEquipment, useDeleteEquipment } from '@/hooks';
 import { toast } from 'sonner';
 import { SensorsTable } from '@/components/sensors/SensorsTable';
 import { DeleteButton } from '@/components/ui/delete-button';
-import { SiteBreadcrumb, BreadcrumbItem } from '@/components/ui/site-breadcrumb';
 import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
@@ -108,41 +107,8 @@ export default function EquipmentDetailsPage() {
     );
   }
 
-  // Build breadcrumb items based on available data
-  const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Organizations', href: '/organizations' }];
-
-  if (equipment.area?.organization) {
-    breadcrumbItems.push({
-      label: equipment.area.organization.name,
-      href: `/organizations/${organizationId}`,
-    });
-  }
-
-  // Add location to breadcrumb
-  if (equipment.area?.location) {
-    breadcrumbItems.push({
-      label: equipment.area.location.name,
-      href: `/organizations/${organizationId}/locations/${locationId}`,
-    });
-  }
-
-  if (equipment.area) {
-    breadcrumbItems.push({
-      label: equipment.area.name,
-      href: `/organizations/${organizationId}/locations/${locationId}/areas/${areaId}`,
-    });
-  }
-
-  breadcrumbItems.push({
-    label: equipment.name,
-    isCurrentPage: true,
-  });
-
   return (
     <div className="container py-10 mx-auto">
-      {/* Breadcrumb Navigation */}
-      <SiteBreadcrumb className="mb-6" items={breadcrumbItems} />
-
       {/* Header with title and actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">

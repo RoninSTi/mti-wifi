@@ -4,14 +4,15 @@ import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLocation, useDeleteLocation } from '@/hooks';
+import { useLocation, useDeleteLocation, useOrganization } from '@/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { AreasTab } from '@/components/areas/AreasTab';
+import { GatewaysTab } from '@/components/gateways';
 import { DeleteButton } from '@/components/ui/delete-button';
-import { SiteBreadcrumb } from '@/components/ui/site-breadcrumb';
 import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function LocationDetailsPage() {
   const params = useParams();
@@ -26,9 +27,13 @@ export default function LocationDetailsPage() {
 
   const organizationId = id; // Now TypeScript knows these are strings
 
-  // Use the custom hooks to fetch location data and handle deletion
-  const { location, isLoading, isError, error } = useLocation(locationId);
+  // Use the custom hooks to fetch location and organization data and handle deletion
+  const { location, isLoading: isLoadingLocation, isError, error } = useLocation(locationId);
+  const { organization } = useOrganization(organizationId);
   const { deleteLocation, isLoading: isDeleting } = useDeleteLocation();
+
+  // Combined loading state
+  const isLoading = isLoadingLocation;
 
   // Handle back navigation
   const handleBack = () => {
@@ -88,16 +93,6 @@ export default function LocationDetailsPage() {
 
   return (
     <div className="container py-10 mx-auto">
-      {/* Breadcrumb Navigation */}
-      <SiteBreadcrumb
-        className="mb-6"
-        items={[
-          { label: 'Organizations', href: '/organizations' },
-          { label: location.organization.name, href: `/organizations/${organizationId}` },
-          { label: location.name, isCurrentPage: true },
-        ]}
-      />
-
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">
           <MapPin className="h-6 w-6" />
@@ -173,12 +168,28 @@ export default function LocationDetailsPage() {
       {/* Description */}
       {location.description && <EntityDescription>{location.description}</EntityDescription>}
 
-      <div className="grid grid-cols-1 gap-8 mt-8">
-        {/* Areas Section */}
+      <div className="mt-8">
         <Card className="overflow-hidden">
-          <div className="p-6">
-            <AreasTab locationId={locationId} organizationId={organizationId} />
-          </div>
+          <Tabs defaultValue="gateways">
+            <div className="px-6 pt-6">
+              <TabsList className="w-full max-w-[400px]">
+                <TabsTrigger value="gateways" className="flex-1">
+                  Gateways
+                </TabsTrigger>
+                <TabsTrigger value="areas" className="flex-1">
+                  Areas
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="gateways" className="p-6 pt-4 m-0 border-0">
+              <GatewaysTab locationId={locationId} />
+            </TabsContent>
+
+            <TabsContent value="areas" className="p-6 pt-4 m-0 border-0">
+              <AreasTab locationId={locationId} organizationId={organizationId} />
+            </TabsContent>
+          </Tabs>
         </Card>
       </div>
     </div>

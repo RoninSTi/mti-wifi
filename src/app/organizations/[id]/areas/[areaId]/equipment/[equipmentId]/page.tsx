@@ -4,11 +4,10 @@ import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
-import { useEquipment, useDeleteEquipment } from '@/hooks';
+import { useEquipment, useDeleteEquipment, useOrganization, useArea } from '@/hooks';
 import { toast } from 'sonner';
 import { SensorsTable } from '@/components/sensors/SensorsTable';
 import { DeleteButton } from '@/components/ui/delete-button';
-import { SiteBreadcrumb, BreadcrumbItem } from '@/components/ui/site-breadcrumb';
 import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
@@ -36,9 +35,21 @@ export default function EquipmentDetailsPage() {
 
   const organizationId = id;
 
-  // Fetch equipment details
-  const { equipment, isLoading, isError, error } = useEquipment(equipmentId);
+  // Fetch necessary data
+  const {
+    equipment,
+    isLoading: isLoadingEquipment,
+    isError: isErrorEquipment,
+    error: equipmentError,
+  } = useEquipment(equipmentId);
+  const { organization } = useOrganization(organizationId);
+  const { area } = useArea(areaId);
   const { deleteEquipment, isLoading: isDeleting } = useDeleteEquipment();
+
+  // Combined loading state
+  const isLoading = isLoadingEquipment;
+  const isError = isErrorEquipment;
+  const error = equipmentError;
 
   // Handle back navigation
   const handleBack = () => {
@@ -105,33 +116,8 @@ export default function EquipmentDetailsPage() {
     );
   }
 
-  // Build breadcrumb items based on available data
-  const breadcrumbItems: BreadcrumbItem[] = [{ label: 'Organizations', href: '/organizations' }];
-
-  if (equipment.area?.organization) {
-    breadcrumbItems.push({
-      label: equipment.area.organization.name,
-      href: `/organizations/${organizationId}`,
-    });
-  }
-
-  if (equipment.area) {
-    breadcrumbItems.push({
-      label: equipment.area.name,
-      href: `/organizations/${organizationId}/areas/${areaId}`,
-    });
-  }
-
-  breadcrumbItems.push({
-    label: equipment.name,
-    isCurrentPage: true,
-  });
-
   return (
     <div className="container py-10 mx-auto">
-      {/* Breadcrumb Navigation */}
-      <SiteBreadcrumb className="mb-6" items={breadcrumbItems} />
-
       {/* Header with title and actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">

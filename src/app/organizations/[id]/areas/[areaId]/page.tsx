@@ -4,16 +4,9 @@ import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Grid3X3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useArea, useLocation, useDeleteArea } from '@/hooks';
+import { useArea, useLocation, useDeleteArea, useOrganization } from '@/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import Link from 'next/link';
 import { EditAreaDialog } from '@/components/areas/EditAreaDialog';
 import { EquipmentTab } from '@/components/areas/EquipmentTab';
 
@@ -24,12 +17,16 @@ export default function AreaDetailsPage() {
   const areaId = params?.areaId as string;
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
 
-  // Use the custom hook to fetch area data
-  const { area, isLoading, isError, error } = useArea(areaId);
+  // Use the custom hooks to fetch data
+  const { area, isLoading: isLoadingArea, isError, error } = useArea(areaId);
+  const { organization } = useOrganization(organizationId);
 
   // Get location data for breadcrumb
   const locationId = area?.location?._id || '';
-  const { location } = useLocation(locationId);
+  const { location, isLoading: isLoadingLocation } = useLocation(locationId);
+
+  // Combined loading state
+  const isLoading = isLoadingArea || isLoadingLocation;
 
   // Delete area hook
   const { deleteArea, isLoading: isDeleting } = useDeleteArea();
@@ -98,35 +95,6 @@ export default function AreaDetailsPage() {
 
   return (
     <div className="container py-10 mx-auto">
-      {/* Breadcrumb Navigation */}
-      <Breadcrumb className="mb-6">
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href="/organizations">Organizations</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href={`/organizations/${organizationId}`}>
-              {location?.name || 'Organization'}
-            </Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href={`/organizations/${organizationId}/locations/${locationId}`}>
-              {area.location.name}
-            </Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbLink className="font-semibold">{area.name}</BreadcrumbLink>
-        </BreadcrumbItem>
-      </Breadcrumb>
-
       <div className="flex items-center gap-2 mb-6">
         <Button variant="outline" size="icon" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4" />

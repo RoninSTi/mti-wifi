@@ -8,7 +8,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useArea, useDeleteArea } from '@/hooks';
 import { toast } from 'sonner';
 import { EquipmentTab } from '@/components/areas/EquipmentTab';
-import { SiteBreadcrumb } from '@/components/ui/site-breadcrumb';
 import { DeleteButton } from '@/components/ui/delete-button';
 import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
@@ -123,23 +122,6 @@ export default function AreaDetailsPage() {
 
   return (
     <div className="container py-10 mx-auto">
-      {/* Breadcrumb navigation */}
-      <SiteBreadcrumb
-        className="mb-6"
-        items={[
-          { label: 'Organizations', href: '/organizations' },
-          {
-            label: area.location?.organization?.name || organizationId,
-            href: `/organizations/${organizationId}`,
-          },
-          {
-            label: area.location?.name || locationId,
-            href: `/organizations/${organizationId}/locations/${locationId}`,
-          },
-          { label: area.name, isCurrentPage: true },
-        ]}
-      />
-
       {/* Header with title and actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">

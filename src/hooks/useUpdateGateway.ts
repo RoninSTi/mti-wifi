@@ -24,8 +24,11 @@ export function useUpdateGateway() {
       // Invalidate gateway lists to refresh with the updated data
       queryClient.invalidateQueries({ queryKey: ['gateways'] });
 
-      // Show success toast
-      toast.success('Gateway updated successfully');
+      // Show toast for all update operations except auth status changes
+      // (Auth status toasts are handled in the connection context)
+      if (!(variables.data && 'status' in variables.data)) {
+        toast.success('Gateway updated successfully');
+      }
 
       return response;
     },

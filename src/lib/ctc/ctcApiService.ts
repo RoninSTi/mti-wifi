@@ -19,7 +19,11 @@ export const CTCApiResponseSchema = z.object({
   Type: z.string(),
   From: z.string(),
   Target: z.string(),
-  Data: z.record(z.string(), z.unknown()),
+  Data: z.union([
+    z.record(z.string(), z.unknown()), // Object format
+    z.array(z.unknown()), // Array format
+    z.unknown(), // Any other format
+  ]),
 });
 type CTCApiResponse = z.infer<typeof CTCApiResponseSchema>;
 
@@ -124,6 +128,14 @@ export class CTCApiService {
   private requestId = 1;
 
   /**
+   * Check if the service is currently connected to the CTC API WebSocket
+   * @returns True if connected, false otherwise
+   */
+  public isConnectedToGateway(): boolean {
+    return this.isConnected && this.socket !== null;
+  }
+
+  /**
    * Connect to the CTC API WebSocket
    * @param url - WebSocket URL for the CTC API
    */
@@ -135,6 +147,7 @@ export class CTCApiService {
         this.socket.onopen = () => {
           this.isConnected = true;
           console.log('Connected to CTC WebSocket');
+          this.events.emit('connected');
           resolve(true);
         };
 
@@ -205,14 +218,43 @@ export class CTCApiService {
    * @returns Promise with connected sensor data
    */
   public async getConnectedDynamicSensors(): Promise<SensorRecords> {
-    const command = {
-      Type: 'GET_DYN_CONNECTED',
-      From: 'UI',
-      To: 'SERV',
-      Data: {},
-    };
+    try {
+      // First try the GET_DYN_CONNECTED command
+      const command = {
+        Type: 'GET_DYN_CONNECTED',
+        From: 'UI',
+        To: 'SERV',
+        Data: {},
+      };
 
-    return this.sendCommand(command, 'RTN_DYN');
+      console.log('Sending GET_DYN_CONNECTED command');
+      const result = await this.sendCommand<SensorRecords>(command, 'RTN_DYN');
+
+      console.log('GET_DYN_CONNECTED result:', result);
+
+      // If we got results, return them
+      if (result && Object.keys(result).length > 0) {
+        return result;
+      }
+
+      console.log('No sensors found with GET_DYN_CONNECTED, trying GET_DYN fallback');
+
+      // If no sensors were found, try the GET_DYN command as a fallback
+      const fallbackCommand = {
+        Type: 'GET_DYN',
+        From: 'UI',
+        To: 'SERV',
+        Data: {},
+      };
+
+      const fallbackResult = await this.sendCommand<SensorRecords>(fallbackCommand, 'RTN_DYN');
+      console.log('GET_DYN fallback result:', fallbackResult);
+
+      return fallbackResult;
+    } catch (error) {
+      console.error('Error in getConnectedDynamicSensors:', error);
+      throw error;
+    }
   }
 
   /**
@@ -340,16 +382,24 @@ export class CTCApiService {
   /**
    * Subscribe to changes
    * This will enable receiving notification commands
+   * Note: Not all gateways support this command
+   * @returns A promise that resolves to true if subscription succeeded, false otherwise
    */
-  public async subscribeToChanges(): Promise<void> {
-    const command = {
-      Type: 'SUBSCRIBE',
-      From: 'UI',
-      To: 'SERV',
-      Data: {},
-    };
+  public async subscribeToChanges(): Promise<boolean> {
+    try {
+      const command = {
+        Type: 'SUBSCRIBE',
+        From: 'UI',
+        To: 'SERV',
+        Data: {},
+      };
 
-    await this.sendCommand(command);
+      await this.sendCommand(command);
+      return true;
+    } catch (error) {
+      console.log('Subscription attempt failed, gateway may not support this feature');
+      return false;
+    }
   }
 
   /**
@@ -432,11 +482,51 @@ export class CTCApiService {
               // Apply appropriate schema validation based on the expected return type
               switch (expectedReturnType) {
                 case 'RTN_DYN': {
+                  // Try to parse as SensorRecords
                   const result = SensorRecordsSchema.safeParse(data);
                   if (result.success) {
                     resolve(result.data as T);
                   } else {
-                    reject(new Error(`Invalid SensorRecords data: ${result.error.message}`));
+                    console.warn(
+                      'SensorRecords validation failed, handling as array:',
+                      result.error
+                    );
+
+                    // If it's an array, convert to object format
+                    if (Array.isArray(data)) {
+                      try {
+                        const objectData: Record<string, unknown> = {};
+                        data.forEach((item: unknown, index: number) => {
+                          // If we have a Serial property, use that as the key
+                          // Safe type checking for item with Serial property
+                          const key =
+                            item &&
+                            typeof item === 'object' &&
+                            'Serial' in item &&
+                            (typeof item.Serial === 'number' || typeof item.Serial === 'string')
+                              ? String(item.Serial)
+                              : index.toString();
+                          objectData[key] = item;
+                        });
+
+                        // Try to validate the converted data
+                        const convertedResult = SensorRecordsSchema.safeParse(objectData);
+                        if (convertedResult.success) {
+                          resolve(convertedResult.data as T);
+                        } else {
+                          console.error('Converted data still invalid:', convertedResult.error);
+                          // Just pass the data through as-is as a last resort
+                          resolve(data as T);
+                        }
+                      } catch (e) {
+                        console.error('Error converting array data:', e);
+                        resolve(data as T); // Pass through as a fallback
+                      }
+                    } else {
+                      // As a last resort, just pass the data through
+                      console.warn('Passing through unvalidated data for RTN_DYN');
+                      resolve(data as T);
+                    }
                   }
                   break;
                 }
@@ -511,10 +601,27 @@ export class CTCApiService {
   private handleMessage(message: CTCApiResponse): void {
     const { Type, Data } = message;
 
+    console.log(
+      'Received message:',
+      Type,
+      'Data type:',
+      Array.isArray(Data) ? 'array' : typeof Data
+    );
+
     // Check if this is a return command matching a pending request
     for (const [key, resolver] of this.pendingRequests.entries()) {
       if (key.startsWith(`${Type}_`)) {
-        resolver(Data);
+        // If Data is an array but we expected an object, try to convert it
+        if (Array.isArray(Data)) {
+          console.log('Converting array data to object for:', Type);
+          const objectData: Record<string, unknown> = {};
+          Data.forEach((item, index) => {
+            objectData[index.toString()] = item;
+          });
+          resolver(objectData);
+        } else {
+          resolver(Data as Record<string, unknown>);
+        }
         this.pendingRequests.delete(key);
         return;
       }
@@ -524,16 +631,36 @@ export class CTCApiService {
     if (Type === 'RTN_ERR') {
       const errorResult = ErrorDataSchema.safeParse(Data);
       if (errorResult.success) {
-        console.error(
-          'CTC API Error:',
-          errorResult.data.Error,
-          'Attempt:',
-          errorResult.data.Attempt
-        );
-        this.events.emit('error', errorResult.data);
+        // Check if the error is for the SUBSCRIBE command
+        if (errorResult.data.Attempt === 'SUBSCRIBE') {
+          // Handle subscription error more gracefully
+          console.log('Subscription not supported by this gateway:', errorResult.data.Error);
+          // Only emit the error if we have at least one listener to prevent unhandled errors
+          if (this.events.listenerCount('error') > 0) {
+            this.events.emit('error', {
+              ...errorResult.data,
+              isSubscriptionError: true,
+            });
+          }
+        } else {
+          // Log all other errors normally
+          console.error(
+            'CTC API Error:',
+            errorResult.data.Error,
+            'Attempt:',
+            errorResult.data.Attempt
+          );
+          // Only emit the error if we have at least one listener to prevent unhandled errors
+          if (this.events.listenerCount('error') > 0) {
+            this.events.emit('error', errorResult.data);
+          }
+        }
       } else {
         console.error('CTC API Error with invalid format:', Data);
-        this.events.emit('error', { Error: 'Unknown error', Attempt: 'Unknown' });
+        // Only emit the error if we have at least one listener
+        if (this.events.listenerCount('error') > 0) {
+          this.events.emit('error', { Error: 'Unknown error', Attempt: 'Unknown' });
+        }
       }
       return;
     }
