@@ -48,3 +48,56 @@ export function useTypedParams<T extends Record<string, string>>(): T {
 
   return typedParams;
 }
+
+/**
+ * Type-safe function to build URLs for detail pages
+ *
+ * @example
+ * // Organization detail URL
+ * const orgUrl = buildDetailUrl({ organizationId: 'org123' });
+ * // Result: '/organizations/org123'
+ *
+ * // Location detail URL
+ * const locationUrl = buildDetailUrl({
+ *   organizationId: 'org123',
+ *   locationId: 'loc456'
+ * });
+ * // Result: '/organizations/org123/locations/loc456'
+ *
+ * // Area detail URL
+ * const areaUrl = buildDetailUrl({
+ *   organizationId: 'org123',
+ *   locationId: 'loc456',
+ *   areaId: 'area789'
+ * });
+ * // Result: '/organizations/org123/locations/loc456/areas/area789'
+ */
+export function buildDetailUrl(params: {
+  organizationId: string;
+  locationId?: string;
+  areaId?: string;
+  equipmentId?: string;
+  edit?: boolean;
+}): string {
+  const { organizationId, locationId, areaId, equipmentId, edit } = params;
+
+  let url = `/organizations/${organizationId}`;
+
+  if (locationId) {
+    url += `/locations/${locationId}`;
+
+    if (areaId) {
+      url += `/areas/${areaId}`;
+
+      if (equipmentId) {
+        url += `/equipment/${equipmentId}`;
+      }
+    }
+  }
+
+  if (edit) {
+    url += '/edit';
+  }
+
+  return url;
+}

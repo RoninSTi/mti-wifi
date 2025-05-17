@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { DetailPageBreadcrumbs } from '@/components/shared';
 
 export default function AreaDetailsPage() {
   // Type-safe params - automatically throws error if params are missing or invalid
@@ -104,6 +105,9 @@ export default function AreaDetailsPage() {
 
   return (
     <div className="container py-10 mx-auto">
+      {/* Breadcrumb navigation */}
+      <DetailPageBreadcrumbs className="mb-6" />
+
       {/* Header with title and actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">

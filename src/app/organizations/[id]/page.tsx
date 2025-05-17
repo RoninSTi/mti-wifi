@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { EditOrganizationDialog } from '@/components/organizations/EditOrganizationDialog';
 import { DeleteButton } from '@/components/ui/delete-button';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
+import { DetailPageBreadcrumbs } from '@/components/shared';
 
 export default function OrganizationDetailsPage() {
   const router = useRouter();
@@ -92,6 +93,9 @@ export default function OrganizationDetailsPage() {
 
   return (
     <div className="container py-10 mx-auto">
+      {/* Breadcrumb navigation */}
+      <DetailPageBreadcrumbs className="mb-6" />
+
       {/* Header with title and actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">

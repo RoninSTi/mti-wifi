@@ -12,6 +12,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useOrganizations, useDeleteOrganization, useOrganization } from '@/hooks';
+import { DetailPageBreadcrumbs } from '@/components/shared';
 
 export function OrganizationDashboard() {
   // Router and URL parameters

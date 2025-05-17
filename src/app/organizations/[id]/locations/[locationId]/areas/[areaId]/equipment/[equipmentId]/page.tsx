@@ -13,6 +13,7 @@ import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTypedParams } from '@/lib/utils';
+import { DetailPageBreadcrumbs } from '@/components/shared';
 
 export default function EquipmentDetailsPage() {
   const router = useRouter();
@@ -102,6 +103,9 @@ export default function EquipmentDetailsPage() {
 
   return (
     <div className="container py-10 mx-auto">
+      {/* Breadcrumb navigation */}
+      <DetailPageBreadcrumbs className="mb-6" />
+
       {/* Header with title and actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">

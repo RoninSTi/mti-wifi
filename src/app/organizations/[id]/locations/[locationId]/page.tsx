@@ -14,6 +14,7 @@ import { DeleteButton } from '@/components/ui/delete-button';
 import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DetailPageBreadcrumbs } from '@/components/shared';
 
 export default function LocationDetailsPage() {
   const router = useRouter();
@@ -90,6 +91,9 @@ export default function LocationDetailsPage() {
 
   return (
     <div className="container py-10 mx-auto">
+      {/* Breadcrumb navigation */}
+      <DetailPageBreadcrumbs className="mb-6" />
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-2">
           <MapPin className="h-6 w-6" />
