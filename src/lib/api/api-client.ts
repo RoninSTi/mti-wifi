@@ -164,6 +164,8 @@ export const apiClient = {
    */
   async get<T>(url: string, options?: RequestOptions): Promise<ApiResponse<T>> {
     try {
+      console.log('API client GET request:', { url });
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -173,8 +175,12 @@ export const apiClient = {
         cache: options?.cache || 'default',
       });
 
-      return handleResponse<T>(response);
+      console.log('API client GET raw response status:', response.status);
+      const result = await handleResponse<T>(response);
+      console.log('API client GET processed response:', result);
+      return result;
     } catch (error) {
+      console.error('API client GET error:', error);
       return {
         error: {
           error: 'Request Failed',

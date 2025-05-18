@@ -32,15 +32,21 @@ export async function authMiddleware(_request: NextRequest): Promise<NextRespons
  * @returns A new handler function with middleware applied
  */
 // Define a specific context type for all route handlers
+// Define a consistent interface for route context
 export interface RouteContext {
-  params: Promise<Record<string, string>>;
+  params: Record<string, string>;
+}
+
+// Define the raw context type from Next.js that can have Promise params
+export interface RawRouteContext {
+  params: Record<string, string> | Promise<Record<string, string>>;
 }
 
 export function applyMiddleware(
   middlewares: ((request: NextRequest) => Promise<NextResponse | null>)[],
   handler: (request: NextRequest, context: RouteContext) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest, context: RouteContext): Promise<NextResponse> => {
+  return async (request: NextRequest, contextRaw: unknown): Promise<NextResponse> => {
     // Run each middleware in sequence
     for (const middleware of middlewares) {
       const result = await middleware(request);
@@ -49,6 +55,27 @@ export function applyMiddleware(
         return result;
       }
     }
+
+    // Normalize the context to ensure params is a plain object, not a Promise
+    // Safely access params from the raw context with proper type checking
+    const rawParams =
+      contextRaw && typeof contextRaw === 'object' && 'params' in contextRaw
+        ? (contextRaw as RawRouteContext).params
+        : {};
+
+    // Process params to ensure we have a Record<string, string>
+    const context: RouteContext = {
+      params: await Promise.resolve(rawParams)
+        .then(params => {
+          if (params && typeof params === 'object') {
+            return params as Record<string, string>;
+          }
+          return {};
+        })
+        .catch(() => ({})),
+    };
+
+    console.log('Normalized context:', context);
 
     // If all middleware pass, call the handler with the context
     return handler(request, context);

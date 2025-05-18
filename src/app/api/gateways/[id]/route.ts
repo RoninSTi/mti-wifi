@@ -24,8 +24,11 @@ async function getGatewayHandler(
       // Validate and extract the gateway ID from the URL params
       let params: GatewayParams;
       try {
+        // The middleware now guarantees context.params is a proper object
+        console.log('Parameters to validate:', context.params);
         params = gatewayParamsSchema.parse(context.params);
       } catch (error) {
+        console.error('Parameter validation error:', error);
         if (error instanceof ZodError) {
           return NextResponse.json(
             {
@@ -112,8 +115,11 @@ async function updateGatewayHandler(
       // Validate and extract the gateway ID from the URL params
       let params: GatewayParams;
       try {
+        // The middleware now guarantees context.params is a proper object
+        console.log('Parameters to validate:', context.params);
         params = gatewayParamsSchema.parse(context.params);
       } catch (error) {
+        console.error('Parameter validation error:', error);
         if (error instanceof ZodError) {
           return NextResponse.json(
             {
@@ -234,8 +240,11 @@ async function deleteGatewayHandler(
       // Validate and extract the gateway ID from the URL params
       let params: GatewayParams;
       try {
+        // The middleware now guarantees context.params is a proper object
+        console.log('Parameters to validate:', context.params);
         params = gatewayParamsSchema.parse(context.params);
       } catch (error) {
+        console.error('Parameter validation error:', error);
         if (error instanceof ZodError) {
           return NextResponse.json(
             {

@@ -20,6 +20,7 @@ export interface CTCBaseMessage {
  */
 export enum CTCCommandType {
   // Send commands
+  LOGIN = 'POST_LOGIN',
   SUBSCRIBE_CHANGES = 'POST_SUB_CHANGES',
   UNSUBSCRIBE_CHANGES = 'POST_UNSUB_CHANGES',
   GET_DYNAMIC_SENSORS = 'GET_DYN',
@@ -293,9 +294,23 @@ export interface CTCStateChangeMessage extends CTCBaseMessage {
 }
 
 /**
+ * Login message
+ */
+export interface CTCLoginMessage extends CTCBaseMessage {
+  Type: CTCCommandType.LOGIN;
+  From: CTCComponent.UI;
+  To: CTCComponent.SERVICE;
+  Data: {
+    Email: string;
+    Password: string;
+  };
+}
+
+/**
  * Union type of all possible CTC message types
  */
 export type CTCMessage =
+  | CTCLoginMessage
   | CTCSubscribeChangesMessage
   | CTCUnsubscribeChangesMessage
   | CTCGetDynamicSensorsMessage

@@ -21,7 +21,9 @@ import {
   Shield,
   AlertTriangle,
   Loader,
+  Link,
 } from 'lucide-react';
+import { useGatewayService } from '@/lib/gateway/hooks';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +36,61 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { GatewayConnectionManagerDialog } from './GatewayConnectionManagerDialog';
+import { GatewayConnectionState } from '@/lib/gateway/types';
+
+/**
+ * ConnectionStatus component to display gateway connection state
+ */
+function ConnectionStatus({ gatewayId }: { gatewayId: string }) {
+  const { connectionState } = useGatewayService();
+  const state = connectionState[gatewayId] || 'disconnected';
+
+  // Get status badge properties based on connection state
+  const getStatusBadge = (connectionState: GatewayConnectionState) => {
+    switch (connectionState) {
+      case 'connected':
+        return {
+          label: 'Connected',
+          variant: 'outline' as const,
+          icon: <Wifi className="h-4 w-4 text-green-500 mr-2" />,
+        };
+      case 'authenticated':
+        return {
+          label: 'Authenticated',
+          variant: 'default' as const,
+          icon: <Link className="h-4 w-4 text-green-500 mr-2" />,
+        };
+      case 'connecting':
+      case 'authenticating':
+        return {
+          label: 'Connecting...',
+          variant: 'outline' as const,
+          icon: <Loader className="h-4 w-4 text-amber-500 mr-2 animate-spin" />,
+        };
+      case 'error':
+        return {
+          label: 'Error',
+          variant: 'destructive' as const,
+          icon: <AlertTriangle className="h-4 w-4 mr-2" />,
+        };
+      default:
+        return {
+          label: 'Disconnected',
+          variant: 'outline' as const,
+          icon: <WifiOff className="h-4 w-4 text-muted-foreground mr-2" />,
+        };
+    }
+  };
+
+  const statusBadge = getStatusBadge(state);
+
+  return (
+    <div className="flex items-center gap-2">
+      {statusBadge.icon}
+      <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+    </div>
+  );
+}
 
 // Interface for the props received by the component
 interface GatewaysTableProps {
@@ -167,11 +224,7 @@ export function GatewaysTable({
                 <span title={gateway.url}>{gateway.url}</span>
               </TableCell>
               <TableCell>
-                {/* Status badge with icon */}
-                <div className="flex items-center gap-2">
-                  <WifiOff className="h-4 w-4 text-muted-foreground" />
-                  <Badge variant="outline">Disconnected</Badge>
-                </div>
+                <ConnectionStatus gatewayId={gateway._id} />
               </TableCell>
               <TableCell>
                 <div className="dropdown-actions" onClick={e => e.stopPropagation()}>

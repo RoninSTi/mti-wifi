@@ -30,6 +30,7 @@ import {
   CTCDynamicSensor,
   CTCDynamicReading,
   CTCStateChangeMessage,
+  CTCLoginMessage,
 } from './ctc-types';
 
 type CTCMessageHandler<T extends CTCMessage> = (message: T) => void;
@@ -157,22 +158,90 @@ export class CTCConnectionManager {
   }
 
   /**
-   * Authenticate with the gateway (for CTC, authentication is
-   * handled via subscription to changes)
+   * Authenticate with the gateway by sending login credentials
+   * and then subscribing to changes
    */
   public async authenticate(): Promise<void> {
+    console.log('authenticate');
     if (!this.socket || this.state !== 'connected') {
       throw new Error('Cannot authenticate: Gateway not connected');
     }
 
     this.updateState('authenticating');
 
-    // For CTC, we "authenticate" by subscribing to changes
-    await this.subscribeToChanges();
+    try {
+      // First, authenticate with login credentials
+      await this.login();
 
-    // Update state
-    this.stats.authenticatedAt = new Date();
-    this.updateState('authenticated');
+      // Then subscribe to changes
+      await this.subscribeToChanges();
+
+      // Update state
+      this.stats.authenticatedAt = new Date();
+      this.updateState('authenticated');
+    } catch (error) {
+      // If authentication fails, update state and rethrow
+      this.updateState('error');
+      throw error;
+    }
+  }
+
+  /**
+   * Send login credentials to the gateway
+   */
+  private async login(): Promise<void> {
+    // Create login message with the gateway's username and password
+    const loginMessage: CTCLoginMessage = {
+      Type: CTCCommandType.LOGIN,
+      From: CTCComponent.UI,
+      To: CTCComponent.SERVICE,
+      Data: {
+        Email: this.username,
+        Password: this.password,
+      },
+    };
+
+    return new Promise<void>((resolve, reject) => {
+      // Set up one-time error listener
+      const errorHandler = (message: CTCReturnErrorMessage) => {
+        this.off(CTCCommandType.RETURN_ERROR, errorHandler);
+        const error = new Error(`Login failed: ${message.Data.Message}`);
+        reject(error);
+      };
+
+      console.log('on');
+
+      // Add error handler
+      this.on<CTCReturnErrorMessage>(CTCCommandType.RETURN_ERROR, errorHandler);
+
+      // Set login timeout
+      const timeout = setTimeout(() => {
+        this.off(CTCCommandType.RETURN_ERROR, errorHandler);
+        const error = new Error('Login timeout');
+        reject(error);
+      }, this.commandTimeout);
+
+      console.log('timeout');
+
+      console.log({ loginMessage });
+
+      // Send login message
+      this.send(loginMessage)
+        .then(response => {
+          console.log({ response });
+          // If we make it here without an error, it was successful
+          // CTC API doesn't provide explicit login success message
+          clearTimeout(timeout);
+          this.off(CTCCommandType.RETURN_ERROR, errorHandler);
+          console.log(`Successfully sent login credentials for gateway ${this.id}`);
+          resolve();
+        })
+        .catch(error => {
+          clearTimeout(timeout);
+          this.off(CTCCommandType.RETURN_ERROR, errorHandler);
+          reject(error);
+        });
+    });
   }
 
   /**
