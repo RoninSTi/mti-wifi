@@ -132,7 +132,13 @@ export class CTCApiService {
    * @returns True if connected, false otherwise
    */
   public isConnectedToGateway(): boolean {
-    return this.isConnected && this.socket !== null;
+    const connected = this.isConnected && this.socket !== null;
+    console.log('WebSocket connection state:', {
+      isConnected: this.isConnected,
+      hasSocket: this.socket !== null,
+      socketReadyState: this.socket ? this.socket.readyState : 'no socket',
+    });
+    return connected;
   }
 
   /**
@@ -189,6 +195,7 @@ export class CTCApiService {
    */
   public disconnect(): void {
     if (this.socket && this.isConnected) {
+      console.log('Disconnecting from WebSocket');
       this.socket.close();
       this.socket = null;
       this.isConnected = false;
@@ -219,7 +226,7 @@ export class CTCApiService {
    */
   public async getConnectedDynamicSensors(): Promise<SensorRecords> {
     try {
-      // First try the GET_DYN_CONNECTED command
+      // Use the GET_DYN_CONNECTED command specifically for connected sensors
       const command = {
         Type: 'GET_DYN_CONNECTED',
         From: 'UI',
@@ -232,25 +239,9 @@ export class CTCApiService {
 
       console.log('GET_DYN_CONNECTED result:', result);
 
-      // If we got results, return them
-      if (result && Object.keys(result).length > 0) {
-        return result;
-      }
-
-      console.log('No sensors found with GET_DYN_CONNECTED, trying GET_DYN fallback');
-
-      // If no sensors were found, try the GET_DYN command as a fallback
-      const fallbackCommand = {
-        Type: 'GET_DYN',
-        From: 'UI',
-        To: 'SERV',
-        Data: {},
-      };
-
-      const fallbackResult = await this.sendCommand<SensorRecords>(fallbackCommand, 'RTN_DYN');
-      console.log('GET_DYN fallback result:', fallbackResult);
-
-      return fallbackResult;
+      // Return only the results we got - no fallback
+      // This ensures we only return truly connected sensors
+      return result || {};
     } catch (error) {
       console.error('Error in getConnectedDynamicSensors:', error);
       throw error;
@@ -336,6 +327,26 @@ export class CTCApiService {
   }
 
   /**
+   * Send a direct command to the CTC API - useful for custom commands
+   * @param commandType - The type of command to send
+   * @param data - The data to include with the command
+   * @returns Promise resolving when the command is sent
+   */
+  public async sendDirectCommand(
+    commandType: string,
+    data: Record<string, unknown> = {}
+  ): Promise<void> {
+    const command = {
+      Type: commandType,
+      From: 'UI',
+      To: 'SERV',
+      Data: data,
+    };
+
+    return this.sendCommand(command);
+  }
+
+  /**
    * Get temperature records for specified sensors
    * @param options - Options for the query
    * @returns Promise with temperature reading records
@@ -385,19 +396,58 @@ export class CTCApiService {
    * Note: Not all gateways support this command
    * @returns A promise that resolves to true if subscription succeeded, false otherwise
    */
+  /**
+   * Subscribe to changes
+   * This will enable receiving notification commands
+   * Note: Not all gateways support this command
+   * @returns A promise that resolves to true if subscription succeeded, false otherwise
+   */
   public async subscribeToChanges(): Promise<boolean> {
     try {
-      const command = {
-        Type: 'SUBSCRIBE',
-        From: 'UI',
-        To: 'SERV',
-        Data: {},
-      };
+      // We'll manually create a promise that resolves after a short timeout
+      return new Promise(resolve => {
+        // Create subscription command
+        const command = {
+          Type: 'SUBSCRIBE',
+          From: 'UI',
+          To: 'SERV',
+          Data: {},
+        };
 
-      await this.sendCommand(command);
-      return true;
+        // Variable for timeout ID with proper scope
+        let successTimeout: NodeJS.Timeout;
+
+        // Add a one-time handler for subscription errors
+        const handleSubscriptionError = () => {
+          // Clear the success timeout
+          clearTimeout(successTimeout);
+          resolve(false);
+        };
+
+        // Listen for the subscription_error event
+        this.events.once('subscription_error', handleSubscriptionError);
+
+        // Send the command
+        try {
+          // Using try/catch inside the promise to avoid rejecting the outer promise
+          this.socket?.send(JSON.stringify(command));
+
+          // Wait a short time to see if we get an error response
+          // If no error by this time, we assume subscription was successful
+          successTimeout = setTimeout(() => {
+            // Remove the error handler since we're resolving as success
+            this.events.off('subscription_error', handleSubscriptionError);
+            resolve(true);
+          }, 500);
+        } catch (e) {
+          // Remove the error handler since we're resolving immediately
+          this.events.off('subscription_error', handleSubscriptionError);
+          console.error('Error sending subscription command:', e);
+          resolve(false);
+        }
+      });
     } catch (error) {
-      console.log('Subscription attempt failed, gateway may not support this feature');
+      console.log('Subscription attempt failed:', error);
       return false;
     }
   }
@@ -633,15 +683,11 @@ export class CTCApiService {
       if (errorResult.success) {
         // Check if the error is for the SUBSCRIBE command
         if (errorResult.data.Attempt === 'SUBSCRIBE') {
-          // Handle subscription error more gracefully
-          console.log('Subscription not supported by this gateway:', errorResult.data.Error);
-          // Only emit the error if we have at least one listener to prevent unhandled errors
-          if (this.events.listenerCount('error') > 0) {
-            this.events.emit('error', {
-              ...errorResult.data,
-              isSubscriptionError: true,
-            });
-          }
+          // Log subscription errors but don't emit an event
+          console.log('Subscription error:', errorResult.data.Error);
+
+          // Emit a special event that our subscribeToChanges method could listen for
+          this.events.emit('subscription_error', errorResult.data);
         } else {
           // Log all other errors normally
           console.error(

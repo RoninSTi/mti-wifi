@@ -233,7 +233,7 @@ export default function EquipmentDetailsPage() {
       <div className="grid grid-cols-1 gap-8 mt-8">
         <Card className="overflow-hidden">
           <div className="p-6">
-            <SensorsTable equipmentId={equipmentId} />
+            <SensorsTable equipmentId={equipmentId} organizationId={organizationId} />
           </div>
         </Card>
       </div>

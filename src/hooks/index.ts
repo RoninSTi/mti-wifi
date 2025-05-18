@@ -41,7 +41,6 @@ export * from './useGateway';
 export * from './useCreateGateway';
 export * from './useUpdateGateway';
 export * from './useDeleteGateway';
-export * from './useGatewayConnections';
 
 // Sensor hooks
 export * from './useSensors';
@@ -49,4 +48,3 @@ export * from './useSensor';
 export * from './useCreateSensor';
 export * from './useUpdateSensor';
 export * from './useDeleteSensor';
-export * from './useDiscoverSensors';

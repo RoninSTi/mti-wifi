@@ -33,7 +33,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { useGatewayConnections } from '@/hooks';
 import { GatewayConnectionManagerDialog } from './GatewayConnectionManagerDialog';
 
 // Interface for the props received by the component
@@ -63,7 +62,6 @@ export function GatewaysTable({
 }: GatewaysTableProps) {
   // IMPORTANT: React Hook must be called at the top level of the component
   // This hook must be called unconditionally, before any conditionals
-  const { getConnectionStatus } = useGatewayConnections();
   // If loading, show skeleton UI
   if (isLoading) {
     return (
@@ -171,50 +169,8 @@ export function GatewaysTable({
               <TableCell>
                 {/* Status badge with icon */}
                 <div className="flex items-center gap-2">
-                  {(() => {
-                    const status = getConnectionStatus(gateway._id);
-                    switch (status) {
-                      case 'connecting':
-                      case 'authenticating':
-                        return (
-                          <>
-                            <Loader className="h-4 w-4 animate-spin text-yellow-500" />
-                            <Badge className="bg-yellow-500">
-                              {status === 'connecting' ? 'Connecting' : 'Authenticating'}
-                            </Badge>
-                          </>
-                        );
-                      case 'connected':
-                        return (
-                          <>
-                            <Wifi className="h-4 w-4 text-blue-500" />
-                            <Badge className="bg-blue-500">Connected</Badge>
-                          </>
-                        );
-                      case 'authenticated':
-                        return (
-                          <>
-                            <Shield className="h-4 w-4 text-green-500" />
-                            <Badge className="bg-green-500">Authenticated</Badge>
-                          </>
-                        );
-                      case 'error':
-                        return (
-                          <>
-                            <AlertTriangle className="h-4 w-4 text-destructive" />
-                            <Badge variant="destructive">Error</Badge>
-                          </>
-                        );
-                      case 'disconnected':
-                      default:
-                        return (
-                          <>
-                            <WifiOff className="h-4 w-4 text-muted-foreground" />
-                            <Badge variant="outline">Disconnected</Badge>
-                          </>
-                        );
-                    }
-                  })()}
+                  <WifiOff className="h-4 w-4 text-muted-foreground" />
+                  <Badge variant="outline">Disconnected</Badge>
                 </div>
               </TableCell>
               <TableCell>
@@ -230,11 +186,10 @@ export function GatewaysTable({
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <GatewayConnectionManagerDialog
-                        gateway={gateway}
                         trigger={
                           <DropdownMenuItem onSelect={e => e.preventDefault()}>
                             <Cable className="mr-2 h-4 w-4" />
-                            Connection Manager
+                            View Gateways
                           </DropdownMenuItem>
                         }
                       />

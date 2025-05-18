@@ -15,7 +15,6 @@ import { PlusCircle, Wifi, WifiOff, MoreHorizontal, Eye, Edit, Trash, Scan } fro
 import { CreateSensorDialog } from './CreateSensorDialog';
 import { EditSensorDialog } from './EditSensorDialog';
 import { SensorDetails } from './SensorDetails';
-import { DiscoverSensorsDialog } from './DiscoverSensorsDialog';
 import { useSensors } from '@/hooks/useSensors';
 import { useDeleteSensor } from '@/hooks/useDeleteSensor';
 import { useQueryClient } from '@tanstack/react-query';
@@ -34,19 +33,23 @@ import {
 } from '@/components/ui/dropdown-menu';
 // Import the specific schema for proper typing
 import { SensorResponse } from '@/app/api/sensors/schemas';
+import { useRouter } from 'next/navigation';
 
 interface SensorsTableProps {
   equipmentId: string;
+  organizationId: string;
 }
 
-export function SensorsTable({ equipmentId }: SensorsTableProps) {
+export function SensorsTable({ equipmentId, organizationId }: SensorsTableProps) {
   // Dialog state
   const [selectedSensor, setSelectedSensor] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sensorToDelete, setSensorToDelete] = useState<string | null>(null);
-  const [discoverDialogOpen, setDiscoverDialogOpen] = useState(false);
+
+  // Router for navigation
+  const router = useRouter();
 
   // Fetch sensors without pagination
   const { sensors, isLoading, isError } = useSensors(equipmentId, {
@@ -76,6 +79,7 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
   };
 
   const handleViewDetails = (sensorId: string) => {
+    // Open the sensor details dialog
     setSelectedSensor(sensorId);
     setDetailsOpen(true);
   };
@@ -121,10 +125,6 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
               </Button>
             }
           />
-          <Button variant="discover" onClick={() => setDiscoverDialogOpen(true)}>
-            <Scan className="h-4 w-4" />
-            Discover Sensors
-          </Button>
         </div>
       </div>
 
@@ -308,18 +308,6 @@ export function SensorsTable({ equipmentId }: SensorsTableProps) {
         isLoading={isDeleting}
         onConfirm={handleConfirmDelete}
         variant="destructive"
-      />
-
-      {/* Discover Sensors Dialog */}
-      <DiscoverSensorsDialog
-        equipmentId={equipmentId}
-        defaultOpen={discoverDialogOpen}
-        onComplete={() => {
-          setDiscoverDialogOpen(false);
-          // Refetch is not needed - query invalidation in the useDiscoverSensors hook
-          // will automatically trigger a refetch of the sensors query
-        }}
-        trigger={<span style={{ display: 'none' }}>Discover Sensors</span>}
       />
     </div>
   );

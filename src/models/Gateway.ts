@@ -48,13 +48,13 @@ const GatewaySchema: Schema = new Schema(
       type: String,
       required: true,
       trim: true,
-      index: true,
+      // Removed individual index as it's part of a compound index below
     },
     location: {
       type: Schema.Types.ObjectId,
       ref: 'Location',
       required: true,
-      index: true,
+      // Removed individual index as it's part of a compound index below
     },
     status: {
       type: String,

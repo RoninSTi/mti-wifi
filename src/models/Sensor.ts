@@ -144,9 +144,8 @@ const SensorSchema: Schema = new Schema(
   }
 );
 
-// Indexes for lookup by equipment ID and gateway ID
-SensorSchema.index({ equipment: 1 });
-SensorSchema.index({ gateway: 1 });
+// No need for explicit index definitions since they're already defined in the schema fields
+// Both equipment and gateway are indexed in their field definitions above
 
 // Method to update sensor data from CTC API
 SensorSchema.methods.updateFromCTCData = function (ctcData: ICTCSensorData) {
