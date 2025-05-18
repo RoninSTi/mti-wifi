@@ -6,7 +6,26 @@ import { authOptions } from '@/lib/auth/auth-options';
 import { connectToDatabase } from '@/lib/db/mongoose';
 import Sensor from '@/models/Sensor';
 import Equipment from '@/models/Equipment';
-import { DiscoverSensorsPayloadSchema } from '@/types/discovery';
+
+// Define schema for discovered sensor data directly in this file since we removed discovery.ts
+const DiscoveredSensorSchema = z.object({
+  sensorId: z.string().optional(), // Optional existing ID if updating
+  name: z.string().min(1, 'Sensor name is required'),
+  type: z.string().min(1, 'Sensor type is required'),
+  model: z.string().optional(),
+  firmware: z.string().optional(),
+  serial: z.union([z.number(), z.string().transform(val => parseInt(val, 10))]),
+  connected: z.boolean().default(false),
+  description: z.string().optional(),
+  location: z.string().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
+
+// Main payload schema
+const DiscoverSensorsPayloadSchema = z.object({
+  equipmentId: z.string().min(1, 'Equipment ID is required'),
+  sensors: z.array(DiscoveredSensorSchema).min(1, 'At least one sensor is required'),
+});
 
 // Endpoint for discovering and creating multiple sensors in a batch
 export async function POST(request: NextRequest) {

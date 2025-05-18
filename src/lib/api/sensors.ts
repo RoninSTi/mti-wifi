@@ -3,7 +3,6 @@
  */
 import { apiClient } from './api-client';
 import { CreateSensorInput, UpdateSensorInput, SensorResponse } from '@/app/api/sensors/schemas';
-import { AssociateDiscoveredSensorsInput } from '@/types/discovery';
 // Note: PaginatedResponse imported from pagination/types is used implicitly in the return types
 
 // Base URL for sensor endpoints
@@ -125,6 +124,20 @@ export const deleteSensor = async (id: string) => {
  * @param data Object containing equipment ID and array of sensors to associate
  * @returns Array of created sensors
  */
-export const associateDiscoveredSensors = async (data: AssociateDiscoveredSensorsInput) => {
+export const associateDiscoveredSensors = async (data: {
+  equipmentId: string;
+  sensors: Array<{
+    sensorId?: string;
+    name: string;
+    type: string;
+    model?: string;
+    firmware?: string;
+    serial: number | string;
+    connected?: boolean;
+    description?: string;
+    location?: string;
+    metadata?: Record<string, unknown>;
+  }>;
+}) => {
   return apiClient.post<SensorResponse[]>(`${SENSORS_URL}/discover`, data);
 };

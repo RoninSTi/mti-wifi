@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createApiSpan, createDatabaseSpan, addSpanAttributes } from '@/telemetry/utils';
 import { connectToDatabase } from '@/lib/db/mongoose';
+// Import Organization model first to ensure it's registered before Location uses it
+import Organization from '@/models/Organization';
 import Location from '@/models/Location';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/auth-options';
