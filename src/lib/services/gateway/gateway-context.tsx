@@ -187,11 +187,19 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
         case 'RTN_DYN_READINGS':
           // Vibration readings - use Zod validation
           try {
+            console.log('Processing RTN_DYN_READINGS:', data.message);
             const result = dynamicReadingsResponseSchema.safeParse(data.message);
             if (result.success) {
               setState(prev => {
                 const newVibrationReadings = new Map(prev.vibrationReadings);
-                newVibrationReadings.set(data.gatewayId, result.data.Data);
+
+                // Convert array to record format for compatibility with existing code
+                const readingsRecord: Record<string, VibrationReading> = {};
+                result.data.Data.forEach(reading => {
+                  readingsRecord[reading.ID.toString()] = reading;
+                });
+
+                newVibrationReadings.set(data.gatewayId, readingsRecord);
                 return { ...prev, vibrationReadings: newVibrationReadings };
               });
             }
@@ -203,11 +211,19 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
         case 'RTN_DYN_TEMPS':
           // Temperature readings - use Zod validation
           try {
+            console.log('Processing RTN_DYN_TEMPS:', data.message);
             const result = dynamicTemperaturesResponseSchema.safeParse(data.message);
             if (result.success) {
               setState(prev => {
                 const newTemperatureReadings = new Map(prev.temperatureReadings);
-                newTemperatureReadings.set(data.gatewayId, result.data.Data);
+
+                // Convert array to record format for compatibility with existing code
+                const readingsRecord: Record<string, TemperatureReading> = {};
+                result.data.Data.forEach(reading => {
+                  readingsRecord[reading.ID.toString()] = reading;
+                });
+
+                newTemperatureReadings.set(data.gatewayId, readingsRecord);
                 return { ...prev, temperatureReadings: newTemperatureReadings };
               });
             }
@@ -219,16 +235,31 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
         case 'RTN_DYN_BATTS':
           // Battery readings - use Zod validation
           try {
+            console.log('Processing RTN_DYN_BATTS:', data.message);
             const result = dynamicBatteriesResponseSchema.safeParse(data.message);
             if (result.success) {
               setState(prev => {
                 const newBatteryReadings = new Map(prev.batteryReadings);
-                newBatteryReadings.set(data.gatewayId, result.data.Data);
+
+                // Convert array to record format for compatibility with existing code
+                const readingsRecord: Record<string, BatteryReading> = {};
+                result.data.Data.forEach(reading => {
+                  readingsRecord[reading.ID.toString()] = reading;
+                });
+
+                console.log('Saving battery readings to context:', {
+                  gatewayId: data.gatewayId,
+                  readingsCount: Object.keys(readingsRecord).length,
+                  readings: readingsRecord,
+                });
+
+                newBatteryReadings.set(data.gatewayId, readingsRecord);
                 return { ...prev, batteryReadings: newBatteryReadings };
               });
             }
           } catch (error) {
             console.error('Failed to validate battery readings', error);
+            console.error('Validation error details:', error);
           }
           break;
 

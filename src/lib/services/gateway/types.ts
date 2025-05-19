@@ -324,12 +324,11 @@ export const dynamicReadingsResponseSchema = baseMessageSchema.extend({
   Type: z.literal('RTN_DYN_READINGS'),
   From: z.literal('SERV'),
   Target: z.literal('UI'),
-  Data: z.record(
-    z.string(),
+  Data: z.array(
     z.object({
       ID: z.number().int(),
-      Serial: z.string(),
-      Time: z.string(), // yyyy-mm-dd
+      Serial: z.union([z.number().int(), z.string()]).transform(v => String(v)),
+      Time: z.string(), // format: "yyyy-mm-dd hh:mm"
       X: z.string(),
       Y: z.string(),
       Z: z.string(),
@@ -346,12 +345,11 @@ export const dynamicTemperaturesResponseSchema = baseMessageSchema.extend({
   Type: z.literal('RTN_DYN_TEMPS'),
   From: z.literal('SERV'),
   Target: z.literal('UI'),
-  Data: z.record(
-    z.string(),
+  Data: z.array(
     z.object({
       ID: z.number().int(),
-      Serial: z.string(),
-      Time: z.string(), // yyyy-mm-dd
+      Serial: z.union([z.number().int(), z.string()]).transform(v => String(v)),
+      Time: z.string(), // format: "yyyy-mm-dd hh:mm"
       Temp: z.number().int(),
     })
   ),
@@ -366,12 +364,11 @@ export const dynamicBatteriesResponseSchema = baseMessageSchema.extend({
   Type: z.literal('RTN_DYN_BATTS'),
   From: z.literal('SERV'),
   Target: z.literal('UI'),
-  Data: z.record(
-    z.string(),
+  Data: z.array(
     z.object({
       ID: z.number().int(),
-      Serial: z.string(),
-      Time: z.string(), // yyyy-mm-dd
+      Serial: z.union([z.number().int(), z.string()]).transform(v => String(v)),
+      Time: z.string(), // format: "yyyy-mm-dd hh:mm"
       Batt: z.number().int(),
     })
   ),

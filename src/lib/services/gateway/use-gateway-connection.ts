@@ -169,13 +169,12 @@ export function useGatewayConnection(gatewayId?: string) {
     const readings = getBatteryReadings(gatewayId);
     const readingsCount = Object.keys(readings).length;
 
-    if (readingsCount > 0) {
-      console.log(`Battery readings for gateway ${gatewayId}:`, {
-        readingsCount,
-        timestamp: new Date().toISOString(),
-        readingSerials: Object.values(readings).map(r => r.Serial),
-      });
-    }
+    console.log(`Battery readings for gateway ${gatewayId}:`, {
+      readingsCount,
+      timestamp: new Date().toISOString(),
+      readingSerials: readingsCount > 0 ? Object.values(readings).map(r => r.Serial) : [],
+      readings: readings,
+    });
 
     return readings;
   };

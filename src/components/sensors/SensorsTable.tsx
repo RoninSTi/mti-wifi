@@ -206,7 +206,20 @@ export function SensorsTable({
                     if ((e.target as HTMLElement).closest('.dropdown-trigger')) {
                       return;
                     }
-                    handleViewDetails(sensor._id);
+
+                    // Navigate to the sensor page
+                    // Add debug info
+                    console.log('Clicking sensor row:', {
+                      sensorId: sensor._id,
+                      connected: sensor.connected,
+                      type: typeof sensor.connected,
+                      name: sensor.name,
+                    });
+
+                    // Always navigate to the sensor page, regardless of connection status
+                    router.push(
+                      `/organizations/${organizationId}/locations/${locationId}/areas/${areaId}/equipment/${equipmentId}/sensor/${sensor._id}`
+                    );
                   }}
                 >
                   <TableCell className="font-medium">
@@ -251,7 +264,6 @@ export function SensorsTable({
                               `/organizations/${organizationId}/locations/${locationId}/areas/${areaId}/equipment/${equipmentId}/sensor/${sensor._id}`
                             );
                           }}
-                          disabled={!sensor.connected}
                         >
                           <ActivitySquare className="mr-2 h-4 w-4" />
                           Sensor Readings

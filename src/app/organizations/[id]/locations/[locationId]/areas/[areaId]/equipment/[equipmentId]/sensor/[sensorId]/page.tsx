@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Thermometer, Zap, Waves } from 'lucide-react';
+import { ArrowLeft, Thermometer, Zap, Waves, History } from 'lucide-react';
 import { useSensor } from '@/hooks/useSensor';
-import { SensorReadingsPanel } from '@/components/sensors/readings/SensorReadingsPanel';
+import { SensorRealTimeReadings, SensorHistoricalReadings } from '@/components/sensors/readings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTypedParams } from '@/lib/utils';
 import { DetailPageBreadcrumbs } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
 import { getGatewayId, getSensorSerial } from '@/lib/utils/sensor-utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function SensorReadingsPage() {
   const router = useRouter();
@@ -106,28 +107,45 @@ export default function SensorReadingsPage() {
         </div>
       </div>
 
-      {/* Readings Panel */}
-      <div className="grid grid-cols-1 gap-8">
-        {gatewayId ? (
-          <SensorReadingsPanel gatewayId={gatewayId} sensorSerial={sensorSerial} />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>No Gateway Connection</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>
-                This sensor is not connected to any gateway. Please assign a gateway to view sensor
-                readings.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Add a tabbed interface for real-time vs historical data */}
+      {gatewayId ? (
+        <Tabs defaultValue="real-time" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="real-time" className="flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              <span>Real-time Readings</span>
+            </TabsTrigger>
+            <TabsTrigger value="historical" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              <span>Historical Data</span>
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Reading type selection (only shown if there are actual readings) */}
+          <TabsContent value="real-time" className="mt-0">
+            <SensorRealTimeReadings gatewayId={gatewayId} sensorSerial={sensorSerial} />
+          </TabsContent>
+
+          <TabsContent value="historical" className="mt-0">
+            <SensorHistoricalReadings gatewayId={gatewayId} sensorSerial={sensorSerial} />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>No Gateway Connection</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>
+              This sensor is not connected to any gateway. Please assign a gateway to view sensor
+              readings.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reading type information panels */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-        <Card className="hover:border-primary cursor-pointer">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Temperature</CardTitle>
             <Thermometer className="h-5 w-5 text-orange-500" />
@@ -139,7 +157,7 @@ export default function SensorReadingsPage() {
           </CardContent>
         </Card>
 
-        <Card className="hover:border-primary cursor-pointer">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Battery</CardTitle>
             <Zap className="h-5 w-5 text-green-500" />
@@ -151,7 +169,7 @@ export default function SensorReadingsPage() {
           </CardContent>
         </Card>
 
-        <Card className="hover:border-primary cursor-pointer">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Vibration</CardTitle>
             <Waves className="h-5 w-5 text-blue-500" />
