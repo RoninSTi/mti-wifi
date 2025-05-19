@@ -48,10 +48,9 @@ async function getSensorHandler(
 
       // Fetch the sensor from database
       const sensor = await createDatabaseSpan('findOne', 'sensors', async () => {
-        return await Sensor.findById(new mongoose.Types.ObjectId(id)).populate(
-          'equipment',
-          'name equipmentType'
-        );
+        return await Sensor.findById(new mongoose.Types.ObjectId(id))
+          .populate('equipment', 'name equipmentType')
+          .populate('gateway', '_id name ipAddress');
       });
 
       // Check if the sensor exists
@@ -174,7 +173,9 @@ async function updateSensorHandler(
           new mongoose.Types.ObjectId(id),
           { $set: validatedData },
           { new: true, runValidators: true }
-        ).populate('equipment', 'name equipmentType');
+        )
+          .populate('equipment', 'name equipmentType')
+          .populate('gateway', '_id name ipAddress');
       });
 
       // Add result to span attributes

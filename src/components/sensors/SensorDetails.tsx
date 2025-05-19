@@ -19,6 +19,8 @@ import { EntityMeta } from '@/components/ui/entity-meta';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Wifi, WifiOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { SensorReadingsPanel } from './readings/SensorReadingsPanel';
+import { getGatewayId, getSensorSerial } from '@/lib/utils/sensor-utils';
 
 interface SensorDetailsProps {
   sensorId: string;
@@ -201,6 +203,17 @@ export function SensorDetails({ sensorId, onDelete }: SensorDetailsProps) {
             },
           ]}
         />
+
+        {/* Sensor Readings Panel */}
+        {sensor.gateway && (
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-2">Sensor Readings</h3>
+            <SensorReadingsPanel
+              gatewayId={getGatewayId(sensor) || ''}
+              sensorSerial={getSensorSerial(sensor)}
+            />
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex justify-between pt-4 border-t">
         <DeleteButton onDelete={handleDelete} isDeleting={isDeleting} resourceName="sensor" />

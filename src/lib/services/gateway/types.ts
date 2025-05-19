@@ -420,14 +420,17 @@ export const vibrationReadingCompleteNotificationSchema = baseMessageSchema.exte
   Type: z.literal('NOT_DYN_READING'),
   From: z.literal('SERV'),
   Target: z.literal('UI'),
-  Data: z.object({
-    ID: z.number().int(),
-    Serial: z.string(),
-    Time: z.string(), // yyyy-mm-dd
-    X: z.string(),
-    Y: z.string(),
-    Z: z.string(),
-  }),
+  Data: z.record(
+    z.string(),
+    z.object({
+      ID: z.number().int(),
+      Serial: z.union([z.string(), z.number().int()]).transform(v => String(v)),
+      Time: z.string(), // yyyy-mm-dd
+      X: z.string(),
+      Y: z.string(),
+      Z: z.string(),
+    })
+  ),
 });
 
 export type VibrationReadingCompleteNotification = z.infer<
@@ -441,12 +444,15 @@ export const temperatureReadingCompleteNotificationSchema = baseMessageSchema.ex
   Type: z.literal('NOT_DYN_TEMP'),
   From: z.literal('SERV'),
   Target: z.literal('UI'),
-  Data: z.object({
-    ID: z.number().int(),
-    Serial: z.string(),
-    Time: z.string(), // yyyy-mm-dd
-    Temp: z.number().int(),
-  }),
+  Data: z.record(
+    z.string(),
+    z.object({
+      ID: z.number().int(),
+      Serial: z.union([z.string(), z.number().int()]).transform(v => String(v)),
+      Time: z.string(), // yyyy-mm-dd
+      Temp: z.number().int(),
+    })
+  ),
 });
 
 export type TemperatureReadingCompleteNotification = z.infer<
@@ -460,12 +466,15 @@ export const batteryReadingCompleteNotificationSchema = baseMessageSchema.extend
   Type: z.literal('NOT_DYN_BATT'),
   From: z.literal('SERV'),
   Target: z.literal('UI'),
-  Data: z.object({
-    ID: z.number().int(),
-    Serial: z.string(),
-    Time: z.string(), // yyyy-mm-dd
-    Batt: z.number().int(),
-  }),
+  Data: z.record(
+    z.string(),
+    z.object({
+      ID: z.number().int(),
+      Serial: z.union([z.string(), z.number().int()]).transform(v => String(v)),
+      Time: z.string(), // yyyy-mm-dd
+      Batt: z.number().int(),
+    })
+  ),
 });
 
 export type BatteryReadingCompleteNotification = z.infer<

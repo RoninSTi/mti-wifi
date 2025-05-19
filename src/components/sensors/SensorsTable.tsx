@@ -11,7 +11,17 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, Wifi, WifiOff, MoreHorizontal, Eye, Edit, Trash, Scan } from 'lucide-react';
+import {
+  PlusCircle,
+  Wifi,
+  WifiOff,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash,
+  ActivitySquare,
+  Scan,
+} from 'lucide-react';
 import { CreateSensorDialog } from './CreateSensorDialog';
 import { EditSensorDialog } from './EditSensorDialog';
 import { SensorDetails } from './SensorDetails';
@@ -38,9 +48,16 @@ import { useRouter } from 'next/navigation';
 interface SensorsTableProps {
   equipmentId: string;
   organizationId: string;
+  locationId?: string;
+  areaId?: string;
 }
 
-export function SensorsTable({ equipmentId, organizationId }: SensorsTableProps) {
+export function SensorsTable({
+  equipmentId,
+  organizationId,
+  locationId,
+  areaId,
+}: SensorsTableProps) {
   // Dialog state
   const [selectedSensor, setSelectedSensor] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -226,6 +243,18 @@ export function SensorsTable({ equipmentId, organizationId }: SensorsTableProps)
                         <DropdownMenuItem onClick={() => handleViewDetails(sensor._id)}>
                           <Eye className="mr-2 h-4 w-4" />
                           View details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            // Navigate to sensor readings page
+                            router.push(
+                              `/organizations/${organizationId}/locations/${locationId}/areas/${areaId}/equipment/${equipmentId}/sensor/${sensor._id}`
+                            );
+                          }}
+                          disabled={!sensor.connected}
+                        >
+                          <ActivitySquare className="mr-2 h-4 w-4" />
+                          Sensor Readings
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {

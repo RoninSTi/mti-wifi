@@ -166,9 +166,19 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
           const result = dynamicSensorsResponseSchema.safeParse(data.message);
           if (result.success) {
             // Safe to use - properly typed through Zod inference
+            // Create a deep copy to ensure state change is detected
             setState(prev => {
               const newSensors = new Map(prev.sensors);
-              newSensors.set(data.gatewayId, result.data.Data);
+
+              console.log(`Updating sensors list for gateway ${data.gatewayId}:`, {
+                sensorCount: result.data.Data.length,
+                connectedCount: result.data.Data.filter(
+                  s => s.Connected === true || s.Connected === 1
+                ).length,
+                timestamp: new Date().toISOString(),
+              });
+
+              newSensors.set(data.gatewayId, [...result.data.Data]);
               return { ...prev, sensors: newSensors };
             });
           }
@@ -267,27 +277,42 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
         case 'NOT_DYN_READING':
           // Single vibration reading notification - add to existing readings
           try {
+            console.log('Parsing vibration notification:', JSON.stringify(data.message));
             const vibrationNotification = vibrationReadingCompleteNotificationSchema.safeParse(
               data.message
             );
+
             if (vibrationNotification.success) {
-              const { ID, Serial, Time, X, Y, Z } = vibrationNotification.data.Data;
+              console.log('Successfully parsed vibration notification');
 
-              // Update the vibration readings state
-              setState(prev => {
-                const newVibrationReadings = new Map(prev.vibrationReadings);
-                const currentReadings = newVibrationReadings.get(data.gatewayId) || {};
+              // The data contains a record of readings keyed by some ID
+              const readings = Object.values(vibrationNotification.data.Data);
 
-                // Add this reading to the current readings
-                newVibrationReadings.set(data.gatewayId, {
-                  ...currentReadings,
-                  [ID.toString()]: { ID, Serial, Time, X, Y, Z },
+              // Process each reading in the record
+              readings.forEach(reading => {
+                const { ID, Serial, Time, X, Y, Z } = reading;
+
+                // Update the vibration readings state
+                setState(prev => {
+                  const newVibrationReadings = new Map(prev.vibrationReadings);
+                  const currentReadings = newVibrationReadings.get(data.gatewayId) || {};
+
+                  // Add this reading to the current readings
+                  newVibrationReadings.set(data.gatewayId, {
+                    ...currentReadings,
+                    [ID.toString()]: { ID, Serial, Time, X, Y, Z },
+                  });
+
+                  return { ...prev, vibrationReadings: newVibrationReadings };
                 });
 
-                return { ...prev, vibrationReadings: newVibrationReadings };
+                console.log(`Received vibration reading for sensor ${Serial}`);
               });
-
-              console.log(`Received vibration reading for sensor ${Serial}`);
+            } else {
+              console.error(
+                'Failed to parse vibration reading notification:',
+                vibrationNotification.error
+              );
             }
           } catch (error) {
             console.error(
@@ -300,27 +325,42 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
         case 'NOT_DYN_TEMP':
           // Single temperature reading notification - add to existing readings
           try {
+            console.log('Parsing temperature notification:', JSON.stringify(data.message));
             const tempNotification = temperatureReadingCompleteNotificationSchema.safeParse(
               data.message
             );
+
             if (tempNotification.success) {
-              const { ID, Serial, Time, Temp } = tempNotification.data.Data;
+              console.log('Successfully parsed temperature notification');
 
-              // Update the temperature readings state
-              setState(prev => {
-                const newTemperatureReadings = new Map(prev.temperatureReadings);
-                const currentReadings = newTemperatureReadings.get(data.gatewayId) || {};
+              // The data contains a record of readings keyed by some ID
+              const readings = Object.values(tempNotification.data.Data);
 
-                // Add this reading to the current readings
-                newTemperatureReadings.set(data.gatewayId, {
-                  ...currentReadings,
-                  [ID.toString()]: { ID, Serial, Time, Temp },
+              // Process each reading in the record
+              readings.forEach(reading => {
+                const { ID, Serial, Time, Temp } = reading;
+
+                // Update the temperature readings state
+                setState(prev => {
+                  const newTemperatureReadings = new Map(prev.temperatureReadings);
+                  const currentReadings = newTemperatureReadings.get(data.gatewayId) || {};
+
+                  // Add this reading to the current readings
+                  newTemperatureReadings.set(data.gatewayId, {
+                    ...currentReadings,
+                    [ID.toString()]: { ID, Serial, Time, Temp },
+                  });
+
+                  return { ...prev, temperatureReadings: newTemperatureReadings };
                 });
 
-                return { ...prev, temperatureReadings: newTemperatureReadings };
+                console.log(`Received temperature reading for sensor ${Serial}: ${Temp}°C`);
               });
-
-              console.log(`Received temperature reading for sensor ${Serial}: ${Temp}`);
+            } else {
+              console.error(
+                'Failed to parse temperature reading notification:',
+                tempNotification.error
+              );
             }
           } catch (error) {
             console.error(
@@ -333,27 +373,53 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
         case 'NOT_DYN_BATT':
           // Single battery reading notification - add to existing readings
           try {
+            console.log('Parsing battery notification:', JSON.stringify(data.message));
             const battNotification = batteryReadingCompleteNotificationSchema.safeParse(
               data.message
             );
+
             if (battNotification.success) {
-              const { ID, Serial, Time, Batt } = battNotification.data.Data;
+              console.log('Successfully parsed battery notification');
 
-              // Update the battery readings state
-              setState(prev => {
-                const newBatteryReadings = new Map(prev.batteryReadings);
-                const currentReadings = newBatteryReadings.get(data.gatewayId) || {};
+              // The data contains a record of readings keyed by some ID
+              const readings = Object.values(battNotification.data.Data);
 
-                // Add this reading to the current readings
-                newBatteryReadings.set(data.gatewayId, {
-                  ...currentReadings,
-                  [ID.toString()]: { ID, Serial, Time, Batt },
+              // Process each reading in the record
+              readings.forEach(reading => {
+                const { ID, Serial, Time, Batt } = reading;
+
+                // Update the battery readings state
+                setState(prev => {
+                  const newBatteryReadings = new Map(prev.batteryReadings);
+                  const currentReadings = newBatteryReadings.get(data.gatewayId) || {};
+
+                  // Add this reading to the current readings
+                  const updatedReadings = {
+                    ...currentReadings,
+                    [ID.toString()]: { ID, Serial, Time, Batt },
+                  };
+
+                  console.log(
+                    `Updating battery reading for sensor ${Serial} in gateway ${data.gatewayId}:`,
+                    {
+                      batteryLevel: Batt,
+                      readingCount: Object.keys(updatedReadings).length,
+                      timestamp: new Date().toISOString(),
+                    }
+                  );
+
+                  newBatteryReadings.set(data.gatewayId, updatedReadings);
+
+                  return { ...prev, batteryReadings: newBatteryReadings };
                 });
 
-                return { ...prev, batteryReadings: newBatteryReadings };
+                console.log(`Received battery reading for sensor ${Serial}: ${Batt}%`);
               });
-
-              console.log(`Received battery reading for sensor ${Serial}: ${Batt}`);
+            } else {
+              console.error(
+                'Failed to parse battery reading notification:',
+                battNotification.error
+              );
             }
           } catch (error) {
             console.error(

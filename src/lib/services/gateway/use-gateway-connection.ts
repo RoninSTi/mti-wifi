@@ -127,7 +127,18 @@ export function useGatewayConnection(gatewayId?: string) {
    */
   const getVibrationData = () => {
     if (!gatewayId) return {};
-    return getVibrationReadings(gatewayId);
+    const readings = getVibrationReadings(gatewayId);
+    const readingsCount = Object.keys(readings).length;
+
+    if (readingsCount > 0) {
+      console.log(`Vibration readings for gateway ${gatewayId}:`, {
+        readingsCount,
+        timestamp: new Date().toISOString(),
+        readingSerials: Object.values(readings).map(r => r.Serial),
+      });
+    }
+
+    return readings;
   };
 
   /**
@@ -135,7 +146,18 @@ export function useGatewayConnection(gatewayId?: string) {
    */
   const getTemperatureData = () => {
     if (!gatewayId) return {};
-    return getTemperatureReadings(gatewayId);
+    const readings = getTemperatureReadings(gatewayId);
+    const readingsCount = Object.keys(readings).length;
+
+    if (readingsCount > 0) {
+      console.log(`Temperature readings for gateway ${gatewayId}:`, {
+        readingsCount,
+        timestamp: new Date().toISOString(),
+        readingSerials: Object.values(readings).map(r => r.Serial),
+      });
+    }
+
+    return readings;
   };
 
   /**
@@ -143,7 +165,19 @@ export function useGatewayConnection(gatewayId?: string) {
    */
   const getBatteryData = () => {
     if (!gatewayId) return {};
-    return getBatteryReadings(gatewayId);
+    // Get fresh data from the context each time
+    const readings = getBatteryReadings(gatewayId);
+    const readingsCount = Object.keys(readings).length;
+
+    if (readingsCount > 0) {
+      console.log(`Battery readings for gateway ${gatewayId}:`, {
+        readingsCount,
+        timestamp: new Date().toISOString(),
+        readingSerials: Object.values(readings).map(r => r.Serial),
+      });
+    }
+
+    return readings;
   };
 
   /**

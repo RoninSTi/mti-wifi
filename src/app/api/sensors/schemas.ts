@@ -69,12 +69,21 @@ export const sensorParamsSchema = z.object({
   id: z.string().min(1, 'Sensor ID is required'),
 });
 
+// Gateway reference schema
+export const gatewayReferenceSchema = z.object({
+  _id: z.string(),
+  name: z.string(),
+  ipAddress: z.string().optional(),
+});
+
 // Response schema and type
 export const sensorResponseSchema = z.object({
   _id: z.string(),
   name: sensorBaseSchema.name,
   description: sensorBaseSchema.description,
   equipment: equipmentReferenceSchema,
+  // Add proper gateway reference schema
+  gateway: gatewayReferenceSchema.optional(),
   serial: z.number().optional().nullable(),
   partNumber: z.string().optional().nullable(),
   hardwareVersion: z.string().optional(),
@@ -98,4 +107,5 @@ export const sensorResponseSchema = z.object({
 export type CreateSensorInput = z.infer<typeof createSensorSchema>;
 export type UpdateSensorInput = z.infer<typeof updateSensorSchema>;
 export type SensorParams = z.infer<typeof sensorParamsSchema>;
+export type GatewayReference = z.infer<typeof gatewayReferenceSchema>;
 export type SensorResponse = z.infer<typeof sensorResponseSchema>;
