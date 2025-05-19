@@ -21,6 +21,7 @@ import {
   Shield,
   AlertTriangle,
   Loader,
+  LucideIcon,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -34,6 +35,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { GatewayConnectionManagerDialog } from './GatewayConnectionManagerDialog';
+import { useGatewayWebSocket } from './GatewayWebSocketContext';
+import { ConnectionState } from '@/lib/api/ctc-api';
 
 // Interface for the props received by the component
 interface GatewaysTableProps {
@@ -49,6 +52,14 @@ interface GatewaysTableProps {
   filterApplied?: boolean;
 }
 
+// Helper types for connection status display
+interface ConnectionStatusConfig {
+  label: string;
+  variant: 'outline' | 'secondary' | 'destructive' | 'default';
+  icon: LucideIcon;
+  iconClass: string;
+}
+
 export function GatewaysTable({
   gateways,
   isLoading,
@@ -60,8 +71,66 @@ export function GatewaysTable({
   onRetry,
   filterApplied = false,
 }: GatewaysTableProps) {
-  // IMPORTANT: React Hook must be called at the top level of the component
-  // This hook must be called unconditionally, before any conditionals
+  // Get gateway connection states from context
+  const { getGatewayState, connectToGateway, disconnectFromGateway } = useGatewayWebSocket();
+
+  // Function to get connection status display config
+  const getConnectionStatus = (gatewayId: string): ConnectionStatusConfig => {
+    const state = getGatewayState(gatewayId);
+
+    switch (state) {
+      case ConnectionState.CONNECTED:
+        return {
+          label: 'Connected',
+          variant: 'secondary',
+          icon: Wifi,
+          iconClass: 'text-yellow-500',
+        };
+      case ConnectionState.AUTHENTICATED:
+        return {
+          label: 'Authenticated',
+          variant: 'default',
+          icon: Shield,
+          iconClass: 'text-green-500',
+        };
+      case ConnectionState.CONNECTING:
+      case ConnectionState.AUTHENTICATING:
+      case ConnectionState.RECONNECTING:
+        return {
+          label: 'Connecting',
+          variant: 'outline',
+          icon: Loader,
+          iconClass: 'text-blue-500 animate-spin',
+        };
+      case ConnectionState.FAILED:
+        return {
+          label: 'Failed',
+          variant: 'destructive',
+          icon: AlertTriangle,
+          iconClass: 'text-destructive',
+        };
+      case ConnectionState.DISCONNECTED:
+      default:
+        return {
+          label: 'Disconnected',
+          variant: 'outline',
+          icon: WifiOff,
+          iconClass: 'text-muted-foreground',
+        };
+    }
+  };
+
+  // Handler for connect/disconnect button
+  const handleConnectionToggle = async (gatewayId: string) => {
+    const state = getGatewayState(gatewayId);
+
+    if (state === ConnectionState.DISCONNECTED || state === ConnectionState.FAILED) {
+      await connectToGateway(gatewayId);
+    } else {
+      disconnectFromGateway(gatewayId);
+    }
+  };
+
   // If loading, show skeleton UI
   if (isLoading) {
     return (
@@ -149,73 +218,95 @@ export function GatewaysTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {gateways.map(gateway => (
-            <TableRow
-              key={gateway._id}
-              className={`${onView ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-              onClick={e => {
-                // Only navigate if the click wasn't on the dropdown menu or its children
-                // and if onView is provided
-                if (onView && !(e.target as HTMLElement).closest('.dropdown-actions')) {
-                  onView(gateway._id);
-                }
-              }}
-            >
-              <TableCell className="font-medium">{gateway.name}</TableCell>
-              <TableCell>{gateway.serialNumber}</TableCell>
-              <TableCell className="max-w-[200px] truncate">
-                <span title={gateway.url}>{gateway.url}</span>
-              </TableCell>
-              <TableCell>
-                {/* Status badge with icon */}
-                <div className="flex items-center gap-2">
-                  <WifiOff className="h-4 w-4 text-muted-foreground" />
-                  <Badge variant="outline">Disconnected</Badge>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="dropdown-actions" onClick={e => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">More options</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <GatewayConnectionManagerDialog
-                        trigger={
-                          <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                            <Cable className="mr-2 h-4 w-4" />
-                            View Gateways
-                          </DropdownMenuItem>
-                        }
-                      />
-                      {onView && (
-                        <DropdownMenuItem onClick={() => onView(gateway._id)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View details
+          {gateways.map(gateway => {
+            const connectionStatus = getConnectionStatus(gateway._id);
+            const StatusIcon = connectionStatus.icon;
+            const isConnected =
+              getGatewayState(gateway._id) === ConnectionState.AUTHENTICATED ||
+              getGatewayState(gateway._id) === ConnectionState.CONNECTED;
+
+            return (
+              <TableRow
+                key={gateway._id}
+                className={`${onView ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                onClick={e => {
+                  // Only navigate if the click wasn't on the dropdown menu or its children
+                  // and if onView is provided
+                  if (onView && !(e.target as HTMLElement).closest('.dropdown-actions')) {
+                    onView(gateway._id);
+                  }
+                }}
+              >
+                <TableCell className="font-medium">{gateway.name}</TableCell>
+                <TableCell>{gateway.serialNumber}</TableCell>
+                <TableCell className="max-w-[200px] truncate">
+                  <span title={gateway.url}>{gateway.url}</span>
+                </TableCell>
+                <TableCell>
+                  {/* Status badge with icon */}
+                  <div className="flex items-center gap-2">
+                    <StatusIcon className={`h-4 w-4 ${connectionStatus.iconClass}`} />
+                    <Badge variant={connectionStatus.variant}>{connectionStatus.label}</Badge>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="dropdown-actions" onClick={e => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">More options</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleConnectionToggle(gateway._id)}>
+                          {isConnected ? (
+                            <>
+                              <WifiOff className="mr-2 h-4 w-4" />
+                              Disconnect
+                            </>
+                          ) : (
+                            <>
+                              <Wifi className="mr-2 h-4 w-4" />
+                              Connect
+                            </>
+                          )}
                         </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => onEdit(gateway._id)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => onDelete(gateway._id)}
-                      >
-                        <Trash className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+                        <GatewayConnectionManagerDialog
+                          gateway={gateway}
+                          trigger={
+                            <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                              <Cable className="mr-2 h-4 w-4" />
+                              Manage Connection
+                            </DropdownMenuItem>
+                          }
+                        />
+                        {onView && (
+                          <DropdownMenuItem onClick={() => onView(gateway._id)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View details
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => onEdit(gateway._id)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => onDelete(gateway._id)}
+                        >
+                          <Trash className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
