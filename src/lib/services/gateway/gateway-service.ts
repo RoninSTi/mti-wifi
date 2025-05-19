@@ -12,6 +12,18 @@ import {
   requestMessageSchema,
   responseMessageSchema,
   subscribeChangesRequestSchema,
+  takeDynamicReadingRequestSchema,
+  takeDynamicTemperatureRequestSchema,
+  takeDynamicBatteryRequestSchema,
+  getDynamicReadingsRequestSchema,
+  getDynamicTemperaturesRequestSchema,
+  getDynamicBatteriesRequestSchema,
+  getConnectedSensorsRequestSchema,
+  AccessPointConnectionNotification,
+  VibrationReadingStartedNotification,
+  VibrationReadingCompleteNotification,
+  TemperatureReadingCompleteNotification,
+  BatteryReadingCompleteNotification,
 } from './types';
 import { GatewayResponse } from '@/app/api/gateways/schemas';
 
@@ -265,6 +277,200 @@ export class GatewayService {
   public getLastError(gatewayId: string): GatewayConnectionError | undefined {
     const connection = this.connections.get(gatewayId);
     return connection?.lastError;
+  }
+
+  /**
+   * Take a dynamic vibration reading
+   */
+  public takeDynamicReading(gatewayId: string, serial: number): boolean {
+    try {
+      // Use Zod to create and validate the request message
+      const takeDynamicReadingRequest = takeDynamicReadingRequestSchema.parse({
+        Type: 'TAKE_DYN_READING',
+        From: 'UI',
+        To: 'SERV',
+        Data: {
+          Serial: serial,
+        },
+      });
+
+      return this.sendMessage(gatewayId, takeDynamicReadingRequest);
+    } catch (error) {
+      console.error(
+        'Invalid dynamic reading request format:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Take a dynamic temperature reading
+   */
+  public takeDynamicTemperature(gatewayId: string, serial: number): boolean {
+    try {
+      // Use Zod to create and validate the request message
+      const takeDynamicTemperatureRequest = takeDynamicTemperatureRequestSchema.parse({
+        Type: 'TAKE_DYN_TEMP',
+        From: 'UI',
+        To: 'SERV',
+        Data: {
+          Serial: serial,
+        },
+      });
+
+      return this.sendMessage(gatewayId, takeDynamicTemperatureRequest);
+    } catch (error) {
+      console.error(
+        'Invalid temperature reading request format:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Take a dynamic battery level reading
+   */
+  public takeDynamicBattery(gatewayId: string, serial: number): boolean {
+    try {
+      // Use Zod to create and validate the request message
+      const takeDynamicBatteryRequest = takeDynamicBatteryRequestSchema.parse({
+        Type: 'TAKE_DYN_BATT',
+        From: 'UI',
+        To: 'SERV',
+        Data: {
+          Serial: serial,
+        },
+      });
+
+      return this.sendMessage(gatewayId, takeDynamicBatteryRequest);
+    } catch (error) {
+      console.error(
+        'Invalid battery reading request format:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Get dynamic vibration readings
+   */
+  public getDynamicReadings(
+    gatewayId: string,
+    options?: { serials?: number[]; start?: string; end?: string; max?: number }
+  ): boolean {
+    try {
+      // Use Zod to create and validate the request message
+      const getDynamicReadingsRequest = getDynamicReadingsRequestSchema.parse({
+        Type: 'GET_DYN_READINGS',
+        From: 'UI',
+        To: 'SERV',
+        Data: {
+          Serials: options?.serials,
+          Start: options?.start,
+          End: options?.end,
+          Max: options?.max,
+        },
+      });
+
+      return this.sendMessage(gatewayId, getDynamicReadingsRequest);
+    } catch (error) {
+      console.error(
+        'Invalid get dynamic readings request format:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Get dynamic temperature readings
+   */
+  public getDynamicTemperatures(
+    gatewayId: string,
+    options?: { serials?: number[]; start?: string; end?: string; max?: number }
+  ): boolean {
+    try {
+      // Use Zod to create and validate the request message
+      const getDynamicTemperaturesRequest = getDynamicTemperaturesRequestSchema.parse({
+        Type: 'GET_DYN_TEMPS',
+        From: 'UI',
+        To: 'SERV',
+        Data: {
+          Serials: options?.serials,
+          Start: options?.start,
+          End: options?.end,
+          Max: options?.max,
+        },
+      });
+
+      return this.sendMessage(gatewayId, getDynamicTemperaturesRequest);
+    } catch (error) {
+      console.error(
+        'Invalid get dynamic temperatures request format:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Get dynamic battery readings
+   */
+  public getDynamicBatteries(
+    gatewayId: string,
+    options?: { serials?: number[]; start?: string; end?: string; max?: number }
+  ): boolean {
+    try {
+      // Use Zod to create and validate the request message
+      const getDynamicBatteriesRequest = getDynamicBatteriesRequestSchema.parse({
+        Type: 'GET_DYN_BATTS',
+        From: 'UI',
+        To: 'SERV',
+        Data: {
+          Serials: options?.serials,
+          Start: options?.start,
+          End: options?.end,
+          Max: options?.max,
+        },
+      });
+
+      return this.sendMessage(gatewayId, getDynamicBatteriesRequest);
+    } catch (error) {
+      console.error(
+        'Invalid get dynamic batteries request format:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Get connected dynamic sensors
+   * This sends a GET_DYN_CONNECTED command to the gateway, which will respond
+   * with a list of currently connected sensors. A sensor is connected if it's
+   * in this list and has Connected=1.
+   */
+  public getConnectedSensors(gatewayId: string): boolean {
+    try {
+      // Use Zod to create and validate the request message
+      const getConnectedSensorsRequest = getConnectedSensorsRequestSchema.parse({
+        Type: 'GET_DYN_CONNECTED',
+        From: 'UI',
+        To: 'SERV',
+        Data: {},
+      });
+
+      return this.sendMessage(gatewayId, getConnectedSensorsRequest);
+    } catch (error) {
+      console.error(
+        'Invalid get connected sensors request format:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return false;
+    }
   }
 
   /**
@@ -675,6 +881,32 @@ export class GatewayService {
         case 'RTN_ERR':
           this.handleErrorResponse(gatewayId, response);
           break;
+        case 'RTN_DYN':
+          // Already handled by message event in context
+          break;
+        case 'RTN_DYN_READINGS':
+        case 'RTN_DYN_TEMPS':
+        case 'RTN_DYN_BATTS':
+          // These are handled by the message event in the context
+          break;
+        case 'NOT_AP_CONN':
+          this.handleAccessPointConnectionNotification(gatewayId, response);
+          break;
+        case 'NOT_DYN_CONN':
+          // Already handled by message event in context
+          break;
+        case 'NOT_DYN_READING_STARTED':
+          this.handleVibrationReadingStartedNotification(gatewayId, response);
+          break;
+        case 'NOT_DYN_READING':
+          this.handleVibrationReadingCompleteNotification(gatewayId, response);
+          break;
+        case 'NOT_DYN_TEMP':
+          this.handleTemperatureReadingCompleteNotification(gatewayId, response);
+          break;
+        case 'NOT_DYN_BATT':
+          this.handleBatteryReadingCompleteNotification(gatewayId, response);
+          break;
       }
     } else {
       // Attempt to validate as base message
@@ -795,6 +1027,66 @@ export class GatewayService {
       gatewayId,
       error: responseError,
     });
+  }
+
+  /**
+   * Handle access point connection notification
+   */
+  private handleAccessPointConnectionNotification(
+    gatewayId: string,
+    message: AccessPointConnectionNotification
+  ): void {
+    // Emit notification through the message event
+    // The gateway context will handle updating the state
+    console.log(`Access point connection notification for ${gatewayId}:`, message.Data);
+  }
+
+  /**
+   * Handle vibration reading started notification
+   */
+  private handleVibrationReadingStartedNotification(
+    gatewayId: string,
+    message: VibrationReadingStartedNotification
+  ): void {
+    // Emit notification through the message event
+    // The gateway context will handle updating the state
+    console.log(`Vibration reading started notification for ${gatewayId}:`, message.Data);
+  }
+
+  /**
+   * Handle vibration reading complete notification
+   */
+  private handleVibrationReadingCompleteNotification(
+    gatewayId: string,
+    message: VibrationReadingCompleteNotification
+  ): void {
+    // Emit notification through the message event
+    // The gateway context will handle updating the state
+    console.log(`Vibration reading complete notification for ${gatewayId}:`, message.Data);
+  }
+
+  /**
+   * Handle temperature reading complete notification
+   */
+  private handleTemperatureReadingCompleteNotification(
+    gatewayId: string,
+    message: TemperatureReadingCompleteNotification
+  ): void {
+    // Emit notification through the message event
+    // The gateway context will handle updating the state
+    console.log(`Temperature reading complete notification for ${gatewayId}:`, message.Data);
+  }
+
+  /**
+   * Handle battery reading complete notification
+   */
+  private handleBatteryReadingCompleteNotification(
+    gatewayId: string,
+    message: BatteryReadingCompleteNotification
+  ): void {
+    // Emit notification through the message event
+    // The gateway context will handle updating the state
+    console.log(`Battery reading complete notification for ${gatewayId}:`, message.Data);
   }
 
   /**

@@ -8,7 +8,7 @@ export const baseMessageSchema = z.object({
   From: z.string(),
   To: z.string().optional(),
   Target: z.string().optional(),
-  Data: z.any(), // Match any data type
+  Data: z.unknown(), // Use unknown instead of any for type safety
 });
 
 export type BaseMessage = z.infer<typeof baseMessageSchema>;
@@ -143,6 +143,38 @@ export const dynamicSensorSchema = z.object({
 export type DynamicSensor = z.infer<typeof dynamicSensorSchema>;
 
 /**
+ * Strongly typed interfaces for sensor readings
+ */
+export interface VibrationReading {
+  ID: number;
+  Serial: string;
+  Time: string;
+  X: string;
+  Y: string;
+  Z: string;
+}
+
+export interface TemperatureReading {
+  ID: number;
+  Serial: string;
+  Time: string;
+  Temp: number;
+}
+
+export interface BatteryReading {
+  ID: number;
+  Serial: string;
+  Time: string;
+  Batt: number;
+}
+
+export type SensorReadings = {
+  vibration: Record<string, VibrationReading>;
+  temperature: Record<string, TemperatureReading>;
+  battery: Record<string, BatteryReading>;
+};
+
+/**
  * Dynamic sensors response schema
  */
 export const dynamicSensorsResponseSchema = baseMessageSchema.extend({
@@ -193,6 +225,254 @@ export interface GatewayConnectionError {
 }
 
 /**
+ * Take dynamic vibration reading request schema
+ */
+export const takeDynamicReadingRequestSchema = baseMessageSchema.extend({
+  Type: z.literal('TAKE_DYN_READING'),
+  From: z.literal('UI'),
+  To: z.literal('SERV'),
+  Data: z.object({
+    Serial: z.number().int(),
+  }),
+});
+
+export type TakeDynamicReadingRequest = z.infer<typeof takeDynamicReadingRequestSchema>;
+
+/**
+ * Take dynamic temperature reading request schema
+ */
+export const takeDynamicTemperatureRequestSchema = baseMessageSchema.extend({
+  Type: z.literal('TAKE_DYN_TEMP'),
+  From: z.literal('UI'),
+  To: z.literal('SERV'),
+  Data: z.object({
+    Serial: z.number().int(),
+  }),
+});
+
+export type TakeDynamicTemperatureRequest = z.infer<typeof takeDynamicTemperatureRequestSchema>;
+
+/**
+ * Take dynamic battery level reading request schema
+ */
+export const takeDynamicBatteryRequestSchema = baseMessageSchema.extend({
+  Type: z.literal('TAKE_DYN_BATT'),
+  From: z.literal('UI'),
+  To: z.literal('SERV'),
+  Data: z.object({
+    Serial: z.number().int(),
+  }),
+});
+
+export type TakeDynamicBatteryRequest = z.infer<typeof takeDynamicBatteryRequestSchema>;
+
+/**
+ * Get dynamic vibration records request schema
+ */
+export const getDynamicReadingsRequestSchema = baseMessageSchema.extend({
+  Type: z.literal('GET_DYN_READINGS'),
+  From: z.literal('UI'),
+  To: z.literal('SERV'),
+  Data: z.object({
+    Serials: z.array(z.number().int()).optional(),
+    Start: z.string().optional(), // yyyy-mm-dd
+    End: z.string().optional(), // yyyy-mm-dd
+    Max: z.number().int().optional(),
+  }),
+});
+
+export type GetDynamicReadingsRequest = z.infer<typeof getDynamicReadingsRequestSchema>;
+
+/**
+ * Get dynamic temperature records request schema
+ */
+export const getDynamicTemperaturesRequestSchema = baseMessageSchema.extend({
+  Type: z.literal('GET_DYN_TEMPS'),
+  From: z.literal('UI'),
+  To: z.literal('SERV'),
+  Data: z.object({
+    Serials: z.array(z.number().int()).optional(),
+    Start: z.string().optional(), // yyyy-mm-dd
+    End: z.string().optional(), // yyyy-mm-dd
+    Max: z.number().int().optional(),
+  }),
+});
+
+export type GetDynamicTemperaturesRequest = z.infer<typeof getDynamicTemperaturesRequestSchema>;
+
+/**
+ * Get dynamic battery records request schema
+ */
+export const getDynamicBatteriesRequestSchema = baseMessageSchema.extend({
+  Type: z.literal('GET_DYN_BATTS'),
+  From: z.literal('UI'),
+  To: z.literal('SERV'),
+  Data: z.object({
+    Serials: z.array(z.number().int()).optional(),
+    Start: z.string().optional(), // yyyy-mm-dd
+    End: z.string().optional(), // yyyy-mm-dd
+    Max: z.number().int().optional(),
+  }),
+});
+
+export type GetDynamicBatteriesRequest = z.infer<typeof getDynamicBatteriesRequestSchema>;
+
+/**
+ * Return dynamic vibration records response schema
+ */
+export const dynamicReadingsResponseSchema = baseMessageSchema.extend({
+  Type: z.literal('RTN_DYN_READINGS'),
+  From: z.literal('SERV'),
+  Target: z.literal('UI'),
+  Data: z.record(
+    z.string(),
+    z.object({
+      ID: z.number().int(),
+      Serial: z.string(),
+      Time: z.string(), // yyyy-mm-dd
+      X: z.string(),
+      Y: z.string(),
+      Z: z.string(),
+    })
+  ),
+});
+
+export type DynamicReadingsResponse = z.infer<typeof dynamicReadingsResponseSchema>;
+
+/**
+ * Return dynamic temperature records response schema
+ */
+export const dynamicTemperaturesResponseSchema = baseMessageSchema.extend({
+  Type: z.literal('RTN_DYN_TEMPS'),
+  From: z.literal('SERV'),
+  Target: z.literal('UI'),
+  Data: z.record(
+    z.string(),
+    z.object({
+      ID: z.number().int(),
+      Serial: z.string(),
+      Time: z.string(), // yyyy-mm-dd
+      Temp: z.number().int(),
+    })
+  ),
+});
+
+export type DynamicTemperaturesResponse = z.infer<typeof dynamicTemperaturesResponseSchema>;
+
+/**
+ * Return dynamic battery level records response schema
+ */
+export const dynamicBatteriesResponseSchema = baseMessageSchema.extend({
+  Type: z.literal('RTN_DYN_BATTS'),
+  From: z.literal('SERV'),
+  Target: z.literal('UI'),
+  Data: z.record(
+    z.string(),
+    z.object({
+      ID: z.number().int(),
+      Serial: z.string(),
+      Time: z.string(), // yyyy-mm-dd
+      Batt: z.number().int(),
+    })
+  ),
+});
+
+export type DynamicBatteriesResponse = z.infer<typeof dynamicBatteriesResponseSchema>;
+
+/**
+ * Notify access point connected schema
+ */
+export const accessPointConnectionNotificationSchema = baseMessageSchema.extend({
+  Type: z.literal('NOT_AP_CONN'),
+  From: z.literal('SERV'),
+  Target: z.literal('UI'),
+  Data: z.object({
+    Serial: z.number().int(),
+    Connected: z.number().int(),
+  }),
+});
+
+export type AccessPointConnectionNotification = z.infer<
+  typeof accessPointConnectionNotificationSchema
+>;
+
+/**
+ * Notify vibration reading started schema
+ */
+export const vibrationReadingStartedNotificationSchema = baseMessageSchema.extend({
+  Type: z.literal('NOT_DYN_READING_STARTED'),
+  From: z.literal('SERV'),
+  Target: z.literal('UI'),
+  Data: z.object({
+    Serial: z.number().int(),
+    Success: z.boolean(),
+  }),
+});
+
+export type VibrationReadingStartedNotification = z.infer<
+  typeof vibrationReadingStartedNotificationSchema
+>;
+
+/**
+ * Notify vibration reading complete schema
+ */
+export const vibrationReadingCompleteNotificationSchema = baseMessageSchema.extend({
+  Type: z.literal('NOT_DYN_READING'),
+  From: z.literal('SERV'),
+  Target: z.literal('UI'),
+  Data: z.object({
+    ID: z.number().int(),
+    Serial: z.string(),
+    Time: z.string(), // yyyy-mm-dd
+    X: z.string(),
+    Y: z.string(),
+    Z: z.string(),
+  }),
+});
+
+export type VibrationReadingCompleteNotification = z.infer<
+  typeof vibrationReadingCompleteNotificationSchema
+>;
+
+/**
+ * Notify temperature reading complete schema
+ */
+export const temperatureReadingCompleteNotificationSchema = baseMessageSchema.extend({
+  Type: z.literal('NOT_DYN_TEMP'),
+  From: z.literal('SERV'),
+  Target: z.literal('UI'),
+  Data: z.object({
+    ID: z.number().int(),
+    Serial: z.string(),
+    Time: z.string(), // yyyy-mm-dd
+    Temp: z.number().int(),
+  }),
+});
+
+export type TemperatureReadingCompleteNotification = z.infer<
+  typeof temperatureReadingCompleteNotificationSchema
+>;
+
+/**
+ * Notify battery level reading complete schema
+ */
+export const batteryReadingCompleteNotificationSchema = baseMessageSchema.extend({
+  Type: z.literal('NOT_DYN_BATT'),
+  From: z.literal('SERV'),
+  Target: z.literal('UI'),
+  Data: z.object({
+    ID: z.number().int(),
+    Serial: z.string(),
+    Time: z.string(), // yyyy-mm-dd
+    Batt: z.number().int(),
+  }),
+});
+
+export type BatteryReadingCompleteNotification = z.infer<
+  typeof batteryReadingCompleteNotificationSchema
+>;
+
+/**
  * Union of all request message types
  */
 export const requestMessageSchema = z.union([
@@ -201,6 +481,12 @@ export const requestMessageSchema = z.union([
   unsubscribeChangesRequestSchema,
   getDynamicSensorsRequestSchema,
   getConnectedSensorsRequestSchema,
+  takeDynamicReadingRequestSchema,
+  takeDynamicTemperatureRequestSchema,
+  takeDynamicBatteryRequestSchema,
+  getDynamicReadingsRequestSchema,
+  getDynamicTemperaturesRequestSchema,
+  getDynamicBatteriesRequestSchema,
 ]);
 
 export type RequestMessage = z.infer<typeof requestMessageSchema>;
@@ -212,7 +498,15 @@ export const responseMessageSchema = z.union([
   authResponseSchema,
   errorResponseSchema,
   dynamicSensorsResponseSchema,
+  dynamicReadingsResponseSchema,
+  dynamicTemperaturesResponseSchema,
+  dynamicBatteriesResponseSchema,
   sensorConnectionNotificationSchema,
+  accessPointConnectionNotificationSchema,
+  vibrationReadingStartedNotificationSchema,
+  vibrationReadingCompleteNotificationSchema,
+  temperatureReadingCompleteNotificationSchema,
+  batteryReadingCompleteNotificationSchema,
 ]);
 
 export type ResponseMessage = z.infer<typeof responseMessageSchema>;

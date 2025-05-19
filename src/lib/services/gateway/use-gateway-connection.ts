@@ -18,8 +18,19 @@ export function useGatewayConnection(gatewayId?: string) {
     getStatus,
     getError,
     getSensors,
+    getVibrationReadings,
+    getTemperatureReadings,
+    getBatteryReadings,
     requestSensors,
     refreshSensors,
+    requestConnectedSensors,
+    isSensorConnected,
+    takeDynamicReading,
+    takeDynamicTemperature,
+    takeDynamicBattery,
+    requestDynamicReadings,
+    requestDynamicTemperatures,
+    requestDynamicBatteries,
   } = useContext(GatewayContext);
 
   const gatewayState = useMemo(() => {
@@ -87,6 +98,109 @@ export function useGatewayConnection(gatewayId?: string) {
     return await refreshSensors(gatewayId);
   };
 
+  /**
+   * Take a vibration reading from a sensor
+   */
+  const takeVibrationReading = async (serial: number) => {
+    if (!gatewayId) return false;
+    return await takeDynamicReading(gatewayId, serial);
+  };
+
+  /**
+   * Take a temperature reading from a sensor
+   */
+  const takeTemperatureReading = async (serial: number) => {
+    if (!gatewayId) return false;
+    return await takeDynamicTemperature(gatewayId, serial);
+  };
+
+  /**
+   * Take a battery level reading from a sensor
+   */
+  const takeBatteryReading = async (serial: number) => {
+    if (!gatewayId) return false;
+    return await takeDynamicBattery(gatewayId, serial);
+  };
+
+  /**
+   * Get vibration readings
+   */
+  const getVibrationData = () => {
+    if (!gatewayId) return {};
+    return getVibrationReadings(gatewayId);
+  };
+
+  /**
+   * Get temperature readings
+   */
+  const getTemperatureData = () => {
+    if (!gatewayId) return {};
+    return getTemperatureReadings(gatewayId);
+  };
+
+  /**
+   * Get battery readings
+   */
+  const getBatteryData = () => {
+    if (!gatewayId) return {};
+    return getBatteryReadings(gatewayId);
+  };
+
+  /**
+   * Request vibration readings
+   */
+  const fetchVibrationReadings = async (options?: {
+    serials?: number[];
+    start?: string;
+    end?: string;
+    max?: number;
+  }) => {
+    if (!gatewayId) return false;
+    return await requestDynamicReadings(gatewayId, options);
+  };
+
+  /**
+   * Request temperature readings
+   */
+  const fetchTemperatureReadings = async (options?: {
+    serials?: number[];
+    start?: string;
+    end?: string;
+    max?: number;
+  }) => {
+    if (!gatewayId) return false;
+    return await requestDynamicTemperatures(gatewayId, options);
+  };
+
+  /**
+   * Request battery readings
+   */
+  const fetchBatteryReadings = async (options?: {
+    serials?: number[];
+    start?: string;
+    end?: string;
+    max?: number;
+  }) => {
+    if (!gatewayId) return false;
+    return await requestDynamicBatteries(gatewayId, options);
+  };
+
+  /**
+   * Request connected sensors from the gateway
+   */
+  const fetchConnectedSensors = async () => {
+    if (!gatewayId) return false;
+    return await requestConnectedSensors(gatewayId);
+  };
+
+  /**
+   * Check if a specific sensor is connected to this gateway
+   */
+  const isSensorConnectedToGateway = (serial: number) => {
+    if (!gatewayId) return false;
+    return isSensorConnected(gatewayId, serial);
+  };
+
   return {
     ...gatewayState,
     isLoading: state.isLoading,
@@ -94,6 +208,21 @@ export function useGatewayConnection(gatewayId?: string) {
     disconnect: disconnectFromGateway,
     fetchSensors,
     reloadSensors,
+    // Connection verification methods
+    fetchConnectedSensors,
+    isSensorConnected: isSensorConnectedToGateway,
+    // Vibration reading methods
+    takeVibrationReading,
+    getVibrationData,
+    fetchVibrationReadings,
+    // Temperature reading methods
+    takeTemperatureReading,
+    getTemperatureData,
+    fetchTemperatureReadings,
+    // Battery reading methods
+    takeBatteryReading,
+    getBatteryData,
+    fetchBatteryReadings,
   };
 }
 

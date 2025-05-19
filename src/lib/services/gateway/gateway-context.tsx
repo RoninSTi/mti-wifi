@@ -8,8 +8,18 @@ import {
   DynamicSensor,
   ResponseMessage,
   BaseMessage,
+  VibrationReading,
+  TemperatureReading,
+  BatteryReading,
   getDynamicSensorsRequestSchema,
   dynamicSensorsResponseSchema,
+  dynamicReadingsResponseSchema,
+  dynamicTemperaturesResponseSchema,
+  dynamicBatteriesResponseSchema,
+  vibrationReadingCompleteNotificationSchema,
+  temperatureReadingCompleteNotificationSchema,
+  batteryReadingCompleteNotificationSchema,
+  sensorConnectionNotificationSchema,
 } from './types';
 import { GatewayService } from './gateway-service';
 
@@ -20,6 +30,9 @@ export interface GatewayContextState {
   connections: Map<string, GatewayConnectionStatus>;
   errors: Map<string, GatewayConnectionError>;
   sensors: Map<string, DynamicSensor[]>;
+  vibrationReadings: Map<string, Record<string, VibrationReading>>;
+  temperatureReadings: Map<string, Record<string, TemperatureReading>>;
+  batteryReadings: Map<string, Record<string, BatteryReading>>;
   isLoading: boolean;
 }
 
@@ -33,8 +46,28 @@ export interface GatewayContextValue {
   getStatus: (gatewayId: string) => GatewayConnectionStatus;
   getError: (gatewayId: string) => GatewayConnectionError | undefined;
   getSensors: (gatewayId: string) => DynamicSensor[];
+  getVibrationReadings: (gatewayId: string) => Record<string, VibrationReading>;
+  getTemperatureReadings: (gatewayId: string) => Record<string, TemperatureReading>;
+  getBatteryReadings: (gatewayId: string) => Record<string, BatteryReading>;
   requestSensors: (gatewayId: string, serials?: number[]) => Promise<boolean>;
   refreshSensors: (gatewayId: string) => Promise<boolean>;
+  requestConnectedSensors: (gatewayId: string) => Promise<boolean>;
+  isSensorConnected: (gatewayId: string, serial: number) => boolean;
+  takeDynamicReading: (gatewayId: string, serial: number) => Promise<boolean>;
+  takeDynamicTemperature: (gatewayId: string, serial: number) => Promise<boolean>;
+  takeDynamicBattery: (gatewayId: string, serial: number) => Promise<boolean>;
+  requestDynamicReadings: (
+    gatewayId: string,
+    options?: { serials?: number[]; start?: string; end?: string; max?: number }
+  ) => Promise<boolean>;
+  requestDynamicTemperatures: (
+    gatewayId: string,
+    options?: { serials?: number[]; start?: string; end?: string; max?: number }
+  ) => Promise<boolean>;
+  requestDynamicBatteries: (
+    gatewayId: string,
+    options?: { serials?: number[]; start?: string; end?: string; max?: number }
+  ) => Promise<boolean>;
 }
 
 // Create the context with default values
@@ -43,6 +76,9 @@ export const GatewayContext = createContext<GatewayContextValue>({
     connections: new Map(),
     errors: new Map(),
     sensors: new Map(),
+    vibrationReadings: new Map(),
+    temperatureReadings: new Map(),
+    batteryReadings: new Map(),
     isLoading: false,
   },
   connect: async () => false,
@@ -50,8 +86,19 @@ export const GatewayContext = createContext<GatewayContextValue>({
   getStatus: () => GatewayConnectionStatus.DISCONNECTED,
   getError: () => undefined,
   getSensors: () => [],
+  getVibrationReadings: () => ({}),
+  getTemperatureReadings: () => ({}),
+  getBatteryReadings: () => ({}),
   requestSensors: async () => false,
   refreshSensors: async () => false,
+  requestConnectedSensors: async () => false,
+  isSensorConnected: () => false,
+  takeDynamicReading: async () => false,
+  takeDynamicTemperature: async () => false,
+  takeDynamicBattery: async () => false,
+  requestDynamicReadings: async () => false,
+  requestDynamicTemperatures: async () => false,
+  requestDynamicBatteries: async () => false,
 });
 
 /**
@@ -73,6 +120,9 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
     connections: new Map(),
     errors: new Map(),
     sensors: new Map(),
+    vibrationReadings: new Map(),
+    temperatureReadings: new Map(),
+    batteryReadings: new Map(),
     isLoading: false,
   });
 
@@ -105,21 +155,213 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
       });
     };
 
-    // Message handler for sensor data
+    // Message handler for sensor data and readings
     const onMessage = (data: { gatewayId: string; message: ResponseMessage | BaseMessage }) => {
       if (!isMounted.current) return;
 
-      // Use Zod for validation specifically for RTN_DYN messages
-      if (data.message.Type === 'RTN_DYN') {
-        const result = dynamicSensorsResponseSchema.safeParse(data.message);
-        if (result.success) {
-          // Safe to use - properly typed through Zod inference
-          setState(prev => {
-            const newSensors = new Map(prev.sensors);
-            newSensors.set(data.gatewayId, result.data.Data);
-            return { ...prev, sensors: newSensors };
-          });
-        }
+      // Handle different message types based on their Type property
+      switch (data.message.Type) {
+        case 'RTN_DYN':
+          // Use Zod for validation specifically for RTN_DYN messages
+          const result = dynamicSensorsResponseSchema.safeParse(data.message);
+          if (result.success) {
+            // Safe to use - properly typed through Zod inference
+            setState(prev => {
+              const newSensors = new Map(prev.sensors);
+              newSensors.set(data.gatewayId, result.data.Data);
+              return { ...prev, sensors: newSensors };
+            });
+          }
+          break;
+
+        case 'RTN_DYN_READINGS':
+          // Vibration readings - use Zod validation
+          try {
+            const result = dynamicReadingsResponseSchema.safeParse(data.message);
+            if (result.success) {
+              setState(prev => {
+                const newVibrationReadings = new Map(prev.vibrationReadings);
+                newVibrationReadings.set(data.gatewayId, result.data.Data);
+                return { ...prev, vibrationReadings: newVibrationReadings };
+              });
+            }
+          } catch (error) {
+            console.error('Failed to validate vibration readings', error);
+          }
+          break;
+
+        case 'RTN_DYN_TEMPS':
+          // Temperature readings - use Zod validation
+          try {
+            const result = dynamicTemperaturesResponseSchema.safeParse(data.message);
+            if (result.success) {
+              setState(prev => {
+                const newTemperatureReadings = new Map(prev.temperatureReadings);
+                newTemperatureReadings.set(data.gatewayId, result.data.Data);
+                return { ...prev, temperatureReadings: newTemperatureReadings };
+              });
+            }
+          } catch (error) {
+            console.error('Failed to validate temperature readings', error);
+          }
+          break;
+
+        case 'RTN_DYN_BATTS':
+          // Battery readings - use Zod validation
+          try {
+            const result = dynamicBatteriesResponseSchema.safeParse(data.message);
+            if (result.success) {
+              setState(prev => {
+                const newBatteryReadings = new Map(prev.batteryReadings);
+                newBatteryReadings.set(data.gatewayId, result.data.Data);
+                return { ...prev, batteryReadings: newBatteryReadings };
+              });
+            }
+          } catch (error) {
+            console.error('Failed to validate battery readings', error);
+          }
+          break;
+
+        case 'NOT_DYN_CONN':
+          // Sensor connection notification
+          try {
+            // Validate the message
+            const connNotification = sensorConnectionNotificationSchema.safeParse(data.message);
+            if (connNotification.success) {
+              const { Serial, Connected } = connNotification.data.Data;
+
+              // If a sensor just connected, automatically request temperature and battery readings
+              if (Connected) {
+                console.log(
+                  `Sensor ${Serial} connected to gateway ${data.gatewayId}. Requesting initial readings.`
+                );
+
+                // Create a small delay to ensure connection is fully established before requesting readings
+                setTimeout(() => {
+                  const service = gatewayService.current;
+
+                  // Request temperature reading first
+                  const tempResult = service.takeDynamicTemperature(data.gatewayId, Serial);
+                  console.log(
+                    `Automatic temperature reading request for sensor ${Serial}: ${tempResult ? 'sent' : 'failed'}`
+                  );
+
+                  // Then request battery reading after a small delay
+                  setTimeout(() => {
+                    const battResult = service.takeDynamicBattery(data.gatewayId, Serial);
+                    console.log(
+                      `Automatic battery reading request for sensor ${Serial}: ${battResult ? 'sent' : 'failed'}`
+                    );
+                  }, 500);
+                }, 500);
+              }
+            }
+          } catch (error) {
+            console.error(
+              'Error handling sensor connection notification:',
+              error instanceof Error ? error.message : 'Unknown error'
+            );
+          }
+          break;
+
+        case 'NOT_DYN_READING':
+          // Single vibration reading notification - add to existing readings
+          try {
+            const vibrationNotification = vibrationReadingCompleteNotificationSchema.safeParse(
+              data.message
+            );
+            if (vibrationNotification.success) {
+              const { ID, Serial, Time, X, Y, Z } = vibrationNotification.data.Data;
+
+              // Update the vibration readings state
+              setState(prev => {
+                const newVibrationReadings = new Map(prev.vibrationReadings);
+                const currentReadings = newVibrationReadings.get(data.gatewayId) || {};
+
+                // Add this reading to the current readings
+                newVibrationReadings.set(data.gatewayId, {
+                  ...currentReadings,
+                  [ID.toString()]: { ID, Serial, Time, X, Y, Z },
+                });
+
+                return { ...prev, vibrationReadings: newVibrationReadings };
+              });
+
+              console.log(`Received vibration reading for sensor ${Serial}`);
+            }
+          } catch (error) {
+            console.error(
+              'Error handling vibration reading notification:',
+              error instanceof Error ? error.message : 'Unknown error'
+            );
+          }
+          break;
+
+        case 'NOT_DYN_TEMP':
+          // Single temperature reading notification - add to existing readings
+          try {
+            const tempNotification = temperatureReadingCompleteNotificationSchema.safeParse(
+              data.message
+            );
+            if (tempNotification.success) {
+              const { ID, Serial, Time, Temp } = tempNotification.data.Data;
+
+              // Update the temperature readings state
+              setState(prev => {
+                const newTemperatureReadings = new Map(prev.temperatureReadings);
+                const currentReadings = newTemperatureReadings.get(data.gatewayId) || {};
+
+                // Add this reading to the current readings
+                newTemperatureReadings.set(data.gatewayId, {
+                  ...currentReadings,
+                  [ID.toString()]: { ID, Serial, Time, Temp },
+                });
+
+                return { ...prev, temperatureReadings: newTemperatureReadings };
+              });
+
+              console.log(`Received temperature reading for sensor ${Serial}: ${Temp}`);
+            }
+          } catch (error) {
+            console.error(
+              'Error handling temperature reading notification:',
+              error instanceof Error ? error.message : 'Unknown error'
+            );
+          }
+          break;
+
+        case 'NOT_DYN_BATT':
+          // Single battery reading notification - add to existing readings
+          try {
+            const battNotification = batteryReadingCompleteNotificationSchema.safeParse(
+              data.message
+            );
+            if (battNotification.success) {
+              const { ID, Serial, Time, Batt } = battNotification.data.Data;
+
+              // Update the battery readings state
+              setState(prev => {
+                const newBatteryReadings = new Map(prev.batteryReadings);
+                const currentReadings = newBatteryReadings.get(data.gatewayId) || {};
+
+                // Add this reading to the current readings
+                newBatteryReadings.set(data.gatewayId, {
+                  ...currentReadings,
+                  [ID.toString()]: { ID, Serial, Time, Batt },
+                });
+
+                return { ...prev, batteryReadings: newBatteryReadings };
+              });
+
+              console.log(`Received battery reading for sensor ${Serial}: ${Batt}`);
+            }
+          } catch (error) {
+            console.error(
+              'Error handling battery reading notification:',
+              error instanceof Error ? error.message : 'Unknown error'
+            );
+          }
+          break;
       }
     };
 
@@ -223,6 +465,112 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
     [requestSensors]
   );
 
+  // Request connected sensors function
+  const requestConnectedSensors = useCallback(async (gatewayId: string) => {
+    const service = gatewayService.current;
+    const status = service.getStatus(gatewayId);
+
+    if (status !== GatewayConnectionStatus.AUTHENTICATED) {
+      console.warn(
+        `Cannot request connected sensors for gateway ${gatewayId}: Not authenticated (current status: ${status})`
+      );
+      return false;
+    }
+
+    return service.getConnectedSensors(gatewayId);
+  }, []);
+
+  // Check if a sensor is connected
+  const isSensorConnected = useCallback(
+    (gatewayId: string, serial: number) => {
+      const sensors = getSensors(gatewayId);
+      // Find the sensor with the matching serial number
+      const sensor = sensors.find(s => s.Serial === serial);
+
+      // Return true if sensor exists and Connected is true or 1
+      return !!sensor && (sensor.Connected === true || sensor.Connected === 1);
+    },
+    [getSensors]
+  );
+
+  // Get vibration readings function
+  const getVibrationReadings = useCallback(
+    (gatewayId: string) => {
+      return state.vibrationReadings.get(gatewayId) || {};
+    },
+    [state.vibrationReadings]
+  );
+
+  // Get temperature readings function
+  const getTemperatureReadings = useCallback(
+    (gatewayId: string) => {
+      return state.temperatureReadings.get(gatewayId) || {};
+    },
+    [state.temperatureReadings]
+  );
+
+  // Get battery readings function
+  const getBatteryReadings = useCallback(
+    (gatewayId: string) => {
+      return state.batteryReadings.get(gatewayId) || {};
+    },
+    [state.batteryReadings]
+  );
+
+  // Take dynamic vibration reading
+  const takeDynamicReading = useCallback(async (gatewayId: string, serial: number) => {
+    const service = gatewayService.current;
+    return service.takeDynamicReading(gatewayId, serial);
+  }, []);
+
+  // Take dynamic temperature reading
+  const takeDynamicTemperature = useCallback(async (gatewayId: string, serial: number) => {
+    const service = gatewayService.current;
+    return service.takeDynamicTemperature(gatewayId, serial);
+  }, []);
+
+  // Take dynamic battery reading
+  const takeDynamicBattery = useCallback(async (gatewayId: string, serial: number) => {
+    const service = gatewayService.current;
+    return service.takeDynamicBattery(gatewayId, serial);
+  }, []);
+
+  // Request dynamic vibration readings
+  const requestDynamicReadings = useCallback(
+    async (
+      gatewayId: string,
+      options?: { serials?: number[]; start?: string; end?: string; max?: number }
+    ) => {
+      const service = gatewayService.current;
+      return service.getDynamicReadings(gatewayId, options);
+    },
+    []
+  );
+
+  // Request dynamic temperature readings
+  const requestDynamicTemperatures = useCallback(
+    async (
+      gatewayId: string,
+      options?: { serials?: number[]; start?: string; end?: string; max?: number }
+    ) => {
+      const service = gatewayService.current;
+      return service.getDynamicTemperatures(gatewayId, options);
+    },
+    []
+  );
+
+  // Request dynamic battery readings
+  const requestDynamicBatteries = useCallback(
+    async (
+      gatewayId: string,
+      options?: { serials?: number[]; start?: string; end?: string; max?: number }
+    ) => {
+      const service = gatewayService.current;
+      return service.getDynamicBatteries(gatewayId, options);
+    },
+    []
+  );
+
   // Create context value
   const contextValue = useMemo<GatewayContextValue>(
     () => ({
@@ -232,10 +580,41 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
       getStatus,
       getError,
       getSensors,
+      getVibrationReadings,
+      getTemperatureReadings,
+      getBatteryReadings,
       requestSensors,
       refreshSensors,
+      requestConnectedSensors,
+      isSensorConnected,
+      takeDynamicReading,
+      takeDynamicTemperature,
+      takeDynamicBattery,
+      requestDynamicReadings,
+      requestDynamicTemperatures,
+      requestDynamicBatteries,
     }),
-    [state, connect, disconnect, getStatus, getError, getSensors, requestSensors, refreshSensors]
+    [
+      state,
+      connect,
+      disconnect,
+      getStatus,
+      getError,
+      getSensors,
+      getVibrationReadings,
+      getTemperatureReadings,
+      getBatteryReadings,
+      requestSensors,
+      refreshSensors,
+      requestConnectedSensors,
+      isSensorConnected,
+      takeDynamicReading,
+      takeDynamicTemperature,
+      takeDynamicBattery,
+      requestDynamicReadings,
+      requestDynamicTemperatures,
+      requestDynamicBatteries,
+    ]
   );
 
   return <GatewayContext.Provider value={contextValue}>{children}</GatewayContext.Provider>;
