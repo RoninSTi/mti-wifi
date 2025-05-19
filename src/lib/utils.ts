@@ -101,3 +101,30 @@ export function buildDetailUrl(params: {
 
   return url;
 }
+
+/**
+ * Format a date string for display
+ *
+ * @example
+ * // Format a date string
+ * const formattedDate = formatDate('2023-05-19T14:30:00Z');
+ * // Result: '5/19/2023, 2:30:00 PM' (varies by locale)
+ *
+ * // Handle undefined date
+ * const unknownDate = formatDate(undefined);
+ * // Result: 'Unknown'
+ */
+export function formatDate(date: string | undefined, fallback: string = 'Unknown'): string {
+  if (!date) return fallback;
+
+  try {
+    const parsedDate = new Date(date);
+    // Check if the date is valid
+    if (isNaN(parsedDate.getTime())) {
+      return fallback;
+    }
+    return parsedDate.toLocaleString();
+  } catch {
+    return fallback;
+  }
+}

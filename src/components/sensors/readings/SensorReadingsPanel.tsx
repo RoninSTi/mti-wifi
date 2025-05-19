@@ -12,8 +12,10 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Battery, Thermometer, Waves } from 'lucide-react';
+import { Battery, Thermometer, Waves, History } from 'lucide-react';
 import { toast } from 'sonner';
+import { SensorHistoricalReadings } from './SensorHistoricalReadings';
+import { formatDate } from '@/lib/utils';
 
 interface SensorReadingsPanelProps {
   gatewayId: string;
@@ -33,6 +35,9 @@ export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsP
     takeTemperatureReading,
     takeVibrationReading,
     fetchConnectedSensors,
+    fetchVibrationReadings,
+    fetchTemperatureReadings,
+    fetchBatteryReadings,
   } = useGatewayConnection(gatewayId);
 
   // Local state for tracking readings and loading state
@@ -41,7 +46,13 @@ export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsP
     battery: false,
     temperature: false,
     vibration: false,
+    historicalBattery: false,
+    historicalTemperature: false,
+    historicalVibration: false,
   });
+
+  // State for showing the historical readings panel
+  const [showHistorical, setShowHistorical] = useState(false);
 
   // Check if sensor is connected (using GET_DYN_CONNECTED result)
   const isSensorConnected = sensors.some(
@@ -127,7 +138,7 @@ export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsP
     try {
       await fetchConnectedSensors();
       toast.success('Connection check sent');
-    } catch (error) {
+    } catch {
       toast.error('Failed to check connections');
     } finally {
       setIsLoading(prev => ({ ...prev, connection: false }));
@@ -175,19 +186,62 @@ export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsP
     }
   };
 
-  // Format timestamp for display with better type safety
-  const formatDate = (date: string | undefined): string => {
-    if (!date) return 'Never';
-    try {
-      const parsedDate = new Date(date);
-      // Check if the date is valid
-      if (isNaN(parsedDate.getTime())) {
-        return 'Invalid date';
-      }
-      return parsedDate.toLocaleString();
-    } catch {
-      return 'Error parsing date';
+  // Generic function for fetching historical readings
+  const handleFetchHistorical = async (type: 'battery' | 'temperature' | 'vibration') => {
+    if (!isAuthenticated) {
+      toast.error('Gateway not authenticated');
+      return;
     }
+
+    const loadingKey = `historical${type.charAt(0).toUpperCase() + type.slice(1)}` as
+      | 'historicalBattery'
+      | 'historicalTemperature'
+      | 'historicalVibration';
+
+    setIsLoading(prev => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      // Default options: last 30 days, max 100 readings
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const options = {
+        serials: [sensorSerial],
+        start: thirtyDaysAgo.toISOString().split('T')[0], // yyyy-mm-dd format
+        end: new Date().toISOString().split('T')[0], // yyyy-mm-dd format
+        max: 100,
+      };
+
+      let success = false;
+
+      switch (type) {
+        case 'battery':
+          success = await fetchBatteryReadings(options);
+          break;
+        case 'temperature':
+          success = await fetchTemperatureReadings(options);
+          break;
+        case 'vibration':
+          success = await fetchVibrationReadings(options);
+          break;
+      }
+
+      if (success) {
+        toast.success(`Historical ${type} data requested`);
+        setShowHistorical(true);
+      } else {
+        toast.error(`Failed to request historical ${type} data`);
+      }
+    } catch (error) {
+      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  // Use formatDate from utils
+  const formatDisplayDate = (date: string | undefined): string => {
+    return formatDate(date, 'Never');
   };
 
   return (
@@ -222,7 +276,7 @@ export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsP
               {batteryReading ? `${batteryReading.Batt}%` : '--'}
             </div>
             <div className="text-sm text-muted-foreground mt-1">
-              Last updated: {batteryReading ? formatDate(batteryReading.Time) : 'Never'}
+              Last updated: {batteryReading ? formatDisplayDate(batteryReading.Time) : 'Never'}
             </div>
           </div>
 
@@ -236,7 +290,8 @@ export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsP
               {temperatureReading ? `${temperatureReading.Temp}°C` : '--'}
             </div>
             <div className="text-sm text-muted-foreground mt-1">
-              Last updated: {temperatureReading ? formatDate(temperatureReading.Time) : 'Never'}
+              Last updated:{' '}
+              {temperatureReading ? formatDisplayDate(temperatureReading.Time) : 'Never'}
             </div>
           </div>
 
@@ -261,13 +316,13 @@ export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsP
               )}
             </div>
             <div className="text-sm text-muted-foreground mt-1">
-              Last updated: {vibrationReading ? formatDate(vibrationReading.Time) : 'Never'}
+              Last updated: {vibrationReading ? formatDisplayDate(vibrationReading.Time) : 'Never'}
             </div>
           </div>
         </div>
       </CardContent>
 
-      <CardFooter>
+      <CardFooter className="flex flex-col gap-4">
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
@@ -302,7 +357,55 @@ export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsP
             {isLoading.vibration ? 'Requesting...' : 'Vibration Reading'}
           </Button>
         </div>
+
+        <div className="flex flex-col gap-2">
+          <div className="text-sm font-medium flex items-center gap-1">
+            <History className="h-4 w-4" />
+            <span>Historical Data</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleFetchHistorical('battery')}
+              disabled={!isAuthenticated || isLoading.historicalBattery}
+            >
+              <Battery className="h-4 w-4 mr-1" />
+              {isLoading.historicalBattery ? 'Loading...' : 'Battery History'}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleFetchHistorical('temperature')}
+              disabled={!isAuthenticated || isLoading.historicalTemperature}
+            >
+              <Thermometer className="h-4 w-4 mr-1" />
+              {isLoading.historicalTemperature ? 'Loading...' : 'Temperature History'}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleFetchHistorical('vibration')}
+              disabled={!isAuthenticated || isLoading.historicalVibration}
+            >
+              <Waves className="h-4 w-4 mr-1" />
+              {isLoading.historicalVibration ? 'Loading...' : 'Vibration History'}
+            </Button>
+
+            {showHistorical && (
+              <Button variant="ghost" size="sm" onClick={() => setShowHistorical(false)}>
+                Hide Historical Data
+              </Button>
+            )}
+          </div>
+        </div>
       </CardFooter>
+
+      {showHistorical && (
+        <SensorHistoricalReadings gatewayId={gatewayId} sensorSerial={sensorSerial} />
+      )}
     </Card>
   );
 }
