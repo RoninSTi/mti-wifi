@@ -105,22 +105,21 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
       });
     };
 
-    // Message handler for sensor data using Zod validation
+    // Message handler for sensor data
     const onMessage = (data: { gatewayId: string; message: ResponseMessage | BaseMessage }) => {
       if (!isMounted.current) return;
 
-      // Use Zod to validate if this is a dynamic sensors response
-      const sensorResult = dynamicSensorsResponseSchema.safeParse(data.message);
-
-      if (sensorResult.success) {
-        // Zod has validated this is a DynamicSensorsResponse with the correct structure
-        const { Sensors } = sensorResult.data.Data;
-
-        setState(prev => {
-          const newSensors = new Map(prev.sensors);
-          newSensors.set(data.gatewayId, Sensors);
-          return { ...prev, sensors: newSensors };
-        });
+      // Use Zod for validation specifically for RTN_DYN messages
+      if (data.message.Type === 'RTN_DYN') {
+        const result = dynamicSensorsResponseSchema.safeParse(data.message);
+        if (result.success) {
+          // Safe to use - properly typed through Zod inference
+          setState(prev => {
+            const newSensors = new Map(prev.sensors);
+            newSensors.set(data.gatewayId, result.data.Data);
+            return { ...prev, sensors: newSensors };
+          });
+        }
       }
     };
 

@@ -8,7 +8,7 @@ export const baseMessageSchema = z.object({
   From: z.string(),
   To: z.string().optional(),
   Target: z.string().optional(),
-  Data: z.record(z.unknown()).optional(),
+  Data: z.any(), // Match any data type
 });
 
 export type BaseMessage = z.infer<typeof baseMessageSchema>;
@@ -117,20 +117,27 @@ export type GetConnectedSensorsRequest = z.infer<typeof getConnectedSensorsReque
  */
 export const dynamicSensorSchema = z.object({
   Serial: z.number().int(),
-  ConnState: z.boolean(),
-  LastConn: z.string().optional(),
-  BattLevel: z.number().optional(),
-  BattTime: z.string().optional(),
-  TempLevel: z.number().optional(),
-  TempTime: z.string().optional(),
-  Reading: z
-    .object({
-      X: z.number().optional(),
-      Y: z.number().optional(),
-      Z: z.number().optional(),
-      Time: z.string().optional(),
-    })
-    .optional(),
+  Connected: z.number().or(z.boolean()),
+  AccessPoint: z.number().int(),
+  PartNum: z.string(),
+  ReadRate: z.number(),
+  GMode: z.string(),
+  FreqMode: z.number(),
+  Coupling: z.number(),
+  ReadPeriod: z.number(),
+  Samples: z.number(),
+  Fs: z.number(),
+  Fmax: z.number(),
+  HwVer: z.string(),
+  FmVer: z.string(),
+  Machine: z.string(),
+  Early: z.number(),
+  Crit: z.number(),
+  Nickname: z.string(),
+  Favorite: z.null(),
+  EarlyUnit: z.string(),
+  CritUnit: z.string(),
+  VelocityMode: z.null(),
 });
 
 export type DynamicSensor = z.infer<typeof dynamicSensorSchema>;
@@ -142,9 +149,8 @@ export const dynamicSensorsResponseSchema = baseMessageSchema.extend({
   Type: z.literal('RTN_DYN'),
   From: z.literal('SERV'),
   Target: z.literal('UI'),
-  Data: z.object({
-    Sensors: z.array(dynamicSensorSchema),
-  }),
+  // Exactly match the format with an array of sensors directly in Data
+  Data: z.array(dynamicSensorSchema),
 });
 
 export type DynamicSensorsResponse = z.infer<typeof dynamicSensorsResponseSchema>;

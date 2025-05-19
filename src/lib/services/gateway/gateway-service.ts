@@ -273,6 +273,17 @@ export class GatewayService {
   public sendAuthRequest(gatewayId: string): boolean {
     const connection = this.connections.get(gatewayId);
     if (!connection || connection.status !== GatewayConnectionStatus.CONNECTED) {
+      console.warn(
+        `Cannot authenticate gateway ${gatewayId}: Not connected (current status: ${connection?.status})`
+      );
+      return false;
+    }
+
+    if (!connection.gateway.username || !connection.gateway.password) {
+      console.error(`Authentication failed for gateway ${gatewayId}: Missing credentials`, {
+        hasUsername: !!connection.gateway.username,
+        hasPassword: !!connection.gateway.password,
+      });
       return false;
     }
 
@@ -286,6 +297,10 @@ export class GatewayService {
       status: GatewayConnectionStatus.AUTHENTICATING,
       previousStatus: GatewayConnectionStatus.CONNECTED,
     });
+
+    console.log(
+      `Authenticating gateway ${gatewayId} with username: ${connection.gateway.username}`
+    );
 
     // Create and send authentication request using Zod for validation
     const authRequest = authRequestSchema.parse({
@@ -335,21 +350,66 @@ export class GatewayService {
     // Message is valid, use the validated data
     const validatedMessage = validationResult.data;
 
-    // If not connected, queue the message
-    if (
-      !connection.ws ||
-      connection.ws.readyState !== WebSocket.OPEN ||
-      (connection.status !== GatewayConnectionStatus.CONNECTED &&
-        connection.status !== GatewayConnectionStatus.AUTHENTICATED)
-    ) {
+    // Check connection and WebSocket state with detailed logging
+    const hasWebSocket = !!connection.ws;
+    const wsReadyState = connection.ws ? connection.ws.readyState : -1;
+    const isWsOpen = wsReadyState === WebSocket.OPEN;
+
+    // For most messages, check if status is ready - but login/auth messages can be sent while connecting
+    let isStatusReady = false;
+    if (validatedMessage.Type === 'POST_LOGIN') {
+      // Allow login messages even during connecting or authenticating
+      isStatusReady =
+        connection.status === GatewayConnectionStatus.CONNECTED ||
+        connection.status === GatewayConnectionStatus.AUTHENTICATING;
+    } else {
+      // For other messages, we should be fully connected or authenticated
+      isStatusReady =
+        connection.status === GatewayConnectionStatus.CONNECTED ||
+        connection.status === GatewayConnectionStatus.AUTHENTICATED;
+    }
+
+    console.log(`Message send check for gateway ${gatewayId}:`, {
+      messageType: validatedMessage.Type,
+      hasWebSocket,
+      wsReadyState,
+      isWsOpen,
+      connectionStatus: connection.status,
+      isStatusReady,
+    });
+
+    // If not ready to send, queue the message
+    if (!hasWebSocket || !isWsOpen) {
+      console.log(`Queuing message: ${JSON.stringify(validatedMessage)} (WebSocket not ready)`);
+      connection.messageQueue.push(validatedMessage);
+      return true;
+    }
+
+    // If not in correct status, queue the message
+    if (!isStatusReady) {
+      console.log(
+        `Queuing message: ${JSON.stringify(validatedMessage)} (Connection status not ready)`
+      );
       connection.messageQueue.push(validatedMessage);
       return true;
     }
 
     try {
-      // Send the message
-      connection.ws.send(JSON.stringify(validatedMessage));
-      return true;
+      // Send the message with debug logging
+      const messageStr = JSON.stringify(validatedMessage);
+      console.log(`Sending message: ${messageStr}`);
+
+      // We've already checked connection.ws is not null above, but TypeScript
+      // needs this additional null check to be certain it's not null at this point
+      if (connection.ws) {
+        connection.ws.send(messageStr);
+        return true;
+      } else {
+        // This should never happen due to our checks above, but we need to handle it for type safety
+        console.warn('WebSocket unexpectedly null when sending message');
+        connection.messageQueue.push(validatedMessage);
+        return false;
+      }
     } catch (error) {
       // Handle send error
       const messageError: GatewayConnectionError = {
@@ -357,6 +417,9 @@ export class GatewayService {
         timestamp: new Date(),
       };
 
+      console.error(
+        `Error sending message: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
       connection.lastError = messageError;
 
       // Emit error event
@@ -420,6 +483,8 @@ export class GatewayService {
     const connection = this.connections.get(gatewayId);
     if (!connection) return;
 
+    console.log(`WebSocket connected for gateway ${gatewayId}`);
+
     // Update connection status
     connection.status = GatewayConnectionStatus.CONNECTED;
     connection.reconnectAttempts = 0;
@@ -438,11 +503,34 @@ export class GatewayService {
       previousStatus: GatewayConnectionStatus.CONNECTING,
     });
 
-    // Send authentication request
-    this.sendAuthRequest(gatewayId);
+    // Add a small delay to ensure WebSocket is ready before sending messages
+    setTimeout(() => {
+      // Verify the connection is still valid
+      const currentConnection = this.connections.get(gatewayId);
+      if (
+        !currentConnection ||
+        !currentConnection.ws ||
+        currentConnection.ws.readyState !== WebSocket.OPEN
+      ) {
+        console.warn(
+          `Connection lost before authentication could be sent for gateway ${gatewayId}`
+        );
+        return;
+      }
 
-    // Process queued messages
-    this.processMessageQueue(gatewayId);
+      // Send authentication request
+      console.log(`Sending authentication request for gateway ${gatewayId} (after brief delay)`);
+      const authSuccess = this.sendAuthRequest(gatewayId);
+      console.log(`Authentication request sent successfully: ${authSuccess}`);
+
+      // Process queued messages
+      if (authSuccess) {
+        setTimeout(() => {
+          console.log(`Processing message queue after authentication for gateway ${gatewayId}`);
+          this.processMessageQueue(gatewayId);
+        }, 100);
+      }
+    }, 300);
   }
 
   /**
@@ -519,6 +607,8 @@ export class GatewayService {
     const connection = this.connections.get(gatewayId);
     if (!connection) return;
 
+    console.log(`Received WebSocket message from ${gatewayId}:`, event.data);
+
     try {
       // Parse the raw message data
       let messageData: unknown;
@@ -531,15 +621,13 @@ export class GatewayService {
         );
       }
 
-      // Validate basic message structure with Zod
+      // Validate with base schema
       const baseResult = baseMessageSchema.safeParse(messageData);
-
       if (!baseResult.success) {
-        // We could use baseResult.error.format() for detailed error information
         throw new Error(`Invalid message format: ${baseResult.error.message}`);
       }
 
-      // Process the message with proper validation
+      // Process the message
       this.processMessage(gatewayId, messageData);
     } catch (error) {
       // Handle message parsing error with appropriate context
@@ -549,6 +637,7 @@ export class GatewayService {
         timestamp: new Date(),
       };
 
+      console.error(`Error processing WebSocket message:`, error);
       connection.lastError = messageError;
 
       // Emit error event
@@ -572,7 +661,7 @@ export class GatewayService {
     if (responseResult.success) {
       const response = responseResult.data;
 
-      // Emit message event with properly typed response
+      // Emit message event with properly typed data
       this.emitEvent('message', {
         gatewayId,
         message: response,
@@ -581,27 +670,18 @@ export class GatewayService {
       // Handle specific message types based on discriminated union
       switch (response.Type) {
         case 'RTN_LOGIN':
-          // TypeScript now knows this is an AuthResponse
           this.handleAuthResponse(gatewayId, response);
           break;
         case 'RTN_ERR':
-          // TypeScript now knows this is an ErrorResponse
           this.handleErrorResponse(gatewayId, response);
-          break;
-        case 'RTN_DYN':
-          // TypeScript now knows this is a DynamicSensorsResponse
-          // Handle sensor data if needed
-          break;
-        case 'NOT_DYN_CONN':
-          // TypeScript now knows this is a SensorConnectionNotification
-          // Handle sensor connection if needed
           break;
       }
     } else {
-      // Try to parse as base message before emitting
+      // Attempt to validate as base message
       const baseResult = baseMessageSchema.safeParse(message);
+
       if (baseResult.success) {
-        // Emit as base message if it passes basic validation
+        // Emit as base message - properly typed by Zod
         this.emitEvent('message', {
           gatewayId,
           message: baseResult.data,
@@ -724,13 +804,45 @@ export class GatewayService {
     const connection = this.connections.get(gatewayId);
     if (!connection) return;
 
+    // Only process if we have a valid WebSocket connection
+    if (!connection.ws || connection.ws.readyState !== WebSocket.OPEN) {
+      console.log(`Cannot process queue for gateway ${gatewayId}: WebSocket not open`, {
+        hasWs: !!connection.ws,
+        readyState: connection.ws ? connection.ws.readyState : -1,
+      });
+      return;
+    }
+
     // Process all queued messages
     const queue = [...connection.messageQueue];
     connection.messageQueue = [];
 
+    console.log(`Processing ${queue.length} queued messages for gateway ${gatewayId}`);
+
+    // Special handling for direct WebSocket send to bypass the normal send mechanism
     queue.forEach(message => {
-      this.sendMessage(gatewayId, message);
+      try {
+        // We've already checked connection.ws exists and is open above, but TypeScript
+        // needs an additional null check here
+        if (connection.ws) {
+          const messageStr = JSON.stringify(message);
+          console.log(`Directly sending queued message: ${messageStr}`);
+          connection.ws.send(messageStr);
+        }
+      } catch (error) {
+        console.error(
+          `Error sending queued message: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+        // Re-queue the message if it fails
+        connection.messageQueue.push(message);
+      }
     });
+
+    if (queue.length === 0) {
+      console.log(`No queued messages for gateway ${gatewayId}`);
+    } else {
+      console.log(`Finished processing ${queue.length} queued messages for gateway ${gatewayId}`);
+    }
   }
 
   /**
@@ -783,14 +895,21 @@ export class GatewayService {
       if (connection.status === GatewayConnectionStatus.AUTHENTICATED) {
         // Send a GET_DYN request as a keepalive ping
         // This is a valid command from the API documentation
-        const getDynRequest = requestMessageSchema.parse({
-          Type: 'GET_DYN',
-          From: 'UI',
-          To: 'SERV',
-          Data: {},
-        });
+        try {
+          const getDynRequest = requestMessageSchema.parse({
+            Type: 'GET_DYN',
+            From: 'UI',
+            To: 'SERV',
+            Data: {},
+          });
 
-        this.sendMessage(gatewayId, getDynRequest);
+          this.sendMessage(gatewayId, getDynRequest);
+        } catch (error) {
+          console.error(
+            'Failed to create ping request:',
+            error instanceof Error ? error.message : 'Unknown error'
+          );
+        }
       }
     }, this.config.pingIntervalMs);
 
