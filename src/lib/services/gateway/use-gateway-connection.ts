@@ -19,6 +19,7 @@ export function useGatewayConnection(gatewayId?: string) {
     getError,
     getSensors,
     getVibrationReadings,
+    getDetailedVibrationReadings,
     getTemperatureReadings,
     getBatteryReadings,
     requestSensors,
@@ -142,6 +143,25 @@ export function useGatewayConnection(gatewayId?: string) {
   };
 
   /**
+   * Get detailed vibration readings with X, Y, Z arrays
+   */
+  const getDetailedVibrationData = () => {
+    if (!gatewayId) return {};
+    const readings = getDetailedVibrationReadings(gatewayId);
+    const readingsCount = Object.keys(readings).length;
+
+    if (readingsCount > 0) {
+      console.log(`Detailed vibration readings for gateway ${gatewayId}:`, {
+        readingsCount,
+        timestamp: new Date().toISOString(),
+        readingSerials: Object.values(readings).map(r => r.Serial),
+      });
+    }
+
+    return readings;
+  };
+
+  /**
    * Get temperature readings
    */
   const getTemperatureData = () => {
@@ -247,6 +267,7 @@ export function useGatewayConnection(gatewayId?: string) {
     // Vibration reading methods
     takeVibrationReading,
     getVibrationData,
+    getDetailedVibrationData,
     fetchVibrationReadings,
     // Temperature reading methods
     takeTemperatureReading,

@@ -21,6 +21,7 @@ import {
   Shield,
   AlertTriangle,
   Loader,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -34,6 +35,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { GatewayConnectionManagerDialog } from './GatewayConnectionManagerDialog';
+import { useGatewayConnection } from '@/lib/services/gateway';
+import { GatewayConnectionStatus } from '@/lib/services/gateway/types';
 
 // Interface for the props received by the component
 interface GatewaysTableProps {
@@ -47,6 +50,67 @@ interface GatewaysTableProps {
   onDelete: (id: string) => void;
   onRetry?: () => void;
   filterApplied?: boolean;
+}
+
+// Component to display gateway connection status
+interface GatewayConnectionDisplayProps {
+  gatewayId: string;
+}
+
+function GatewayConnectionDisplay({ gatewayId }: GatewayConnectionDisplayProps) {
+  const { status } = useGatewayConnection(gatewayId);
+
+  const getStatusDetails = () => {
+    switch (status) {
+      case GatewayConnectionStatus.CONNECTED:
+        return {
+          icon: <Wifi className="h-4 w-4 text-blue-500" />,
+          text: 'Connected',
+          badgeClass: 'bg-blue-500/10 text-blue-500',
+        };
+      case GatewayConnectionStatus.CONNECTING:
+        return {
+          icon: <Loader className="h-4 w-4 animate-spin text-blue-500" />,
+          text: 'Connecting',
+          badgeClass: 'bg-blue-500/10 text-blue-500',
+        };
+      case GatewayConnectionStatus.AUTHENTICATED:
+        return {
+          icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,
+          text: 'Authenticated',
+          badgeClass: 'bg-green-500/10 text-green-500',
+        };
+      case GatewayConnectionStatus.AUTHENTICATING:
+        return {
+          icon: <Loader className="h-4 w-4 animate-spin text-blue-500" />,
+          text: 'Authenticating',
+          badgeClass: 'bg-blue-500/10 text-blue-500',
+        };
+      case GatewayConnectionStatus.ERROR:
+        return {
+          icon: <AlertTriangle className="h-4 w-4 text-red-500" />,
+          text: 'Error',
+          badgeClass: 'bg-red-500/10 text-red-500',
+        };
+      default:
+        return {
+          icon: <WifiOff className="h-4 w-4 text-muted-foreground" />,
+          text: 'Disconnected',
+          badgeClass: '',
+        };
+    }
+  };
+
+  const { icon, text, badgeClass } = getStatusDetails();
+
+  return (
+    <div className="flex items-center gap-2">
+      {icon}
+      <Badge variant="outline" className={badgeClass}>
+        {text}
+      </Badge>
+    </div>
+  );
 }
 
 export function GatewaysTable({
@@ -167,11 +231,7 @@ export function GatewaysTable({
                 <span title={gateway.url}>{gateway.url}</span>
               </TableCell>
               <TableCell>
-                {/* Status badge with icon */}
-                <div className="flex items-center gap-2">
-                  <WifiOff className="h-4 w-4 text-muted-foreground" />
-                  <Badge variant="outline">Disconnected</Badge>
-                </div>
+                <GatewayConnectionDisplay gatewayId={gateway._id} />
               </TableCell>
               <TableCell>
                 <div className="dropdown-actions" onClick={e => e.stopPropagation()}>
@@ -189,7 +249,7 @@ export function GatewaysTable({
                         trigger={
                           <DropdownMenuItem onSelect={e => e.preventDefault()}>
                             <Cable className="mr-2 h-4 w-4" />
-                            View Gateways
+                            Connection
                           </DropdownMenuItem>
                         }
                       />

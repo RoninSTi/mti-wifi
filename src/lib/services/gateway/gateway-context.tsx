@@ -21,6 +21,10 @@ import {
   batteryReadingCompleteNotificationSchema,
   sensorConnectionNotificationSchema,
 } from './types';
+import {
+  detailedVibrationReadingsResponseSchema,
+  DetailedVibrationReading,
+} from './types-vibration';
 import { GatewayService } from './gateway-service';
 
 /**
@@ -31,6 +35,7 @@ export interface GatewayContextState {
   errors: Map<string, GatewayConnectionError>;
   sensors: Map<string, DynamicSensor[]>;
   vibrationReadings: Map<string, Record<string, VibrationReading>>;
+  detailedVibrationReadings: Map<string, Record<string, DetailedVibrationReading>>;
   temperatureReadings: Map<string, Record<string, TemperatureReading>>;
   batteryReadings: Map<string, Record<string, BatteryReading>>;
   isLoading: boolean;
@@ -47,6 +52,7 @@ export interface GatewayContextValue {
   getError: (gatewayId: string) => GatewayConnectionError | undefined;
   getSensors: (gatewayId: string) => DynamicSensor[];
   getVibrationReadings: (gatewayId: string) => Record<string, VibrationReading>;
+  getDetailedVibrationReadings: (gatewayId: string) => Record<string, DetailedVibrationReading>;
   getTemperatureReadings: (gatewayId: string) => Record<string, TemperatureReading>;
   getBatteryReadings: (gatewayId: string) => Record<string, BatteryReading>;
   requestSensors: (gatewayId: string, serials?: number[]) => Promise<boolean>;
@@ -77,6 +83,7 @@ export const GatewayContext = createContext<GatewayContextValue>({
     errors: new Map(),
     sensors: new Map(),
     vibrationReadings: new Map(),
+    detailedVibrationReadings: new Map(),
     temperatureReadings: new Map(),
     batteryReadings: new Map(),
     isLoading: false,
@@ -87,6 +94,7 @@ export const GatewayContext = createContext<GatewayContextValue>({
   getError: () => undefined,
   getSensors: () => [],
   getVibrationReadings: () => ({}),
+  getDetailedVibrationReadings: () => ({}),
   getTemperatureReadings: () => ({}),
   getBatteryReadings: () => ({}),
   requestSensors: async () => false,
@@ -121,6 +129,7 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
     errors: new Map(),
     sensors: new Map(),
     vibrationReadings: new Map(),
+    detailedVibrationReadings: new Map(),
     temperatureReadings: new Map(),
     batteryReadings: new Map(),
     isLoading: false,
@@ -185,26 +194,74 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
           break;
 
         case 'RTN_DYN_READINGS':
-          // Vibration readings - use Zod validation
+          // First try to parse as detailed vibration readings
           try {
-            console.log('Processing RTN_DYN_READINGS:', data.message);
-            const result = dynamicReadingsResponseSchema.safeParse(data.message);
-            if (result.success) {
+            console.log('Processing RTN_DYN_READINGS as detailed data:', data.message);
+            const detailedResult = detailedVibrationReadingsResponseSchema.safeParse(data.message);
+            if (detailedResult.success) {
               setState(prev => {
-                const newVibrationReadings = new Map(prev.vibrationReadings);
+                const newDetailedVibrationReadings = new Map(prev.detailedVibrationReadings);
 
                 // Convert array to record format for compatibility with existing code
-                const readingsRecord: Record<string, VibrationReading> = {};
-                result.data.Data.forEach(reading => {
+                const readingsRecord: Record<string, DetailedVibrationReading> = {};
+                detailedResult.data.Data.forEach(reading => {
                   readingsRecord[reading.ID.toString()] = reading;
                 });
 
-                newVibrationReadings.set(data.gatewayId, readingsRecord);
-                return { ...prev, vibrationReadings: newVibrationReadings };
+                console.log(
+                  `Processed ${Object.keys(readingsRecord).length} detailed vibration readings`
+                );
+                newDetailedVibrationReadings.set(data.gatewayId, readingsRecord);
+
+                // Also update the simple vibration readings for compatibility
+                const newVibrationReadings = new Map(prev.vibrationReadings);
+                const simpleReadingsRecord: Record<string, VibrationReading> = {};
+
+                detailedResult.data.Data.forEach(reading => {
+                  // Convert detailed reading to simple format
+                  simpleReadingsRecord[reading.ID.toString()] = {
+                    ID: reading.ID,
+                    Serial: reading.Serial,
+                    Time: reading.Time,
+                    X: `${reading.Xpk}`, // Convert to string format
+                    Y: `${reading.Ypk}`,
+                    Z: `${reading.Zpk}`,
+                  };
+                });
+
+                newVibrationReadings.set(data.gatewayId, simpleReadingsRecord);
+
+                return {
+                  ...prev,
+                  detailedVibrationReadings: newDetailedVibrationReadings,
+                  vibrationReadings: newVibrationReadings,
+                };
               });
+            } else {
+              // If not detailed format, try the simple format
+              console.log('Not a detailed format, trying simple format...');
+              try {
+                const result = dynamicReadingsResponseSchema.safeParse(data.message);
+                if (result.success) {
+                  setState(prev => {
+                    const newVibrationReadings = new Map(prev.vibrationReadings);
+
+                    // Convert array to record format for compatibility with existing code
+                    const readingsRecord: Record<string, VibrationReading> = {};
+                    result.data.Data.forEach(reading => {
+                      readingsRecord[reading.ID.toString()] = reading;
+                    });
+
+                    newVibrationReadings.set(data.gatewayId, readingsRecord);
+                    return { ...prev, vibrationReadings: newVibrationReadings };
+                  });
+                }
+              } catch (error) {
+                console.error('Failed to validate vibration readings (simple format)', error);
+              }
             }
           } catch (error) {
-            console.error('Failed to validate vibration readings', error);
+            console.error('Failed to validate detailed vibration readings', error);
           }
           break;
 
@@ -598,6 +655,14 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
     [state.vibrationReadings]
   );
 
+  // Get detailed vibration readings function
+  const getDetailedVibrationReadings = useCallback(
+    (gatewayId: string) => {
+      return state.detailedVibrationReadings.get(gatewayId) || {};
+    },
+    [state.detailedVibrationReadings]
+  );
+
   // Get temperature readings function
   const getTemperatureReadings = useCallback(
     (gatewayId: string) => {
@@ -678,6 +743,7 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
       getError,
       getSensors,
       getVibrationReadings,
+      getDetailedVibrationReadings,
       getTemperatureReadings,
       getBatteryReadings,
       requestSensors,
@@ -699,6 +765,7 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
       getError,
       getSensors,
       getVibrationReadings,
+      getDetailedVibrationReadings,
       getTemperatureReadings,
       getBatteryReadings,
       requestSensors,

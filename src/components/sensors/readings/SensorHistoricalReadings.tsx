@@ -15,7 +15,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Battery, Thermometer, Waves, Calendar, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
+import { DetailedVibrationReading } from '@/lib/services/gateway/types-vibration';
 import { z } from 'zod';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 // Zod schema for props validation
 const sensorHistoricalReadingsPropsSchema = z.object({
@@ -34,6 +45,7 @@ export function SensorHistoricalReadings({
   const {
     isAuthenticated,
     getVibrationData,
+    getDetailedVibrationData,
     getTemperatureData,
     getBatteryData,
     fetchVibrationReadings,
@@ -42,6 +54,9 @@ export function SensorHistoricalReadings({
   } = useGatewayConnection(gatewayId);
 
   const [activeTab, setActiveTab] = useState<'battery' | 'temperature' | 'vibration'>('battery');
+  const [selectedVibrationReading, setSelectedVibrationReading] =
+    useState<DetailedVibrationReading | null>(null);
+  const [selectedAxis, setSelectedAxis] = useState<'x' | 'y' | 'z'>('x');
   const [isLoading, setIsLoading] = useState({
     battery: false,
     temperature: false,
@@ -52,6 +67,7 @@ export function SensorHistoricalReadings({
   const batteryReadings = getBatteryData();
   const temperatureReadings = getTemperatureData();
   const vibrationReadings = getVibrationData();
+  const detailedVibrationReadings = getDetailedVibrationData();
 
   // Debug logs to see what data is received
   console.log('Historical readings component data:', {
@@ -61,6 +77,7 @@ export function SensorHistoricalReadings({
     batteryReadingsKeys: Object.keys(batteryReadings),
     batteryReadingsCount: Object.keys(batteryReadings).length,
     batteryReadings: batteryReadings,
+    detailedVibrationReadingsCount: Object.keys(detailedVibrationReadings).length,
   });
 
   // Date range state for filtering
@@ -170,6 +187,22 @@ export function SensorHistoricalReadings({
       return readingSerial === targetSerial;
     })
     .sort((a, b) => new Date(b.Time).getTime() - new Date(a.Time).getTime());
+
+  // Filter detailed vibration readings for this sensor
+  const filteredDetailedVibrationReadings = Object.values(detailedVibrationReadings)
+    .filter(r => {
+      const readingSerial = String(r.Serial);
+      const targetSerial = String(serialString);
+      return readingSerial === targetSerial;
+    })
+    .sort((a, b) => new Date(b.Time).getTime() - new Date(a.Time).getTime());
+
+  // Update selected vibration reading when detailed readings change
+  useEffect(() => {
+    if (filteredDetailedVibrationReadings.length > 0 && !selectedVibrationReading) {
+      setSelectedVibrationReading(filteredDetailedVibrationReadings[0]);
+    }
+  }, [filteredDetailedVibrationReadings, selectedVibrationReading]);
 
   // Handler for updating date range and refetching data
   const handleDateRangeUpdate = async () => {
@@ -405,114 +438,194 @@ export function SensorHistoricalReadings({
     );
   };
 
+  // Helper to transform array data into format for Recharts
+  const getChartData = (reading: DetailedVibrationReading | null, axis: 'x' | 'y' | 'z') => {
+    if (!reading) return [];
+
+    const axisData = axis === 'x' ? reading.X : axis === 'y' ? reading.Y : reading.Z;
+
+    // Transform array data into a format Recharts can use
+    return axisData.map((value, index) => ({
+      index,
+      value,
+    }));
+  };
+
   // Render the vibration history table
   const renderVibrationHistory = () => {
-    if (filteredVibrationReadings.length === 0) {
+    const hasDetailedReadings = filteredDetailedVibrationReadings.length > 0;
+
+    if (!hasDetailedReadings) {
       return <div className="text-center py-8">No vibration history available</div>;
     }
 
-    // Parse vibration values for visualization
-    const parseVibrationValue = (value: string) => {
-      try {
-        // Remove any units and return a number
-        const numValue = parseFloat(value.replace(/[^0-9.-]+/g, ''));
-        return isNaN(numValue) ? 0 : numValue;
-      } catch {
-        return 0;
-      }
-    };
-
-    // Calculate max vibration value for relative scaling
-    const vibrationValues = filteredVibrationReadings.flatMap(r => [
-      parseVibrationValue(r.X),
-      parseVibrationValue(r.Y),
-      parseVibrationValue(r.Z),
-    ]);
-
-    const maxVibration = Math.max(...vibrationValues, 1); // Ensure non-zero
-
-    // Get percentage of the max value for visualization
-    const getVibrationPercentage = (value: string) => {
-      const numValue = parseVibrationValue(value);
-      return Math.min(100, Math.max(0, (numValue / maxVibration) * 100));
-    };
-
     return (
       <div className="space-y-6">
-        {/* Vibration timeline */}
-        <div className="p-4 border rounded-lg bg-muted/20">
-          <h3 className="text-sm font-medium mb-4">Recent Vibration Readings</h3>
-          {filteredVibrationReadings.slice(0, 3).map(reading => (
-            <div key={reading.ID} className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-xs text-muted-foreground">
-                  {formatReadingDate(reading.Time)}
-                </div>
-                <div className="text-xs font-medium">ID: {reading.ID}</div>
-              </div>
+        {/* Detailed vibration data */}
+        <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="text-sm font-medium">Select Reading:</label>
+              <select
+                className="w-full p-2 border rounded mt-1"
+                value={selectedVibrationReading?.ID || ''}
+                onChange={e => {
+                  const readingId = parseInt(e.target.value);
+                  const reading =
+                    filteredDetailedVibrationReadings.find(r => r.ID === readingId) || null;
+                  setSelectedVibrationReading(reading);
+                }}
+              >
+                {filteredDetailedVibrationReadings.map(reading => (
+                  <option key={reading.ID} value={reading.ID}>
+                    {formatReadingDate(reading.Time)} (ID: {reading.ID})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              <div className="grid grid-cols-1 gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="text-sm font-medium w-6">X:</div>
-                  <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500"
-                      style={{ width: `${getVibrationPercentage(reading.X)}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-sm w-16 text-right">{reading.X}</div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-sm font-medium w-6">Y:</div>
-                  <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-500"
-                      style={{ width: `${getVibrationPercentage(reading.Y)}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-sm w-16 text-right">{reading.Y}</div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-sm font-medium w-6">Z:</div>
-                  <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-purple-500"
-                      style={{ width: `${getVibrationPercentage(reading.Z)}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-sm w-16 text-right">{reading.Z}</div>
-                </div>
+            <div>
+              <label className="text-sm font-medium">Select Axis:</label>
+              <div className="flex space-x-2 mt-1">
+                <Button
+                  variant={selectedAxis === 'x' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedAxis('x')}
+                >
+                  X-Axis
+                </Button>
+                <Button
+                  variant={selectedAxis === 'y' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedAxis('y')}
+                >
+                  Y-Axis
+                </Button>
+                <Button
+                  variant={selectedAxis === 'z' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedAxis('z')}
+                >
+                  Z-Axis
+                </Button>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
 
-        {/* Vibration history table */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2 px-3">Date</th>
-                <th className="text-left py-2 px-3">X</th>
-                <th className="text-left py-2 px-3">Y</th>
-                <th className="text-left py-2 px-3">Z</th>
-                <th className="text-left py-2 px-3">ID</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredVibrationReadings.map(reading => (
-                <tr key={reading.ID} className="border-b hover:bg-muted">
-                  <td className="py-2 px-3">{formatReadingDate(reading.Time)}</td>
-                  <td className="py-2 px-3">{reading.X}</td>
-                  <td className="py-2 px-3">{reading.Y}</td>
-                  <td className="py-2 px-3">{reading.Z}</td>
-                  <td className="py-2 px-3">{reading.ID}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {selectedVibrationReading && (
+            <div className="space-y-6">
+              <Tabs defaultValue="chart">
+                <TabsList className="grid grid-cols-2 w-[200px] mb-4">
+                  <TabsTrigger value="chart">Chart</TabsTrigger>
+                  <TabsTrigger value="metrics">Metrics</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="chart">
+                  <div className="bg-card border rounded-lg p-4">
+                    <div className="font-medium mb-2 flex items-center gap-1">
+                      <Waves className="h-4 w-4" />
+                      <span>{selectedAxis.toUpperCase()}-Axis Vibration</span>
+                    </div>
+
+                    <div className="h-64 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={getChartData(selectedVibrationReading, selectedAxis)}
+                          margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="index"
+                            label={{ value: 'Sample', position: 'insideBottomRight', offset: -5 }}
+                          />
+                          <YAxis label={{ value: 'g', angle: -90, position: 'insideLeft' }} />
+                          <Tooltip />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="value"
+                            name={`${selectedAxis.toUpperCase()}-Axis`}
+                            stroke={
+                              selectedAxis === 'x'
+                                ? '#8884d8'
+                                : selectedAxis === 'y'
+                                  ? '#82ca9d'
+                                  : '#ffc658'
+                            }
+                            activeDot={{ r: 4 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="metrics">
+                  <div className="bg-card border rounded-lg p-4">
+                    <div className="font-medium mb-4">Vibration Metrics</div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="p-3 border rounded-lg">
+                        <div className="text-sm text-muted-foreground">X Peak</div>
+                        <div className="text-xl font-bold">
+                          {selectedVibrationReading.Xpk.toFixed(3)} g
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded-lg">
+                        <div className="text-sm text-muted-foreground">X Peak-to-Peak</div>
+                        <div className="text-xl font-bold">
+                          {selectedVibrationReading.Xpp.toFixed(3)} g
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded-lg">
+                        <div className="text-sm text-muted-foreground">X RMS</div>
+                        <div className="text-xl font-bold">
+                          {selectedVibrationReading.Xrms.toFixed(3)} g
+                        </div>
+                      </div>
+
+                      <div className="p-3 border rounded-lg">
+                        <div className="text-sm text-muted-foreground">Y Peak</div>
+                        <div className="text-xl font-bold">
+                          {selectedVibrationReading.Ypk.toFixed(3)} g
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded-lg">
+                        <div className="text-sm text-muted-foreground">Y Peak-to-Peak</div>
+                        <div className="text-xl font-bold">
+                          {selectedVibrationReading.Ypp.toFixed(3)} g
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded-lg">
+                        <div className="text-sm text-muted-foreground">Y RMS</div>
+                        <div className="text-xl font-bold">
+                          {selectedVibrationReading.Yrms.toFixed(3)} g
+                        </div>
+                      </div>
+
+                      <div className="p-3 border rounded-lg">
+                        <div className="text-sm text-muted-foreground">Z Peak</div>
+                        <div className="text-xl font-bold">
+                          {selectedVibrationReading.Zpk.toFixed(3)} g
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded-lg">
+                        <div className="text-sm text-muted-foreground">Z Peak-to-Peak</div>
+                        <div className="text-xl font-bold">
+                          {selectedVibrationReading.Zpp.toFixed(3)} g
+                        </div>
+                      </div>
+                      <div className="p-3 border rounded-lg">
+                        <div className="text-sm text-muted-foreground">Z RMS</div>
+                        <div className="text-xl font-bold">
+                          {selectedVibrationReading.Zrms.toFixed(3)} g
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
         </div>
       </div>
     );
