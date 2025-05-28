@@ -2,6 +2,10 @@ import mongoose, { Schema, Document } from 'mongoose';
 import { IEquipment } from './Equipment';
 import { IGateway } from './Gateway';
 
+// Import models to ensure they are registered
+import './Equipment';
+import './Gateway';
+
 // Interface that matches the CTC API SensorData properties
 export interface ICTCSensorData {
   serial: number;

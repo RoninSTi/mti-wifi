@@ -1,6 +1,9 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { IArea } from './Area';
 
+// Import models to ensure they are registered
+import './Area';
+
 export interface IEquipment extends Document {
   name: string;
   description?: string;

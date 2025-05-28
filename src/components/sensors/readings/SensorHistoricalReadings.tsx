@@ -12,10 +12,27 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Battery, Thermometer, Waves, Calendar, RefreshCw } from 'lucide-react';
+import {
+  Battery,
+  Thermometer,
+  Waves,
+  Calendar,
+  RefreshCw,
+  Sigma,
+  Zap,
+  TrendingUp,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import { DetailedVibrationReading } from '@/lib/services/gateway/types-vibration';
+import {
+  VibrationWaveform,
+  FFTResult,
+  integrateWaveform,
+  differentiateWaveform,
+  performFFT,
+  vibrationArrayToWaveform,
+} from '@/lib/utils/vibration-processing';
 import { z } from 'zod';
 import {
   LineChart,
@@ -62,6 +79,15 @@ export function SensorHistoricalReadings({
     temperature: false,
     vibration: false,
   });
+
+  // State for processed waveforms
+  const [currentWaveform, setCurrentWaveform] = useState<VibrationWaveform | null>(null);
+  const [processedWaveform, setProcessedWaveform] = useState<VibrationWaveform | null>(null);
+  const [fftResult, setFFTResult] = useState<FFTResult | null>(null);
+  const [waveformType, setWaveformType] = useState<'acceleration' | 'velocity' | 'displacement'>(
+    'acceleration'
+  );
+  const [chartMode, setChartMode] = useState<'waveform' | 'fft'>('waveform');
 
   // Get the historical readings data
   const batteryReadings = getBatteryData();
@@ -260,8 +286,6 @@ export function SensorHistoricalReadings({
             // This is handled by React because getBatteryData is part of the rendering process
           }
         }
-
-        toast.success(`Historical ${activeTab} data updated`);
       } else {
         toast.error(`Failed to update historical ${activeTab} data`);
       }
@@ -451,6 +475,113 @@ export function SensorHistoricalReadings({
     }));
   };
 
+  // Processing functions for vibration data
+  const updateCurrentWaveform = useCallback(() => {
+    if (!selectedVibrationReading) {
+      setCurrentWaveform(null);
+      setProcessedWaveform(null);
+      setFFTResult(null);
+      return;
+    }
+
+    const axisData =
+      selectedAxis === 'x'
+        ? selectedVibrationReading.X
+        : selectedAxis === 'y'
+          ? selectedVibrationReading.Y
+          : selectedVibrationReading.Z;
+
+    // Assume 1kHz sample rate (typical for vibration sensors)
+    const sampleRate = 1000;
+    const waveform = vibrationArrayToWaveform(
+      axisData,
+      sampleRate,
+      selectedAxis.toUpperCase() as 'X' | 'Y' | 'Z'
+    );
+
+    setCurrentWaveform(waveform);
+    setProcessedWaveform(null);
+    setFFTResult(null);
+    setWaveformType('acceleration');
+    setChartMode('waveform');
+  }, [selectedVibrationReading, selectedAxis]);
+
+  const handleIntegration = useCallback(() => {
+    const waveformToProcess = processedWaveform || currentWaveform;
+    if (!waveformToProcess) return;
+
+    try {
+      const integrated = integrateWaveform(waveformToProcess);
+      setProcessedWaveform(integrated);
+
+      // Update waveform type
+      setWaveformType(prev => {
+        if (prev === 'acceleration') return 'velocity';
+        if (prev === 'velocity') return 'displacement';
+        return prev;
+      });
+
+      toast.success(
+        `Integrated to ${waveformType === 'acceleration' ? 'velocity' : 'displacement'}`
+      );
+    } catch (error) {
+      toast.error(
+        `Integration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }, [currentWaveform, processedWaveform, waveformType]);
+
+  const handleDifferentiation = useCallback(() => {
+    const waveformToProcess = processedWaveform || currentWaveform;
+    if (!waveformToProcess) return;
+
+    try {
+      const differentiated = differentiateWaveform(waveformToProcess);
+      setProcessedWaveform(differentiated);
+
+      // Update waveform type
+      setWaveformType(prev => {
+        if (prev === 'displacement') return 'velocity';
+        if (prev === 'velocity') return 'acceleration';
+        return prev;
+      });
+
+      toast.success(
+        `Differentiated to ${waveformType === 'displacement' ? 'velocity' : 'acceleration'}`
+      );
+    } catch (error) {
+      toast.error(
+        `Differentiation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }, [currentWaveform, processedWaveform, waveformType]);
+
+  const handleFFT = useCallback(async () => {
+    const waveformToAnalyze = processedWaveform || currentWaveform;
+    if (!waveformToAnalyze) return;
+
+    try {
+      const fft = await performFFT(waveformToAnalyze);
+      setFFTResult(fft);
+      setChartMode('fft');
+      toast.success('FFT analysis completed');
+    } catch (error) {
+      toast.error(`FFT failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, [currentWaveform, processedWaveform]);
+
+  const resetProcessing = useCallback(() => {
+    setProcessedWaveform(null);
+    setFFTResult(null);
+    setWaveformType('acceleration');
+    setChartMode('waveform');
+  }, []);
+
+  // Update waveform when selection changes
+  useEffect(() => {
+    updateCurrentWaveform();
+  }, [updateCurrentWaveform]);
+
   // Render the vibration history table
   const renderVibrationHistory = () => {
     const hasDetailedReadings = filteredDetailedVibrationReadings.length > 0;
@@ -522,39 +653,187 @@ export function SensorHistoricalReadings({
 
                 <TabsContent value="chart">
                   <div className="bg-card border rounded-lg p-4">
-                    <div className="font-medium mb-2 flex items-center gap-1">
-                      <Waves className="h-4 w-4" />
-                      <span>{selectedAxis.toUpperCase()}-Axis Vibration</span>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="font-medium flex items-center gap-1">
+                        <Waves className="h-4 w-4" />
+                        <span>
+                          {selectedAxis.toUpperCase()}-Axis{' '}
+                          {waveformType === 'acceleration'
+                            ? 'Acceleration'
+                            : waveformType === 'velocity'
+                              ? 'Velocity'
+                              : 'Displacement'}
+                        </span>
+                        {chartMode === 'fft' && ' (FFT)'}
+                      </div>
+
+                      {/* Processing Controls */}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleIntegration}
+                          disabled={!currentWaveform || waveformType === 'displacement'}
+                          className="flex items-center gap-1"
+                        >
+                          <Sigma className="h-3 w-3" />∫ Integrate
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDifferentiation}
+                          disabled={!currentWaveform || waveformType === 'acceleration'}
+                          className="flex items-center gap-1"
+                        >
+                          <TrendingUp className="h-3 w-3" />
+                          d/dt Differentiate
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleFFT}
+                          disabled={!currentWaveform}
+                          className="flex items-center gap-1"
+                        >
+                          <Zap className="h-3 w-3" />
+                          FFT
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={resetProcessing}
+                          disabled={!processedWaveform && !fftResult}
+                        >
+                          Reset
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Chart Mode Toggle */}
+                    <div className="flex gap-2 mb-4">
+                      <Button
+                        variant={chartMode === 'waveform' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setChartMode('waveform')}
+                        disabled={!currentWaveform}
+                      >
+                        Waveform
+                      </Button>
+                      <Button
+                        variant={chartMode === 'fft' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setChartMode('fft')}
+                        disabled={!fftResult}
+                      >
+                        FFT Spectrum
+                      </Button>
                     </div>
 
                     <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                          data={getChartData(selectedVibrationReading, selectedAxis)}
-                          margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis
-                            dataKey="index"
-                            label={{ value: 'Sample', position: 'insideBottomRight', offset: -5 }}
-                          />
-                          <YAxis label={{ value: 'g', angle: -90, position: 'insideLeft' }} />
-                          <Tooltip />
-                          <Legend />
-                          <Line
-                            type="monotone"
-                            dataKey="value"
-                            name={`${selectedAxis.toUpperCase()}-Axis`}
-                            stroke={
-                              selectedAxis === 'x'
-                                ? '#8884d8'
-                                : selectedAxis === 'y'
-                                  ? '#82ca9d'
-                                  : '#ffc658'
+                        {chartMode === 'waveform' ? (
+                          <LineChart
+                            data={(() => {
+                              const waveform = processedWaveform || currentWaveform;
+                              if (!waveform)
+                                return getChartData(selectedVibrationReading, selectedAxis);
+
+                              return waveform.data.map((point, index) => ({
+                                index,
+                                value: point.value,
+                                time: point.time,
+                              }));
+                            })()}
+                            margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              dataKey="index"
+                              label={{ value: 'Sample', position: 'insideBottomRight', offset: -5 }}
+                            />
+                            <YAxis
+                              label={{
+                                value: (() => {
+                                  if (waveformType === 'acceleration') return 'g';
+                                  if (waveformType === 'velocity') return 'm/s';
+                                  if (waveformType === 'displacement') return 'm';
+                                  return 'g';
+                                })(),
+                                angle: -90,
+                                position: 'insideLeft',
+                              }}
+                            />
+                            <Tooltip
+                              formatter={(value: number) => [
+                                value.toFixed(6),
+                                waveformType === 'acceleration'
+                                  ? 'Acceleration (g)'
+                                  : waveformType === 'velocity'
+                                    ? 'Velocity (m/s)'
+                                    : 'Displacement (m)',
+                              ]}
+                            />
+                            <Legend />
+                            <Line
+                              type="monotone"
+                              dataKey="value"
+                              name={`${selectedAxis.toUpperCase()}-Axis ${waveformType}`}
+                              stroke={
+                                selectedAxis === 'x'
+                                  ? '#8884d8'
+                                  : selectedAxis === 'y'
+                                    ? '#82ca9d'
+                                    : '#ffc658'
+                              }
+                              activeDot={{ r: 4 }}
+                              strokeWidth={1}
+                            />
+                          </LineChart>
+                        ) : (
+                          <LineChart
+                            data={
+                              fftResult
+                                ? fftResult.frequencies.map((freq, index) => ({
+                                    frequency: freq,
+                                    magnitude: fftResult.magnitudes[index],
+                                  }))
+                                : []
                             }
-                            activeDot={{ r: 4 }}
-                          />
-                        </LineChart>
+                            margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              dataKey="frequency"
+                              label={{
+                                value: 'Frequency (Hz)',
+                                position: 'insideBottomRight',
+                                offset: -5,
+                              }}
+                            />
+                            <YAxis
+                              label={{
+                                value: 'Magnitude',
+                                angle: -90,
+                                position: 'insideLeft',
+                              }}
+                            />
+                            <Tooltip
+                              formatter={(value: number) => [value.toFixed(6), 'Magnitude']}
+                            />
+                            <Legend />
+                            <Line
+                              type="monotone"
+                              dataKey="magnitude"
+                              name="FFT Magnitude"
+                              stroke="#ff7300"
+                              activeDot={{ r: 4 }}
+                              strokeWidth={1}
+                            />
+                          </LineChart>
+                        )}
                       </ResponsiveContainer>
                     </div>
                   </div>
