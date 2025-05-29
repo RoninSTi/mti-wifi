@@ -4,7 +4,9 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { GatewaysTable } from './GatewaysTable';
 import { CreateGatewayDialog } from './CreateGatewayDialog';
+import { EditGatewayDialog } from './EditGatewayDialog';
 import { useGateways, useDeleteGateway } from '@/hooks';
+import { GatewayResponse } from '@/app/api/gateways/schemas';
 import { Search, X, Wifi, Plus } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
@@ -22,8 +24,9 @@ export function GatewaysTab({ locationId }: GatewaysTabProps) {
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // State for the gateway being edited
-  const [editingGatewayId, setEditingGatewayId] = useState<string | null>(null);
+  // State for edit dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingGateway, setEditingGateway] = useState<GatewayResponse | null>(null);
 
   // State for delete confirmation
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -44,8 +47,11 @@ export function GatewaysTab({ locationId }: GatewaysTabProps) {
 
   // Handle gateway actions
   const handleEditGateway = (id: string) => {
-    // For now we won't implement editing, just show an alert
-    toast.info('Gateway edit functionality will be implemented later');
+    const gateway = gateways.find(g => g._id === id);
+    if (gateway) {
+      setEditingGateway(gateway);
+      setEditDialogOpen(true);
+    }
   };
 
   // Initiate delete process - open confirmation dialog
@@ -182,6 +188,18 @@ export function GatewaysTab({ locationId }: GatewaysTabProps) {
           </>
         )}
       </div>
+
+      {/* Edit Gateway Dialog */}
+      <EditGatewayDialog
+        gateway={editingGateway}
+        open={editDialogOpen}
+        onOpenChange={open => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setEditingGateway(null);
+          }
+        }}
+      />
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog

@@ -21,10 +21,13 @@ async function getGatewayHandler(
 ): Promise<NextResponse> {
   return await createApiSpan('gateways.get', async () => {
     try {
+      // Get the params and await them
+      const contextParams = await context.params;
+
       // Validate and extract the gateway ID from the URL params
       let params: GatewayParams;
       try {
-        params = gatewayParamsSchema.parse(context.params);
+        params = gatewayParamsSchema.parse(contextParams);
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -109,10 +112,13 @@ async function updateGatewayHandler(
 ): Promise<NextResponse> {
   return await createApiSpan('gateways.update', async () => {
     try {
+      // Get the params and await them
+      const contextParams = await context.params;
+
       // Validate and extract the gateway ID from the URL params
       let params: GatewayParams;
       try {
-        params = gatewayParamsSchema.parse(context.params);
+        params = gatewayParamsSchema.parse(contextParams);
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
@@ -231,10 +237,13 @@ async function deleteGatewayHandler(
 ): Promise<NextResponse> {
   return await createApiSpan('gateways.delete', async () => {
     try {
+      // Get the params and await them
+      const contextParams = await context.params;
+
       // Validate and extract the gateway ID from the URL params
       let params: GatewayParams;
       try {
-        params = gatewayParamsSchema.parse(context.params);
+        params = gatewayParamsSchema.parse(contextParams);
       } catch (error) {
         if (error instanceof ZodError) {
           return NextResponse.json(
