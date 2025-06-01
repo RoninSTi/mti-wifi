@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import Header from '@/components/Header';
+import { ResizablePanel } from '@/components/navigation/ResizablePanel';
 import { Toaster } from '@/components/ui/sonner';
 
 const geistSans = Geist({
@@ -30,7 +31,9 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
           <Header />
-          <main>{children}</main>
+          <div className="flex h-[calc(100vh-4rem)]">
+            <ResizablePanel>{children}</ResizablePanel>
+          </div>
           <Toaster position="bottom-right" />
         </Providers>
       </body>

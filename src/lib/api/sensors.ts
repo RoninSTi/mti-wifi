@@ -16,6 +16,7 @@ const SENSORS_URL = '/api/sensors';
  * @param sortOrder Sort direction ('asc' or 'desc')
  * @param q General search query across all fields
  * @param equipmentId Filter by equipment ID
+ * @param gatewayId Filter by gateway ID
  * @param name Optional name filter
  * @param status Optional status filter
  * @param serial Optional serial number filter
@@ -29,6 +30,7 @@ export const getSensors = async ({
   sortOrder = 'desc',
   q,
   equipmentId,
+  gatewayId,
   name,
   status,
   serial,
@@ -40,6 +42,7 @@ export const getSensors = async ({
   sortOrder?: 'asc' | 'desc';
   q?: string;
   equipmentId?: string;
+  gatewayId?: string;
   name?: string;
   status?: 'active' | 'inactive' | 'warning' | 'error';
   serial?: number;
@@ -53,6 +56,7 @@ export const getSensors = async ({
     sortOrder,
     q,
     equipmentId,
+    gatewayId,
     name,
     status,
     serial: serial !== undefined ? String(serial) : undefined,
@@ -80,6 +84,58 @@ export const getSensorsByEquipment = async (
   } = {}
 ) => {
   return getSensors({ ...params, equipmentId });
+};
+
+/**
+ * Get sensors for a specific gateway
+ * @param gatewayId Gateway ID
+ * @param params Optional parameters for pagination and filtering
+ * @returns Paginated list of sensors for the gateway
+ */
+export const getSensorsByGateway = async (
+  gatewayId: string,
+  params: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    q?: string;
+    name?: string;
+    status?: 'active' | 'inactive' | 'warning' | 'error';
+    connected?: boolean;
+  } = {}
+) => {
+  // Use the specialized paginated API client method with gateway filter
+  return apiClient.getPaginated<SensorResponse>(SENSORS_URL, {
+    ...params,
+    gatewayId,
+  });
+};
+
+/**
+ * Get sensors for a specific location
+ * @param locationId Location ID
+ * @param params Optional parameters for pagination and filtering
+ * @returns Paginated list of sensors for the location
+ */
+export const getSensorsByLocation = async (
+  locationId: string,
+  params: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    q?: string;
+    name?: string;
+    status?: 'active' | 'inactive' | 'warning' | 'error';
+    connected?: boolean;
+  } = {}
+) => {
+  // Use the specialized paginated API client method with location filter
+  return apiClient.getPaginated<SensorResponse>(SENSORS_URL, {
+    ...params,
+    locationId,
+  });
 };
 
 /**
@@ -120,12 +176,13 @@ export const deleteSensor = async (id: string) => {
 };
 
 /**
- * Associate discovered sensors with equipment
- * @param data Object containing equipment ID and array of sensors to associate
+ * Associate discovered sensors with equipment and gateway
+ * @param data Object containing equipment ID, gateway ID and array of sensors to associate
  * @returns Array of created sensors
  */
 export const associateDiscoveredSensors = async (data: {
   equipmentId: string;
+  gatewayId: string;
   sensors: Array<{
     sensorId?: string;
     name: string;

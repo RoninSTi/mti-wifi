@@ -6,6 +6,7 @@ const sensorBaseSchema = {
   name: z.string().min(1, 'Sensor name is required').max(100, 'Name cannot exceed 100 characters'),
   description: z.string().max(1000, 'Description cannot exceed 1000 characters').optional(),
   equipment: z.string().min(1, 'Equipment ID is required'),
+  gateway: z.string().optional(), // Optional gateway association
   // Make serial and partNumber optional
   serial: z
     .number()
@@ -44,6 +45,7 @@ export const updateSensorSchema = z
   .object({
     name: sensorBaseSchema.name.optional(),
     description: sensorBaseSchema.description,
+    gateway: sensorBaseSchema.gateway, // Allow updating gateway association
     serial: z.number().int().positive().optional().nullable(),
     partNumber: z.string().optional().nullable(),
     hardwareVersion: sensorBaseSchema.hardwareVersion,

@@ -24,6 +24,7 @@ const DiscoveredSensorSchema = z.object({
 // Main payload schema
 const DiscoverSensorsPayloadSchema = z.object({
   equipmentId: z.string().min(1, 'Equipment ID is required'),
+  gatewayId: z.string().min(1, 'Gateway ID is required'),
   sensors: z.array(DiscoveredSensorSchema).min(1, 'At least one sensor is required'),
 });
 
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const { sensors, equipmentId } = result.data;
+      const { sensors, equipmentId, gatewayId } = result.data;
 
       // Connect to the database
       await connectToDatabase();
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
             ...restData,
             serial,
             equipment: equipmentId, // Use the equipmentId from the parent object
+            gateway: gatewayId, // Associate with the gateway
             status: restData.connected ? 'active' : 'inactive',
             lastConnectedAt: restData.connected ? new Date() : undefined,
           };

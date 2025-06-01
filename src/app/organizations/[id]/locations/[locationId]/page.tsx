@@ -8,12 +8,10 @@ import { Button } from '@/components/ui/button';
 import { useLocation, useDeleteLocation } from '@/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { AreasTab } from '@/components/areas/AreasTab';
 import { GatewaysTab } from '@/components/gateways';
 import { DeleteButton } from '@/components/ui/delete-button';
 import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DetailPageBreadcrumbs } from '@/components/shared';
 
 export default function LocationDetailsPage() {
@@ -171,26 +169,9 @@ export default function LocationDetailsPage() {
 
       <div className="mt-8">
         <Card className="overflow-hidden">
-          <Tabs defaultValue="gateways">
-            <div className="px-6 pt-6">
-              <TabsList className="w-full max-w-[400px]">
-                <TabsTrigger value="gateways" className="flex-1">
-                  Gateways
-                </TabsTrigger>
-                <TabsTrigger value="areas" className="flex-1">
-                  Areas
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="gateways" className="p-6 pt-4 m-0 border-0">
-              <GatewaysTab locationId={locationId} />
-            </TabsContent>
-
-            <TabsContent value="areas" className="p-6 pt-4 m-0 border-0">
-              <AreasTab locationId={locationId} organizationId={organizationId} />
-            </TabsContent>
-          </Tabs>
+          <div className="p-6">
+            <GatewaysTab locationId={locationId} />
+          </div>
         </Card>
       </div>
     </div>

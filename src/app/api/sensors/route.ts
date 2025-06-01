@@ -227,6 +227,7 @@ async function listSensorsHandler(
       const { searchParams } = new URL(request.url);
       const nameFilter = searchParams.get('name');
       const equipmentFilter = searchParams.get('equipmentId');
+      const gatewayFilter = searchParams.get('gatewayId');
       const statusFilter = searchParams.get('status');
       const serialFilter = searchParams.get('serial');
       const connectedFilter = searchParams.get('connected');
@@ -250,6 +251,7 @@ async function listSensorsHandler(
       type SensorFilterConditions = {
         name?: MongoRegexFilter;
         equipment?: string;
+        gateway?: string;
         status?: SensorResponse['status']; // Use the schema-derived type
         serial?: number;
         connected?: boolean;
@@ -270,6 +272,11 @@ async function listSensorsHandler(
       if (equipmentFilter) {
         filterConditions.equipment = equipmentFilter;
         addSpanAttributes({ 'request.filter.equipmentId': equipmentFilter });
+      }
+
+      if (gatewayFilter) {
+        filterConditions.gateway = gatewayFilter;
+        addSpanAttributes({ 'request.filter.gatewayId': gatewayFilter });
       }
 
       if (statusFilter) {
@@ -316,7 +323,18 @@ async function listSensorsHandler(
       });
 
       // Create the base query for sensors
-      const baseQuery = Sensor.find(filterConditions).populate('equipment', 'name equipmentType');
+      const baseQuery = Sensor.find(filterConditions).populate({
+        path: 'equipment',
+        select: 'name equipmentType area',
+        populate: {
+          path: 'area',
+          select: 'name location',
+          populate: {
+            path: 'location',
+            select: 'name',
+          },
+        },
+      });
 
       // Apply pagination and sorting to query
       const paginatedQuery = applyPaginationToMongooseQuery(baseQuery, paginationParams);
@@ -377,6 +395,8 @@ export const POST = applyMiddleware([authMiddleware], createSensorHandler);
  * - sortOrder: 'asc' or 'desc' (default: 'desc')
  * - name: Optional filter by sensor name (partial match)
  * - equipmentId: Optional filter by equipment ID (exact match)
+ * - gatewayId: Optional filter by gateway ID (exact match)
+ * - locationId: Optional filter by location ID (exact match)
  * - status: Optional filter by status (exact match)
  * - serial: Optional filter by serial number (exact match)
  * - connected: Optional filter by connection status (true/false)

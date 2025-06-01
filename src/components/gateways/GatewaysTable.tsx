@@ -1,7 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { GatewayResponse } from '@/app/api/gateways/schemas';
+import { SensorResponse } from '@/app/api/sensors/schemas';
 import {
   Table,
   TableBody,
@@ -18,10 +20,14 @@ import {
   Wifi,
   WifiOff,
   Cable,
-  Shield,
   AlertTriangle,
   Loader,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Radio,
+  Package,
+  Grid3x3,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -37,6 +43,7 @@ import { Badge } from '@/components/ui/badge';
 import { GatewayConnectionManagerDialog } from './GatewayConnectionManagerDialog';
 import { useGatewayConnection } from '@/lib/services/gateway';
 import { GatewayConnectionStatus } from '@/lib/services/gateway/types';
+import { useSensorsByGateway } from '@/hooks';
 
 // Interface for the props received by the component
 interface GatewaysTableProps {
@@ -50,6 +57,161 @@ interface GatewaysTableProps {
   onDelete: (id: string) => void;
   onRetry?: () => void;
   filterApplied?: boolean;
+}
+
+// Component to display sensors for a gateway
+interface GatewaySensorsDisplayProps {
+  gatewayId: string;
+  isExpanded: boolean;
+}
+
+function GatewaySensorsDisplay({ gatewayId, isExpanded }: GatewaySensorsDisplayProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { sensors, isLoading, isError } = useSensorsByGateway(gatewayId, {
+    enabled: isExpanded,
+    limit: 100, // Get all sensors for this gateway
+  });
+
+  const handleSensorClick = (sensor: SensorResponse) => {
+    if (
+      !sensor.equipment?.area?.location?._id ||
+      !sensor.equipment.area._id ||
+      !sensor.equipment._id
+    ) {
+      console.warn('Incomplete sensor navigation data:', sensor);
+      return;
+    }
+
+    // Get organization ID from current URL since we're already in that context
+    const pathParts = pathname.split('/');
+    const orgId = pathParts[2]; // /organizations/{orgId}/locations/{locationId}
+
+    const locationId = sensor.equipment.area.location._id;
+    const areaId = sensor.equipment.area._id;
+    const equipmentId = sensor.equipment._id;
+    const sensorId = sensor._id;
+
+    const url = `/organizations/${orgId}/locations/${locationId}/areas/${areaId}/equipment/${equipmentId}/sensor/${sensorId}`;
+    router.push(url);
+  };
+
+  if (!isExpanded) return null;
+
+  if (isLoading) {
+    return (
+      <TableRow>
+        <TableCell colSpan={6} className="p-0">
+          <div className="bg-muted/20 p-4 space-y-2">
+            <div className="text-sm text-muted-foreground mb-2">Loading sensors...</div>
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-4 pl-8">
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-4 w-[120px]" />
+                <Skeleton className="h-4 w-[100px]" />
+                <Skeleton className="h-4 w-[80px]" />
+              </div>
+            ))}
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  if (isError || sensors.length === 0) {
+    return (
+      <TableRow>
+        <TableCell colSpan={6} className="p-0">
+          <div className="bg-muted/20 p-4">
+            <div className="text-sm text-muted-foreground pl-8">
+              {isError ? 'Error loading sensors' : 'No sensors found for this gateway'}
+            </div>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  return (
+    <TableRow>
+      <TableCell colSpan={6} className="p-0">
+        <div className="bg-muted/20 p-4">
+          <div className="rounded-md border bg-background">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sensor Name</TableHead>
+                  <TableHead>Equipment</TableHead>
+                  <TableHead>Area</TableHead>
+                  <TableHead>Serial</TableHead>
+                  <TableHead>Connection</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sensors.map(sensor => (
+                  <TableRow
+                    key={sensor._id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSensorClick(sensor)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Radio className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{sensor.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {sensor.equipment && (
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                          <span>{sensor.equipment.name}</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {sensor.equipment?.area && (
+                        <div className="flex items-center gap-2">
+                          <Grid3x3 className="h-4 w-4 text-muted-foreground" />
+                          <span>{sensor.equipment.area.name}</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {sensor.serial || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={sensor.connected ? 'default' : 'secondary'}
+                        className={sensor.connected ? 'bg-green-500/10 text-green-500' : ''}
+                      >
+                        {sensor.connected ? 'Connected' : 'Disconnected'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          sensor.status === 'active'
+                            ? 'default'
+                            : sensor.status === 'warning'
+                              ? 'secondary'
+                              : sensor.status === 'error'
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                      >
+                        {sensor.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 // Component to display gateway connection status
@@ -124,6 +286,20 @@ export function GatewaysTable({
   onRetry,
   filterApplied = false,
 }: GatewaysTableProps) {
+  // State for tracking expanded gateways
+  const [expandedGateways, setExpandedGateways] = useState<Set<string>>(new Set());
+
+  // Function to toggle gateway expansion
+  const toggleGatewayExpansion = (gatewayId: string) => {
+    const newExpanded = new Set(expandedGateways);
+    if (newExpanded.has(gatewayId)) {
+      newExpanded.delete(gatewayId);
+    } else {
+      newExpanded.add(gatewayId);
+    }
+    setExpandedGateways(newExpanded);
+  };
+
   // IMPORTANT: React Hook must be called at the top level of the component
   // This hook must be called unconditionally, before any conditionals
   // If loading, show skeleton UI
@@ -134,16 +310,20 @@ export function GatewaysTable({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead className="w-[40px]"></TableHead>
+                <TableHead>Gateway Name</TableHead>
                 <TableHead>Serial Number</TableHead>
                 <TableHead>URL</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead>Connection Status</TableHead>
+                <TableHead className="w-[80px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {Array.from({ length: 3 }).map((_, index) => (
                 <TableRow key={index}>
+                  <TableCell>
+                    <Skeleton className="h-4 w-4" />
+                  </TableCell>
                   <TableCell>
                     <Skeleton className="h-5 w-[180px]" />
                   </TableCell>
@@ -205,77 +385,104 @@ export function GatewaysTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
+            <TableHead className="w-[40px]"></TableHead>
+            <TableHead>Gateway Name</TableHead>
             <TableHead>Serial Number</TableHead>
             <TableHead>URL</TableHead>
-            <TableHead>Connection</TableHead>
-            <TableHead className="w-[80px]"></TableHead>
+            <TableHead>Connection Status</TableHead>
+            <TableHead className="w-[80px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {gateways.map(gateway => (
-            <TableRow
-              key={gateway._id}
-              className={`${onView ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-              onClick={e => {
-                // Only navigate if the click wasn't on the dropdown menu or its children
-                // and if onView is provided
-                if (onView && !(e.target as HTMLElement).closest('.dropdown-actions')) {
-                  onView(gateway._id);
-                }
-              }}
-            >
-              <TableCell className="font-medium">{gateway.name}</TableCell>
-              <TableCell>{gateway.serialNumber}</TableCell>
-              <TableCell className="max-w-[200px] truncate">
-                <span title={gateway.url}>{gateway.url}</span>
-              </TableCell>
-              <TableCell>
-                <GatewayConnectionDisplay gatewayId={gateway._id} />
-              </TableCell>
-              <TableCell>
-                <div className="dropdown-actions" onClick={e => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">More options</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <GatewayConnectionManagerDialog
-                        trigger={
-                          <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                            <Cable className="mr-2 h-4 w-4" />
-                            Connection
-                          </DropdownMenuItem>
-                        }
-                      />
-                      {onView && (
-                        <DropdownMenuItem onClick={() => onView(gateway._id)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View details
-                        </DropdownMenuItem>
+          {gateways.map(gateway => {
+            const isExpanded = expandedGateways.has(gateway._id);
+            return (
+              <React.Fragment key={gateway._id}>
+                <TableRow
+                  className={`${onView ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                  onClick={e => {
+                    // Only navigate if the click wasn't on the dropdown menu or its children
+                    // and if onView is provided
+                    if (
+                      onView &&
+                      !(e.target as HTMLElement).closest('.dropdown-actions') &&
+                      !(e.target as HTMLElement).closest('.expand-toggle')
+                    ) {
+                      onView(gateway._id);
+                    }
+                  }}
+                >
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="expand-toggle h-6 w-6 p-0"
+                      onClick={e => {
+                        e.stopPropagation();
+                        toggleGatewayExpansion(gateway._id);
+                      }}
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
                       )}
-                      <DropdownMenuItem onClick={() => onEdit(gateway._id)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => onDelete(gateway._id)}
-                      >
-                        <Trash className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+                    </Button>
+                  </TableCell>
+                  <TableCell className="font-medium">{gateway.name}</TableCell>
+                  <TableCell>{gateway.serialNumber}</TableCell>
+                  <TableCell className="max-w-[200px] truncate">
+                    <span title={gateway.url}>{gateway.url}</span>
+                  </TableCell>
+                  <TableCell>
+                    <GatewayConnectionDisplay gatewayId={gateway._id} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="dropdown-actions" onClick={e => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">More options</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <GatewayConnectionManagerDialog
+                            trigger={
+                              <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                <Cable className="mr-2 h-4 w-4" />
+                                Connection
+                              </DropdownMenuItem>
+                            }
+                          />
+                          {onView && (
+                            <DropdownMenuItem onClick={() => onView(gateway._id)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View details
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => onEdit(gateway._id)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => onDelete(gateway._id)}
+                          >
+                            <Trash className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+                <GatewaySensorsDisplay gatewayId={gateway._id} isExpanded={isExpanded} />
+              </React.Fragment>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

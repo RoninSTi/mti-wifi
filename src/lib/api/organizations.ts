@@ -92,3 +92,34 @@ export const updateOrganization = async (id: string, data: UpdateOrganizationInp
 export const deleteOrganization = async (id: string) => {
   return apiClient.delete<{ success: boolean; message: string }>(`${ORGANIZATIONS_URL}/${id}`);
 };
+
+/**
+ * Get organization hierarchy for navigation tree
+ * @param id Organization ID
+ * @returns Organization with nested locations, areas, equipment, and sensors
+ */
+export const getOrganizationHierarchy = async (id: string) => {
+  return apiClient.get<{
+    _id: string;
+    name: string;
+    locations: Array<{
+      _id: string;
+      name: string;
+      areas: Array<{
+        _id: string;
+        name: string;
+        equipment: Array<{
+          _id: string;
+          name: string;
+          status: 'active' | 'inactive' | 'maintenance' | 'failed';
+          sensors: Array<{
+            _id: string;
+            name: string;
+            status: 'active' | 'inactive' | 'warning' | 'error';
+            connected: boolean;
+          }>;
+        }>;
+      }>;
+    }>;
+  }>(`${ORGANIZATIONS_URL}/${id}/hierarchy`);
+};
