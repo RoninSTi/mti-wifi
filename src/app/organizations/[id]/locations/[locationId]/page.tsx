@@ -9,6 +9,7 @@ import { useLocation, useDeleteLocation } from '@/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { GatewaysTab } from '@/components/gateways';
+import { AreasTab } from '@/components/areas';
 import { DeleteButton } from '@/components/ui/delete-button';
 import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
@@ -167,12 +168,9 @@ export default function LocationDetailsPage() {
       {/* Description */}
       {location.description && <EntityDescription>{location.description}</EntityDescription>}
 
-      <div className="mt-8">
-        <Card className="overflow-hidden">
-          <div className="p-6">
-            <GatewaysTab locationId={locationId} />
-          </div>
-        </Card>
+      <div className="mt-8 space-y-8">
+        <GatewaysTab locationId={locationId} showSearch={false} />
+        <AreasTab locationId={locationId} organizationId={organizationId} showSearch={false} />
       </div>
     </div>
   );

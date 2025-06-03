@@ -230,17 +230,13 @@ export default function EquipmentDetailsPage() {
       </div>
 
       {/* Sensors Section */}
-      <div className="grid grid-cols-1 gap-8 mt-8">
-        <Card className="overflow-hidden">
-          <div className="p-6">
-            <SensorsTable
-              equipmentId={equipmentId}
-              organizationId={organizationId}
-              locationId={locationId}
-              areaId={areaId}
-            />
-          </div>
-        </Card>
+      <div className="mt-8">
+        <SensorsTable
+          equipmentId={equipmentId}
+          organizationId={organizationId}
+          locationId={locationId}
+          areaId={areaId}
+        />
       </div>
     </div>
   );

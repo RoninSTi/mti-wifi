@@ -28,7 +28,7 @@ interface SensorDetailsProps {
 }
 
 export function SensorDetails({ sensorId, onDelete }: SensorDetailsProps) {
-  const { data, isLoading, isError, error } = useSensor(sensorId);
+  const { sensor, isLoading, isError, error } = useSensor(sensorId);
   const queryClient = useQueryClient();
   const { mutate: deleteSensor, isPending: isDeleting } = useDeleteSensor();
   const router = useRouter();
@@ -55,11 +55,14 @@ export function SensorDetails({ sensorId, onDelete }: SensorDetailsProps) {
     );
   }
 
-  if (isError || !data?.data) {
+  if (isError || !sensor) {
     return (
       <div className="p-4 text-center">
         <p className="text-destructive">
-          Error loading sensor: {error?.message || 'Unknown error'}
+          Error loading sensor:{' '}
+          {error && typeof error === 'object' && 'message' in error
+            ? (error as { message: string }).message
+            : 'Unknown error'}
         </p>
         <Button
           onClick={() => queryClient.invalidateQueries({ queryKey: ['sensor', sensorId] })}
@@ -71,13 +74,14 @@ export function SensorDetails({ sensorId, onDelete }: SensorDetailsProps) {
     );
   }
 
-  const sensor = data.data;
-  const statusColor = {
+  const statusColorMap = {
     active: 'green',
     inactive: 'gray',
     warning: 'yellow',
     error: 'red',
-  }[sensor.status];
+  } as const;
+
+  const statusColor = statusColorMap[sensor.status as keyof typeof statusColorMap];
 
   return (
     <Card>

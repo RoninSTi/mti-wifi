@@ -11,7 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { useOrganization, useLocation, useArea, useEquipment } from '@/hooks';
+import { useOrganization, useLocation, useArea, useEquipment, useSensor } from '@/hooks';
 
 export interface BreadcrumbItem {
   label: string;
@@ -47,11 +47,11 @@ export function DetailPageBreadcrumbs({ className }: DetailPageBreadcrumbsProps)
 
       // Check if this is an entity followed by an ID
       if (
-        ['organizations', 'locations', 'areas', 'equipment'].includes(segment) &&
+        ['organizations', 'locations', 'areas', 'equipment', 'sensor'].includes(segment) &&
         nextSegment &&
         nextSegment.match(/^[a-f\d]{24}$/i)
       ) {
-        extractedIds[segment.slice(0, -1)] = nextSegment; // Remove trailing 's' to get singular form
+        extractedIds[segment] = nextSegment;
         i++; // Skip the ID segment
       }
     }
@@ -60,10 +60,11 @@ export function DetailPageBreadcrumbs({ className }: DetailPageBreadcrumbsProps)
   }, [pathSegments]);
 
   // Fetch entity data based on IDs
-  const { organization } = useOrganization(ids.organization || '');
-  const { location } = useLocation(ids.location || '');
-  const { area } = useArea(ids.area || '');
+  const { organization } = useOrganization(ids.organizations || '');
+  const { location } = useLocation(ids.locations || '');
+  const { area } = useArea(ids.areas || '');
   const { equipment } = useEquipment(ids.equipment || '');
+  const { sensor } = useSensor(ids.sensor || '');
 
   const breadcrumbItems = useMemo(() => {
     // Return empty array if pathname is not available
@@ -83,35 +84,48 @@ export function DetailPageBreadcrumbs({ className }: DetailPageBreadcrumbsProps)
       // Add organization breadcrumb
       items.push({
         label: organization.name,
-        href: `/organizations/${ids.organization}`,
-        isCurrent: pathname === `/organizations/${ids.organization}`,
+        href: `/organizations/${ids.organizations}`,
+        isCurrent: pathname === `/organizations/${ids.organizations}`,
       });
 
       // For location details page
       if (pathSegments.length >= 4 && pathSegments[2] === 'locations' && location) {
         items.push({
           label: location.name,
-          href: `/organizations/${ids.organization}/locations/${ids.location}`,
-          isCurrent: pathname === `/organizations/${ids.organization}/locations/${ids.location}`,
+          href: `/organizations/${ids.organizations}/locations/${ids.locations}`,
+          isCurrent: pathname === `/organizations/${ids.organizations}/locations/${ids.locations}`,
         });
 
         // For area details page
         if (pathSegments.length >= 6 && pathSegments[4] === 'areas' && area) {
           items.push({
             label: area.name,
-            href: `/organizations/${ids.organization}/locations/${ids.location}/areas/${ids.area}`,
+            href: `/organizations/${ids.organizations}/locations/${ids.locations}/areas/${ids.areas}`,
             isCurrent:
               pathname ===
-              `/organizations/${ids.organization}/locations/${ids.location}/areas/${ids.area}`,
+              `/organizations/${ids.organizations}/locations/${ids.locations}/areas/${ids.areas}`,
           });
 
           // For equipment details page
           if (pathSegments.length >= 8 && pathSegments[6] === 'equipment' && equipment) {
             items.push({
               label: equipment.name,
-              href: `/organizations/${ids.organization}/locations/${ids.location}/areas/${ids.area}/equipment/${ids.equipment}`,
-              isCurrent: true,
+              href: `/organizations/${ids.organizations}/locations/${ids.locations}/areas/${ids.areas}/equipment/${ids.equipment}`,
+              isCurrent:
+                pathname ===
+                `/organizations/${ids.organizations}/locations/${ids.locations}/areas/${ids.areas}/equipment/${ids.equipment}`,
             });
+
+            // For sensor details page
+            if (pathSegments.length >= 10 && pathSegments[8] === 'sensor' && sensor) {
+              items.push({
+                label: sensor.name,
+                href: `/organizations/${ids.organizations}/locations/${ids.locations}/areas/${ids.areas}/equipment/${ids.equipment}/sensor/${ids.sensor}`,
+                isCurrent:
+                  pathname ===
+                  `/organizations/${ids.organizations}/locations/${ids.locations}/areas/${ids.areas}/equipment/${ids.equipment}/sensor/${ids.sensor}`,
+              });
+            }
           }
         }
       }
@@ -137,7 +151,7 @@ export function DetailPageBreadcrumbs({ className }: DetailPageBreadcrumbsProps)
     }
 
     return items;
-  }, [pathname, pathSegments, organization, location, area, equipment, ids]);
+  }, [pathname, pathSegments, organization, location, area, equipment, sensor, ids]);
 
   // Don't render breadcrumbs if there are no items or only one item
   if (breadcrumbItems.length <= 0) {

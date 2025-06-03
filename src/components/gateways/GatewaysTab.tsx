@@ -15,9 +15,10 @@ import { TablePagination } from '@/components/ui/table-pagination';
 
 interface GatewaysTabProps {
   locationId: string;
+  showSearch?: boolean;
 }
 
-export function GatewaysTab({ locationId }: GatewaysTabProps) {
+export function GatewaysTab({ locationId, showSearch = true }: GatewaysTabProps) {
   // State for pagination and search
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -104,33 +105,35 @@ export function GatewaysTab({ locationId }: GatewaysTabProps) {
       </div>
 
       {/* Search */}
-      <div className="flex items-center space-x-2">
-        <form onSubmit={handleSearch} className="flex-1 flex space-x-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search gateways..."
-              className="pl-8 [&::-webkit-search-cancel-button]:hidden [&::-ms-clear]:hidden"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-            />
-            {searchInput && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-9 w-9 p-0"
-                onClick={clearSearch}
-                type="button"
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Clear</span>
-              </Button>
-            )}
-          </div>
-          <Button type="submit">Search</Button>
-        </form>
-      </div>
+      {showSearch && (
+        <div className="flex items-center space-x-2">
+          <form onSubmit={handleSearch} className="flex-1 flex space-x-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search gateways..."
+                className="pl-8 [&::-webkit-search-cancel-button]:hidden [&::-ms-clear]:hidden"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+              />
+              {searchInput && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-9 w-9 p-0"
+                  onClick={clearSearch}
+                  type="button"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Clear</span>
+                </Button>
+              )}
+            </div>
+            <Button type="submit">Search</Button>
+          </form>
+        </div>
+      )}
 
       {/* Content area */}
       <div>

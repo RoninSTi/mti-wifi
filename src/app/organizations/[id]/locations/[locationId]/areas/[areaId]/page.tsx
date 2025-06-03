@@ -180,13 +180,8 @@ export default function AreaDetailsPage() {
       {area.description && <EntityDescription>{area.description}</EntityDescription>}
 
       {/* Area Details */}
-      <div className="grid grid-cols-1 gap-8 mt-8">
-        {/* Equipment Card */}
-        <Card className="overflow-hidden">
-          <div className="p-6">
-            <EquipmentTab areaId={areaId} />
-          </div>
-        </Card>
+      <div className="mt-8">
+        <EquipmentTab areaId={areaId} showSearch={false} />
       </div>
 
       {/* Delete confirmation dialog */}

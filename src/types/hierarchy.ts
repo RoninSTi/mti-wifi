@@ -1,9 +1,16 @@
 import { z } from 'zod';
 
 // Zod schemas for raw MongoDB documents (before transformation)
-const mongoIdSchema = z
-  .union([z.string(), z.object({ toString: z.function().returns(z.string()) })])
-  .transform(val => val.toString());
+const mongoIdSchema = z.any().transform(val => {
+  if (typeof val === 'string') return val;
+  try {
+    if (val && typeof val.toHexString === 'function') return val.toHexString();
+    if (val && typeof val.toString === 'function') return val.toString();
+    return String(val);
+  } catch (error) {
+    return String(val);
+  }
+});
 
 const rawSensorSchema = z.object({
   _id: mongoIdSchema,

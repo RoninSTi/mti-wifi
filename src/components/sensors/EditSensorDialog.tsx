@@ -42,13 +42,12 @@ export function EditSensorDialog({
     partNumber: '',
   });
 
-  const { data, isLoading: isLoadingSensor } = useSensor(sensorId);
+  const { sensor, isLoading: isLoadingSensor } = useSensor(sensorId);
   const { mutate: updateSensor, isPending: isUpdating } = useUpdateSensor(sensorId);
 
   // Populate form when sensor data is loaded
   useEffect(() => {
-    if (data?.data) {
-      const sensor = data.data;
+    if (sensor) {
       setFormData({
         name: sensor.name,
         description: sensor.description || '',
@@ -56,7 +55,7 @@ export function EditSensorDialog({
         partNumber: sensor.partNumber || '',
       });
     }
-  }, [data]);
+  }, [sensor]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>

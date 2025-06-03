@@ -35,7 +35,7 @@ export default function SensorReadingsPage() {
   } = useTypedParams<SensorDetailParams>();
 
   // Fetch sensor details
-  const { data, isLoading, isError, error } = useSensor(sensorId);
+  const { sensor, isLoading, isError, error } = useSensor(sensorId);
 
   // Handle back navigation
   const handleBack = () => {
@@ -59,7 +59,7 @@ export default function SensorReadingsPage() {
   }
 
   // Error state
-  if (isError || !data?.data) {
+  if (isError || !sensor) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to load sensor details';
     return (
       <div className="container py-10 mx-auto">
@@ -76,7 +76,6 @@ export default function SensorReadingsPage() {
     );
   }
 
-  const sensor = data.data;
   // Use utility functions to safely extract values
   const gatewayId = getGatewayId(sensor);
   const sensorSerial = getSensorSerial(sensor);
