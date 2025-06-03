@@ -88,7 +88,7 @@ export function SensorHistoricalReadings({
     fetchBatteryReadings,
   } = useGatewayConnection(gatewayId);
 
-  const [activeTab, setActiveTab] = useState<'battery' | 'temperature' | 'vibration'>('battery');
+  const [activeTab, setActiveTab] = useState<'battery' | 'temperature' | 'vibration'>('vibration');
   const [selectedVibrationReading, setSelectedVibrationReading] =
     useState<DetailedVibrationReading | null>(null);
   const [selectedAxis, setSelectedAxis] = useState<'x' | 'y' | 'z'>('x');
@@ -930,30 +930,26 @@ export function SensorHistoricalReadings({
 
   return (
     <Card className="mt-4">
-      <CardHeader>
-        <CardTitle className="text-lg">Sensor Data</CardTitle>
-      </CardHeader>
-
-      <CardContent>
+      <CardContent className="pt-4">
         <div className="flex flex-col gap-4">
           {/* Tabs for different reading types */}
           <Tabs
-            defaultValue="battery"
+            defaultValue="vibration"
             onValueChange={value => setActiveTab(value as 'battery' | 'temperature' | 'vibration')}
           >
             <div className="flex justify-between items-center mb-4">
               <TabsList className="grid grid-cols-3">
-                <TabsTrigger value="battery" className="flex items-center gap-1">
-                  <Battery className="h-4 w-4" />
-                  <span>Battery</span>
+                <TabsTrigger value="vibration" className="flex items-center gap-1">
+                  <Waves className="h-4 w-4" />
+                  <span>Vibration</span>
                 </TabsTrigger>
                 <TabsTrigger value="temperature" className="flex items-center gap-1">
                   <Thermometer className="h-4 w-4" />
                   <span>Temperature</span>
                 </TabsTrigger>
-                <TabsTrigger value="vibration" className="flex items-center gap-1">
-                  <Waves className="h-4 w-4" />
-                  <span>Vibration</span>
+                <TabsTrigger value="battery" className="flex items-center gap-1">
+                  <Battery className="h-4 w-4" />
+                  <span>Battery</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -977,16 +973,16 @@ export function SensorHistoricalReadings({
               )}
             </div>
 
-            <TabsContent value="battery" className="mt-0">
-              {renderBatteryHistory()}
+            <TabsContent value="vibration" className="mt-0">
+              {renderVibrationHistory()}
             </TabsContent>
 
             <TabsContent value="temperature" className="mt-0">
               {renderTemperatureHistory()}
             </TabsContent>
 
-            <TabsContent value="vibration" className="mt-0">
-              {renderVibrationHistory()}
+            <TabsContent value="battery" className="mt-0">
+              {renderBatteryHistory()}
             </TabsContent>
           </Tabs>
         </div>
