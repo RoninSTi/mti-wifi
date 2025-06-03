@@ -49,6 +49,20 @@ import {
 const sensorHistoricalReadingsPropsSchema = z.object({
   gatewayId: z.string(),
   sensorSerial: z.number().int(),
+  onTakeReading: z
+    .function()
+    .args(z.enum(['battery', 'temperature', 'vibration']))
+    .returns(z.promise(z.void()))
+    .optional(),
+  readingLoading: z
+    .object({
+      battery: z.boolean(),
+      temperature: z.boolean(),
+      vibration: z.boolean(),
+    })
+    .optional(),
+  isGatewayAuthenticated: z.boolean().optional(),
+  isSensorConnected: z.boolean().optional(),
 });
 
 // Type inference from Zod schema
@@ -57,6 +71,10 @@ type SensorHistoricalReadingsProps = z.infer<typeof sensorHistoricalReadingsProp
 export function SensorHistoricalReadings({
   gatewayId,
   sensorSerial,
+  onTakeReading,
+  readingLoading,
+  isGatewayAuthenticated,
+  isSensorConnected,
 }: SensorHistoricalReadingsProps) {
   // Use the gateway connection hook to get state and methods
   const {
@@ -913,30 +931,71 @@ export function SensorHistoricalReadings({
   return (
     <Card className="mt-4">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg">Historical Readings</CardTitle>
-            <CardDescription>Historical data for sensor {sensorSerial}</CardDescription>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1"
-            onClick={refreshAllData}
-            disabled={isLoading.battery || isLoading.temperature || isLoading.vibration}
-          >
-            <RefreshCw
-              className={`h-4 w-4 mr-1 ${isLoading.battery || isLoading.temperature || isLoading.vibration ? 'animate-spin' : ''}`}
-            />
-            Refresh All
-          </Button>
-        </div>
+        <CardTitle className="text-lg">Sensor Data</CardTitle>
       </CardHeader>
 
       <CardContent>
         <div className="flex flex-col gap-4">
+          {/* Tabs for different reading types */}
+          <Tabs
+            defaultValue="battery"
+            onValueChange={value => setActiveTab(value as 'battery' | 'temperature' | 'vibration')}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <TabsList className="grid grid-cols-3">
+                <TabsTrigger value="battery" className="flex items-center gap-1">
+                  <Battery className="h-4 w-4" />
+                  <span>Battery</span>
+                </TabsTrigger>
+                <TabsTrigger value="temperature" className="flex items-center gap-1">
+                  <Thermometer className="h-4 w-4" />
+                  <span>Temperature</span>
+                </TabsTrigger>
+                <TabsTrigger value="vibration" className="flex items-center gap-1">
+                  <Waves className="h-4 w-4" />
+                  <span>Vibration</span>
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Take Reading Button - changes based on active tab */}
+              {onTakeReading && (
+                <Button
+                  size="sm"
+                  onClick={() => onTakeReading(activeTab)}
+                  disabled={
+                    !isGatewayAuthenticated || !isSensorConnected || readingLoading?.[activeTab]
+                  }
+                  className="flex items-center gap-2"
+                >
+                  {activeTab === 'battery' && <Zap className="h-4 w-4" />}
+                  {activeTab === 'temperature' && <Thermometer className="h-4 w-4" />}
+                  {activeTab === 'vibration' && <Waves className="h-4 w-4" />}
+                  {readingLoading?.[activeTab]
+                    ? 'Requesting...'
+                    : `Take ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Reading`}
+                </Button>
+              )}
+            </div>
+
+            <TabsContent value="battery" className="mt-0">
+              {renderBatteryHistory()}
+            </TabsContent>
+
+            <TabsContent value="temperature" className="mt-0">
+              {renderTemperatureHistory()}
+            </TabsContent>
+
+            <TabsContent value="vibration" className="mt-0">
+              {renderVibrationHistory()}
+            </TabsContent>
+          </Tabs>
+        </div>
+      </CardContent>
+
+      <CardFooter className="border-t pt-4">
+        <div className="w-full">
           {/* Date Range Selector */}
-          <div className="flex flex-wrap items-end gap-4 mb-4 p-4 bg-muted/30 rounded-lg">
+          <div className="flex flex-wrap items-end gap-4 p-4 bg-muted/20 rounded-lg">
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
@@ -970,44 +1029,11 @@ export function SensorHistoricalReadings({
             </Button>
           </div>
 
-          {/* Tabs for different reading types */}
-          <Tabs
-            defaultValue="battery"
-            onValueChange={value => setActiveTab(value as 'battery' | 'temperature' | 'vibration')}
-          >
-            <TabsList className="grid grid-cols-3 mb-4">
-              <TabsTrigger value="battery" className="flex items-center gap-1">
-                <Battery className="h-4 w-4" />
-                <span>Battery</span>
-              </TabsTrigger>
-              <TabsTrigger value="temperature" className="flex items-center gap-1">
-                <Thermometer className="h-4 w-4" />
-                <span>Temperature</span>
-              </TabsTrigger>
-              <TabsTrigger value="vibration" className="flex items-center gap-1">
-                <Waves className="h-4 w-4" />
-                <span>Vibration</span>
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="battery" className="mt-0">
-              {renderBatteryHistory()}
-            </TabsContent>
-
-            <TabsContent value="temperature" className="mt-0">
-              {renderTemperatureHistory()}
-            </TabsContent>
-
-            <TabsContent value="vibration" className="mt-0">
-              {renderVibrationHistory()}
-            </TabsContent>
-          </Tabs>
+          <div className="text-sm text-muted-foreground mt-2 text-center">
+            Showing readings from {formatReadingDate(dateRange.start)} to{' '}
+            {formatReadingDate(dateRange.end)}
+          </div>
         </div>
-      </CardContent>
-
-      <CardFooter className="text-sm text-muted-foreground">
-        Showing historical readings from {formatReadingDate(dateRange.start)} to{' '}
-        {formatReadingDate(dateRange.end)}
       </CardFooter>
     </Card>
   );
