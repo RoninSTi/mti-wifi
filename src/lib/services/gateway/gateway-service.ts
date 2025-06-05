@@ -970,12 +970,9 @@ export class GatewayService {
       // Process any queued messages
       this.processMessageQueue(gatewayId);
 
-      // After authentication and subscription, get sensor list with GET_DYN
-      // Use the proper method from our service
-      console.log('Authentication successful - sending initial GET_DYN to get sensor status');
-      setTimeout(() => {
-        this.getConnectedSensors(gatewayId);
-      }, 300);
+      // We no longer automatically call GET_DYN after authentication
+      // This will be handled explicitly by the components when needed
+      console.log('Authentication successful');
     } else {
       // Authentication failed
       const authError: GatewayConnectionError = {

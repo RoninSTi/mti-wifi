@@ -1,7 +1,7 @@
 'use client';
 
 import { useGatewayConnection } from '@/lib/services/gateway/use-gateway-connection';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -17,10 +17,16 @@ import { toast } from 'sonner';
 import { SensorHistoricalReadings } from './SensorHistoricalReadings';
 import { formatDate } from '@/lib/utils';
 
-interface SensorReadingsPanelProps {
-  gatewayId: string;
-  sensorSerial: number;
-}
+import { z } from 'zod';
+
+// Zod schema for props validation
+const sensorReadingsPanelPropsSchema = z.object({
+  gatewayId: z.string(),
+  sensorSerial: z.number().int(),
+});
+
+// Type inference from Zod schema
+type SensorReadingsPanelProps = z.infer<typeof sensorReadingsPanelPropsSchema>;
 
 export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsPanelProps) {
   // Use the gateway connection hook to get state and methods
@@ -112,20 +118,19 @@ export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsP
     serialString,
   ]);
 
-  // Request connected sensors once when component mounts
-  useEffect(() => {
-    // Only run once on mount, if authenticated
-    if (isAuthenticated) {
-      // Use setTimeout to slightly delay the call to avoid a potential race condition
-      const timer = setTimeout(() => {
-        fetchConnectedSensors();
-        console.log('Fetching initial connected sensors');
-      }, 100);
+  // Use a ref to ensure we only fetch connected sensors once per component instance
+  const sensorsInitiallyFetched = useRef(false);
 
-      return () => clearTimeout(timer);
+  // Request connected sensors once when component mounts and authenticated
+  useEffect(() => {
+    // Only fetch if authenticated and not already fetched
+    if (isAuthenticated && !sensorsInitiallyFetched.current) {
+      sensorsInitiallyFetched.current = true;
+      console.log('Fetching initial connected sensors');
+      // We won't use a timer to avoid race conditions, since we're using a ref now
+      fetchConnectedSensors();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuthenticated, fetchConnectedSensors]);
 
   // Handler for requesting connected sensors
   const handleCheckConnection = async () => {

@@ -76,17 +76,48 @@ export function SensorHistoricalReadings({
   const [activeTab, setActiveTab] = useState<'battery' | 'temperature' | 'vibration'>('vibration');
   const [selectedVibrationReading, setSelectedVibrationReading] =
     useState<DetailedVibrationReading | null>(null);
-  const [selectedAxis, setSelectedAxis] = useState<'x' | 'y' | 'z'>('x');
+  const [axisVisibility, setAxisVisibility] = useState({
+    x: true,
+    y: true,
+    z: true,
+  });
   const [isLoading, setIsLoading] = useState({
     battery: false,
     temperature: false,
     vibration: false,
   });
 
-  // State for processed waveforms
-  const [currentWaveform, setCurrentWaveform] = useState<VibrationWaveform | null>(null);
-  const [processedWaveform, setProcessedWaveform] = useState<VibrationWaveform | null>(null);
-  const [fftResult, setFFTResult] = useState<FFTResult | null>(null);
+  // State for processed waveforms - tracking all axes
+  const [currentWaveforms, setCurrentWaveforms] = useState<{
+    x: VibrationWaveform | null;
+    y: VibrationWaveform | null;
+    z: VibrationWaveform | null;
+  }>({
+    x: null,
+    y: null,
+    z: null,
+  });
+
+  const [processedWaveforms, setProcessedWaveforms] = useState<{
+    x: VibrationWaveform | null;
+    y: VibrationWaveform | null;
+    z: VibrationWaveform | null;
+  }>({
+    x: null,
+    y: null,
+    z: null,
+  });
+
+  const [fftResults, setFFTResults] = useState<{
+    x: FFTResult | null;
+    y: FFTResult | null;
+    z: FFTResult | null;
+  }>({
+    x: null,
+    y: null,
+    z: null,
+  });
+
   const [waveformType, setWaveformType] = useState<'acceleration' | 'velocity' | 'displacement'>(
     'acceleration'
   );
@@ -181,9 +212,14 @@ export function SensorHistoricalReadings({
   // Load data on initial load (only once)
   const [initialLoadCompleted, setInitialLoadCompleted] = useState(false);
 
+  // We'll use a ref to ensure we only load data once per component instance
+  const initialLoadAttempted = useRef(false);
+
   useEffect(() => {
-    // Only run this effect once when initialLoad is true and not yet completed
-    if (initialLoad && !initialLoadCompleted && isAuthenticated) {
+    // Only run this effect once when initialLoad is true and not yet completed and not attempted
+    if (initialLoad && !initialLoadCompleted && isAuthenticated && !initialLoadAttempted.current) {
+      // Mark that we've attempted the initial load
+      initialLoadAttempted.current = true;
       console.log('Initial data load triggered');
 
       (async () => {
@@ -541,89 +577,95 @@ export function SensorHistoricalReadings({
     return `${readingId}-${axis}`;
   }, []);
 
-  // Processing functions for vibration data
-  const updateCurrentWaveform = useCallback(() => {
+  // Processing functions for vibration data - now handling all axes
+  const updateCurrentWaveforms = useCallback(() => {
     if (!selectedVibrationReading) {
-      setCurrentWaveform(null);
-      setProcessedWaveform(null);
-      setFFTResult(null);
+      setCurrentWaveforms({ x: null, y: null, z: null });
+      setProcessedWaveforms({ x: null, y: null, z: null });
+      setFFTResults({ x: null, y: null, z: null });
       return;
     }
-
-    const axisData =
-      selectedAxis === 'x'
-        ? selectedVibrationReading.X
-        : selectedAxis === 'y'
-          ? selectedVibrationReading.Y
-          : selectedVibrationReading.Z;
 
     // Assume 1kHz sample rate (typical for vibration sensors)
     const sampleRate = 1000;
 
-    // Create the base acceleration waveform
-    const waveform = vibrationArrayToWaveform(
-      axisData,
-      sampleRate,
-      selectedAxis.toUpperCase() as 'X' | 'Y' | 'Z'
-    );
+    // Create the base acceleration waveforms for all axes
+    const xWaveform = vibrationArrayToWaveform(selectedVibrationReading.X, sampleRate, 'X');
 
-    setCurrentWaveform(waveform);
+    const yWaveform = vibrationArrayToWaveform(selectedVibrationReading.Y, sampleRate, 'Y');
+
+    const zWaveform = vibrationArrayToWaveform(selectedVibrationReading.Z, sampleRate, 'Z');
+
+    setCurrentWaveforms({
+      x: xWaveform,
+      y: yWaveform,
+      z: zWaveform,
+    });
 
     // Clear any processed waveform data for the new selection
-    setProcessedWaveform(null);
-    setFFTResult(null);
+    setProcessedWaveforms({ x: null, y: null, z: null });
+    setFFTResults({ x: null, y: null, z: null });
     setWaveformType('acceleration');
     setChartMode('waveform');
 
-    // Check if we have cached processed data for this waveform
-    const cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, selectedAxis);
-
-    // Clear FFT result if exists for consistency
-    if (waveformCache.current.fftResults.has(cacheKey)) {
-      // We don't set it immediately to avoid extra renders
-      console.log(`Found cached FFT result for ${cacheKey}`);
-    }
-  }, [selectedVibrationReading, selectedAxis, getWaveformCacheKey]);
+    // Check if we have cached processed data for any of these waveforms
+    const axes: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];
+    axes.forEach(axis => {
+      const cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, axis);
+      if (waveformCache.current.fftResults.has(cacheKey)) {
+        console.log(`Found cached FFT result for ${cacheKey}`);
+      }
+    });
+  }, [selectedVibrationReading, getWaveformCacheKey]);
 
   const handleIntegration = useCallback(() => {
-    const waveformToProcess = processedWaveform || currentWaveform;
-    if (!waveformToProcess || !selectedVibrationReading) return;
+    if (!selectedVibrationReading) return;
 
-    const cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, selectedAxis);
-    let integrated: VibrationWaveform;
+    const axes: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];
+    const newProcessedWaveforms = { ...processedWaveforms };
 
     try {
-      // Check if we're integrating from acceleration to velocity
-      if (waveformType === 'acceleration') {
-        // Check if we have this velocity waveform cached
-        if (waveformCache.current.velocityWaveforms.has(cacheKey)) {
-          console.log('Using cached velocity waveform');
-          integrated = waveformCache.current.velocityWaveforms.get(cacheKey)!;
-        } else {
-          // Calculate and cache it
-          console.log('Calculating velocity waveform');
-          integrated = integrateWaveform(waveformToProcess);
-          waveformCache.current.velocityWaveforms.set(cacheKey, integrated);
-        }
-      }
-      // Check if we're integrating from velocity to displacement
-      else if (waveformType === 'velocity') {
-        // Check if we have this displacement waveform cached
-        if (waveformCache.current.displacementWaveforms.has(cacheKey)) {
-          console.log('Using cached displacement waveform');
-          integrated = waveformCache.current.displacementWaveforms.get(cacheKey)!;
-        } else {
-          // Calculate and cache it
-          console.log('Calculating displacement waveform');
-          integrated = integrateWaveform(waveformToProcess);
-          waveformCache.current.displacementWaveforms.set(cacheKey, integrated);
-        }
-      } else {
-        // Shouldn't happen but handle it anyway
-        throw new Error("Can't integrate from displacement");
-      }
+      axes.forEach(axis => {
+        const waveformToProcess = processedWaveforms[axis] || currentWaveforms[axis];
+        if (!waveformToProcess) return;
 
-      setProcessedWaveform(integrated);
+        const cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, axis);
+        let integrated: VibrationWaveform;
+
+        // Check if we're integrating from acceleration to velocity
+        if (waveformType === 'acceleration') {
+          // Check if we have this velocity waveform cached
+          if (waveformCache.current.velocityWaveforms.has(cacheKey)) {
+            console.log(`Using cached velocity waveform for ${axis}-axis`);
+            integrated = waveformCache.current.velocityWaveforms.get(cacheKey)!;
+          } else {
+            // Calculate and cache it
+            console.log(`Calculating velocity waveform for ${axis}-axis`);
+            integrated = integrateWaveform(waveformToProcess);
+            waveformCache.current.velocityWaveforms.set(cacheKey, integrated);
+          }
+        }
+        // Check if we're integrating from velocity to displacement
+        else if (waveformType === 'velocity') {
+          // Check if we have this displacement waveform cached
+          if (waveformCache.current.displacementWaveforms.has(cacheKey)) {
+            console.log(`Using cached displacement waveform for ${axis}-axis`);
+            integrated = waveformCache.current.displacementWaveforms.get(cacheKey)!;
+          } else {
+            // Calculate and cache it
+            console.log(`Calculating displacement waveform for ${axis}-axis`);
+            integrated = integrateWaveform(waveformToProcess);
+            waveformCache.current.displacementWaveforms.set(cacheKey, integrated);
+          }
+        } else {
+          // Shouldn't happen but handle it anyway
+          throw new Error("Can't integrate from displacement");
+        }
+
+        newProcessedWaveforms[axis] = integrated;
+      });
+
+      setProcessedWaveforms(newProcessedWaveforms);
 
       // Update waveform type
       setWaveformType(prev => {
@@ -641,28 +683,32 @@ export function SensorHistoricalReadings({
       );
     }
   }, [
-    currentWaveform,
-    processedWaveform,
+    currentWaveforms,
+    processedWaveforms,
     waveformType,
     selectedVibrationReading,
-    selectedAxis,
     getWaveformCacheKey,
   ]);
 
   const handleDifferentiation = useCallback(() => {
-    const waveformToProcess = processedWaveform || currentWaveform;
-    if (!waveformToProcess || !selectedVibrationReading) return;
+    if (!selectedVibrationReading) return;
 
-    // Unused but kept for consistency with other handlers
-    const _cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, selectedAxis);
+    const axes: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];
+    const newProcessedWaveforms = { ...processedWaveforms };
 
     try {
-      // We don't cache differentiation results separately since they're essentially
-      // the original acceleration data when going from velocity -> acceleration
-      // This keeps the cache simpler
-      console.log('Calculating differentiated waveform');
-      const differentiated = differentiateWaveform(waveformToProcess);
-      setProcessedWaveform(differentiated);
+      axes.forEach(axis => {
+        const waveformToProcess = processedWaveforms[axis] || currentWaveforms[axis];
+        if (!waveformToProcess) return;
+
+        // We don't cache differentiation results separately since they're essentially
+        // the original acceleration data when going from velocity -> acceleration
+        console.log(`Calculating differentiated waveform for ${axis}-axis`);
+        const differentiated = differentiateWaveform(waveformToProcess);
+        newProcessedWaveforms[axis] = differentiated;
+      });
+
+      setProcessedWaveforms(newProcessedWaveforms);
 
       // Update waveform type
       setWaveformType(prev => {
@@ -679,76 +725,99 @@ export function SensorHistoricalReadings({
         `Differentiation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
-  }, [
-    currentWaveform,
-    processedWaveform,
-    waveformType,
-    selectedVibrationReading,
-    selectedAxis,
-    getWaveformCacheKey,
-  ]);
+  }, [currentWaveforms, processedWaveforms, waveformType, selectedVibrationReading]);
 
   const handleFFT = useCallback(async () => {
-    const waveformToAnalyze = processedWaveform || currentWaveform;
-    if (!waveformToAnalyze || !selectedVibrationReading) return;
+    if (!selectedVibrationReading) return;
 
-    const cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, selectedAxis);
+    // Check if we already have FFT results for all visible axes
+    const needsCalculation = ['x', 'y', 'z'].some(axis => {
+      // Only calculate for visible axes that have waveform data but no FFT result
+      return (
+        axisVisibility[axis as 'x' | 'y' | 'z'] &&
+        (processedWaveforms[axis as 'x' | 'y' | 'z'] ||
+          currentWaveforms[axis as 'x' | 'y' | 'z']) &&
+        !fftResults[axis as 'x' | 'y' | 'z']
+      );
+    });
+
+    // If we don't need to calculate anything, just switch to FFT mode
+    if (!needsCalculation) {
+      setChartMode('fft');
+      return;
+    }
+
+    const axes: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];
+    const newFFTResults = { ...fftResults };
+
+    // Only show loading toast if we actually need to calculate
+    const toastId = toast.loading('Calculating FFT...');
+    let calculatedAny = false;
 
     try {
-      // Check if we have cached FFT results
-      if (waveformCache.current.fftResults.has(cacheKey)) {
-        console.log('Using cached FFT result');
-        const fft = waveformCache.current.fftResults.get(cacheKey)!;
-        setFFTResult(fft);
-        setChartMode('fft');
-        toast.success('FFT analysis loaded');
-      } else {
-        console.log('Calculating new FFT result');
-        // Show loading toast for better UX during calculation
-        const toastId = toast.loading('Calculating FFT...');
+      const fftPromises = axes.map(async axis => {
+        // Skip if not visible or if we already have results
+        if (!axisVisibility[axis] || fftResults[axis]) return;
 
-        const fft = await performFFT(waveformToAnalyze);
+        const waveformToAnalyze = processedWaveforms[axis] || currentWaveforms[axis];
+        if (!waveformToAnalyze) return;
 
-        // Cache the result
-        waveformCache.current.fftResults.set(cacheKey, fft);
+        const cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, axis);
 
-        // Update state and dismiss the loading toast
-        setFFTResult(fft);
-        setChartMode('fft');
-        toast.dismiss(toastId);
+        // Check if we have cached FFT results
+        if (waveformCache.current.fftResults.has(cacheKey)) {
+          console.log(`Using cached FFT result for ${axis}-axis`);
+          newFFTResults[axis] = waveformCache.current.fftResults.get(cacheKey)!;
+          calculatedAny = true;
+        } else {
+          console.log(`Calculating new FFT result for ${axis}-axis`);
+          const fft = await performFFT(waveformToAnalyze);
+
+          // Cache the result
+          waveformCache.current.fftResults.set(cacheKey, fft);
+          newFFTResults[axis] = fft;
+          calculatedAny = true;
+        }
+      });
+
+      await Promise.all(fftPromises);
+
+      // Update state
+      setFFTResults(newFFTResults);
+      setChartMode('fft');
+
+      // Dismiss the loading toast
+      toast.dismiss(toastId);
+
+      // Only show success if we actually calculated something
+      if (calculatedAny) {
         toast.success('FFT analysis completed');
       }
     } catch (error) {
+      // Make sure toast is dismissed in case of error
+      toast.dismiss(toastId);
       toast.error(`FFT failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }, [
-    currentWaveform,
-    processedWaveform,
+    currentWaveforms,
+    processedWaveforms,
     selectedVibrationReading,
-    selectedAxis,
+    fftResults,
     getWaveformCacheKey,
+    axisVisibility,
+    setChartMode,
   ]);
-
-  const resetProcessing = useCallback(() => {
-    setProcessedWaveform(null);
-    setFFTResult(null);
-    setWaveformType('acceleration');
-    setChartMode('waveform');
-
-    // Note: We don't clear the cache here because the cached data might be used again
-    // if the user performs the same operations on the same data
-  }, []);
 
   // Update waveform when selection changes
   useEffect(() => {
-    updateCurrentWaveform();
+    updateCurrentWaveforms();
 
     // We need to clear the processed waveform and FFT result when changing selection
-    setProcessedWaveform(null);
-    setFFTResult(null);
+    setProcessedWaveforms({ x: null, y: null, z: null });
+    setFFTResults({ x: null, y: null, z: null });
     setWaveformType('acceleration');
     setChartMode('waveform');
-  }, [updateCurrentWaveform, selectedVibrationReading?.ID, selectedAxis]);
+  }, [updateCurrentWaveforms, selectedVibrationReading?.ID]);
 
   // Render the vibration history table
   const renderVibrationHistory = () => {
@@ -784,26 +853,26 @@ export function SensorHistoricalReadings({
             </div>
 
             <div>
-              <label className="text-sm font-medium">Select Axis:</label>
+              <label className="text-sm font-medium">Show/Hide Axes:</label>
               <div className="flex space-x-2 mt-1">
                 <Button
-                  variant={selectedAxis === 'x' ? 'default' : 'outline'}
+                  variant={axisVisibility.x ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setSelectedAxis('x')}
+                  onClick={() => setAxisVisibility(prev => ({ ...prev, x: !prev.x }))}
                 >
                   X-Axis
                 </Button>
                 <Button
-                  variant={selectedAxis === 'y' ? 'default' : 'outline'}
+                  variant={axisVisibility.y ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setSelectedAxis('y')}
+                  onClick={() => setAxisVisibility(prev => ({ ...prev, y: !prev.y }))}
                 >
                   Y-Axis
                 </Button>
                 <Button
-                  variant={selectedAxis === 'z' ? 'default' : 'outline'}
+                  variant={axisVisibility.z ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setSelectedAxis('z')}
+                  onClick={() => setAxisVisibility(prev => ({ ...prev, z: !prev.z }))}
                 >
                   Z-Axis
                 </Button>
@@ -825,7 +894,7 @@ export function SensorHistoricalReadings({
                       <div className="font-medium flex items-center gap-1">
                         <Waves className="h-4 w-4" />
                         <span>
-                          {selectedAxis.toUpperCase()}-Axis{' '}
+                          Vibration{' '}
                           {waveformType === 'acceleration'
                             ? 'Acceleration'
                             : waveformType === 'velocity'
@@ -841,7 +910,10 @@ export function SensorHistoricalReadings({
                           variant="outline"
                           size="sm"
                           onClick={handleIntegration}
-                          disabled={!currentWaveform || waveformType === 'displacement'}
+                          disabled={
+                            (!currentWaveforms.x && !currentWaveforms.y && !currentWaveforms.z) ||
+                            waveformType === 'displacement'
+                          }
                           className="flex items-center gap-1"
                         >
                           <Sigma className="h-3 w-3" />∫ Integrate
@@ -851,31 +923,14 @@ export function SensorHistoricalReadings({
                           variant="outline"
                           size="sm"
                           onClick={handleDifferentiation}
-                          disabled={!currentWaveform || waveformType === 'acceleration'}
+                          disabled={
+                            (!currentWaveforms.x && !currentWaveforms.y && !currentWaveforms.z) ||
+                            waveformType === 'acceleration'
+                          }
                           className="flex items-center gap-1"
                         >
                           <TrendingUp className="h-3 w-3" />
                           d/dt Differentiate
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleFFT}
-                          disabled={!currentWaveform}
-                          className="flex items-center gap-1"
-                        >
-                          <Zap className="h-3 w-3" />
-                          FFT
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={resetProcessing}
-                          disabled={!processedWaveform && !fftResult}
-                        >
-                          Reset
                         </Button>
                       </div>
                     </div>
@@ -886,16 +941,28 @@ export function SensorHistoricalReadings({
                         variant={chartMode === 'waveform' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setChartMode('waveform')}
-                        disabled={!currentWaveform}
+                        disabled={!currentWaveforms.x && !currentWaveforms.y && !currentWaveforms.z}
                       >
                         Waveform
                       </Button>
                       <Button
                         variant={chartMode === 'fft' ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() => setChartMode('fft')}
-                        disabled={!fftResult}
+                        onClick={async () => {
+                          // Check if we have any FFT results first
+                          const hasAnyFFTResults = fftResults.x || fftResults.y || fftResults.z;
+
+                          if (hasAnyFFTResults) {
+                            // If we already have FFT results, just switch modes
+                            setChartMode('fft');
+                          } else {
+                            // Otherwise calculate FFT first, then the handler will switch modes
+                            await handleFFT();
+                          }
+                        }}
+                        className="flex items-center gap-1"
                       >
+                        <Zap className="h-4 w-4 mr-1" />
                         FFT Spectrum
                       </Button>
                     </div>
@@ -905,15 +972,54 @@ export function SensorHistoricalReadings({
                         {chartMode === 'waveform' ? (
                           <LineChart
                             data={(() => {
-                              const waveform = processedWaveform || currentWaveform;
-                              if (!waveform)
-                                return getChartData(selectedVibrationReading, selectedAxis);
+                              // Create a unified dataset with samples from all axes
+                              // Get the max number of samples across all axes
+                              const maxSampleCount = Math.max(
+                                currentWaveforms.x?.data.length || 0,
+                                currentWaveforms.y?.data.length || 0,
+                                currentWaveforms.z?.data.length || 0,
+                                processedWaveforms.x?.data.length || 0,
+                                processedWaveforms.y?.data.length || 0,
+                                processedWaveforms.z?.data.length || 0
+                              );
 
-                              return waveform.data.map((point, index) => ({
-                                index,
-                                value: point.value,
-                                time: point.time,
-                              }));
+                              // Generate an array with indices up to the max sample count
+                              return Array.from({ length: maxSampleCount }, (_, index) => {
+                                // For each index, grab values from each axis if available
+                                const result: { index: number } & Record<string, number> = {
+                                  index,
+                                };
+
+                                const xWaveform = processedWaveforms.x || currentWaveforms.x;
+                                const yWaveform = processedWaveforms.y || currentWaveforms.y;
+                                const zWaveform = processedWaveforms.z || currentWaveforms.z;
+
+                                if (
+                                  axisVisibility.x &&
+                                  xWaveform &&
+                                  index < xWaveform.data.length
+                                ) {
+                                  result.xValue = xWaveform.data[index].value;
+                                }
+
+                                if (
+                                  axisVisibility.y &&
+                                  yWaveform &&
+                                  index < yWaveform.data.length
+                                ) {
+                                  result.yValue = yWaveform.data[index].value;
+                                }
+
+                                if (
+                                  axisVisibility.z &&
+                                  zWaveform &&
+                                  index < zWaveform.data.length
+                                ) {
+                                  result.zValue = zWaveform.data[index].value;
+                                }
+
+                                return result;
+                              });
                             })()}
                             margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
                           >
@@ -935,41 +1041,102 @@ export function SensorHistoricalReadings({
                               }}
                             />
                             <Tooltip
-                              formatter={(value: number) => [
-                                value.toFixed(6),
-                                waveformType === 'acceleration'
-                                  ? 'Acceleration (g)'
-                                  : waveformType === 'velocity'
-                                    ? 'Velocity (m/s)'
-                                    : 'Displacement (m)',
-                              ]}
+                              formatter={(value: number, name: string) => {
+                                const axis =
+                                  name === 'xValue' ? 'X' : name === 'yValue' ? 'Y' : 'Z';
+                                return [
+                                  value.toFixed(6),
+                                  `${axis}-Axis ${
+                                    waveformType === 'acceleration'
+                                      ? 'Acceleration (g)'
+                                      : waveformType === 'velocity'
+                                        ? 'Velocity (m/s)'
+                                        : 'Displacement (m)'
+                                  }`,
+                                ];
+                              }}
                             />
                             <Legend />
-                            <Line
-                              type="monotone"
-                              dataKey="value"
-                              name={`${selectedAxis.toUpperCase()}-Axis ${waveformType}`}
-                              stroke={
-                                selectedAxis === 'x'
-                                  ? '#8884d8'
-                                  : selectedAxis === 'y'
-                                    ? '#82ca9d'
-                                    : '#ffc658'
-                              }
-                              activeDot={{ r: 4 }}
-                              strokeWidth={1}
-                            />
+                            {axisVisibility.x && (currentWaveforms.x || processedWaveforms.x) && (
+                              <Line
+                                type="monotone"
+                                dataKey="xValue"
+                                name={`X-Axis ${waveformType}`}
+                                stroke="#8884d8"
+                                activeDot={{ r: 4 }}
+                                strokeWidth={1}
+                              />
+                            )}
+                            {axisVisibility.y && (currentWaveforms.y || processedWaveforms.y) && (
+                              <Line
+                                type="monotone"
+                                dataKey="yValue"
+                                name={`Y-Axis ${waveformType}`}
+                                stroke="#82ca9d"
+                                activeDot={{ r: 4 }}
+                                strokeWidth={1}
+                              />
+                            )}
+                            {axisVisibility.z && (currentWaveforms.z || processedWaveforms.z) && (
+                              <Line
+                                type="monotone"
+                                dataKey="zValue"
+                                name={`Z-Axis ${waveformType}`}
+                                stroke="#ffc658"
+                                activeDot={{ r: 4 }}
+                                strokeWidth={1}
+                              />
+                            )}
                           </LineChart>
                         ) : (
                           <LineChart
-                            data={
-                              fftResult
-                                ? fftResult.frequencies.map((freq, index) => ({
-                                    frequency: freq,
-                                    magnitude: fftResult.magnitudes[index],
-                                  }))
-                                : []
-                            }
+                            data={(() => {
+                              // Find the maximum number of frequency points across all FFT results
+                              const maxFreqPoints = Math.max(
+                                fftResults.x?.frequencies.length || 0,
+                                fftResults.y?.frequencies.length || 0,
+                                fftResults.z?.frequencies.length || 0
+                              );
+
+                              // Create a unified dataset with frequencies and magnitudes for all axes
+                              return Array.from({ length: maxFreqPoints }, (_, index) => {
+                                const result: { frequency: number } & Record<string, number> = {
+                                  // Use the first available FFT result to get the frequency
+                                  frequency:
+                                    fftResults.x?.frequencies[index] ||
+                                    fftResults.y?.frequencies[index] ||
+                                    fftResults.z?.frequencies[index] ||
+                                    index,
+                                };
+
+                                // Add magnitudes for each axis if available and visible
+                                if (
+                                  axisVisibility.x &&
+                                  fftResults.x &&
+                                  index < fftResults.x.magnitudes.length
+                                ) {
+                                  result.xMagnitude = fftResults.x.magnitudes[index];
+                                }
+
+                                if (
+                                  axisVisibility.y &&
+                                  fftResults.y &&
+                                  index < fftResults.y.magnitudes.length
+                                ) {
+                                  result.yMagnitude = fftResults.y.magnitudes[index];
+                                }
+
+                                if (
+                                  axisVisibility.z &&
+                                  fftResults.z &&
+                                  index < fftResults.z.magnitudes.length
+                                ) {
+                                  result.zMagnitude = fftResults.z.magnitudes[index];
+                                }
+
+                                return result;
+                              });
+                            })()}
                             margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
                           >
                             <CartesianGrid strokeDasharray="3 3" />
@@ -989,17 +1156,43 @@ export function SensorHistoricalReadings({
                               }}
                             />
                             <Tooltip
-                              formatter={(value: number) => [value.toFixed(6), 'Magnitude']}
+                              formatter={(value: number, name: string) => {
+                                const axis =
+                                  name === 'xMagnitude' ? 'X' : name === 'yMagnitude' ? 'Y' : 'Z';
+                                return [value.toFixed(6), `${axis}-Axis Magnitude`];
+                              }}
                             />
                             <Legend />
-                            <Line
-                              type="monotone"
-                              dataKey="magnitude"
-                              name="FFT Magnitude"
-                              stroke="#ff7300"
-                              activeDot={{ r: 4 }}
-                              strokeWidth={1}
-                            />
+                            {axisVisibility.x && fftResults.x && (
+                              <Line
+                                type="monotone"
+                                dataKey="xMagnitude"
+                                name="X-Axis FFT"
+                                stroke="#8884d8"
+                                activeDot={{ r: 4 }}
+                                strokeWidth={1}
+                              />
+                            )}
+                            {axisVisibility.y && fftResults.y && (
+                              <Line
+                                type="monotone"
+                                dataKey="yMagnitude"
+                                name="Y-Axis FFT"
+                                stroke="#82ca9d"
+                                activeDot={{ r: 4 }}
+                                strokeWidth={1}
+                              />
+                            )}
+                            {axisVisibility.z && fftResults.z && (
+                              <Line
+                                type="monotone"
+                                dataKey="zMagnitude"
+                                name="Z-Axis FFT"
+                                stroke="#ffc658"
+                                activeDot={{ r: 4 }}
+                                strokeWidth={1}
+                              />
+                            )}
                           </LineChart>
                         )}
                       </ResponsiveContainer>

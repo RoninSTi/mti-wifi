@@ -79,16 +79,8 @@ export function SensorRealTimeReadings({ gatewayId, sensorSerial }: SensorRealTi
       .filter(r => r.Serial === serialString)
       .sort((a, b) => b.ID - a.ID)[0] || undefined;
 
-  // Request connected sensors when component mounts and whenever authenticated status changes
-  useEffect(() => {
-    if (isAuthenticated) {
-      const timer = setTimeout(() => {
-        fetchConnectedSensors();
-      }, 100);
-
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, fetchConnectedSensors]);
+  // No longer automatically fetching connected sensors on mount
+  // This is now handled by the parent SensorReadingsPanel component
 
   // Handler for manually requesting connected sensors
   const handleCheckConnection = async () => {

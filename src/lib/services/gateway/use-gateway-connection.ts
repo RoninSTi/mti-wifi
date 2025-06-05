@@ -128,18 +128,7 @@ export function useGatewayConnection(gatewayId?: string) {
    */
   const getVibrationData = () => {
     if (!gatewayId) return {};
-    const readings = getVibrationReadings(gatewayId);
-    const readingsCount = Object.keys(readings).length;
-
-    if (readingsCount > 0) {
-      console.log(`Vibration readings for gateway ${gatewayId}:`, {
-        readingsCount,
-        timestamp: new Date().toISOString(),
-        readingSerials: Object.values(readings).map(r => r.Serial),
-      });
-    }
-
-    return readings;
+    return getVibrationReadings(gatewayId);
   };
 
   /**
@@ -147,18 +136,7 @@ export function useGatewayConnection(gatewayId?: string) {
    */
   const getDetailedVibrationData = () => {
     if (!gatewayId) return {};
-    const readings = getDetailedVibrationReadings(gatewayId);
-    const readingsCount = Object.keys(readings).length;
-
-    if (readingsCount > 0) {
-      console.log(`Detailed vibration readings for gateway ${gatewayId}:`, {
-        readingsCount,
-        timestamp: new Date().toISOString(),
-        readingSerials: Object.values(readings).map(r => r.Serial),
-      });
-    }
-
-    return readings;
+    return getDetailedVibrationReadings(gatewayId);
   };
 
   /**
@@ -166,18 +144,7 @@ export function useGatewayConnection(gatewayId?: string) {
    */
   const getTemperatureData = () => {
     if (!gatewayId) return {};
-    const readings = getTemperatureReadings(gatewayId);
-    const readingsCount = Object.keys(readings).length;
-
-    if (readingsCount > 0) {
-      console.log(`Temperature readings for gateway ${gatewayId}:`, {
-        readingsCount,
-        timestamp: new Date().toISOString(),
-        readingSerials: Object.values(readings).map(r => r.Serial),
-      });
-    }
-
-    return readings;
+    return getTemperatureReadings(gatewayId);
   };
 
   /**
@@ -187,15 +154,7 @@ export function useGatewayConnection(gatewayId?: string) {
     if (!gatewayId) return {};
     // Get fresh data from the context each time
     const readings = getBatteryReadings(gatewayId);
-    const readingsCount = Object.keys(readings).length;
-
-    console.log(`Battery readings for gateway ${gatewayId}:`, {
-      readingsCount,
-      timestamp: new Date().toISOString(),
-      readingSerials: readingsCount > 0 ? Object.values(readings).map(r => r.Serial) : [],
-      readings: readings,
-    });
-
+    // Remove excessive logging that causes re-renders
     return readings;
   };
 

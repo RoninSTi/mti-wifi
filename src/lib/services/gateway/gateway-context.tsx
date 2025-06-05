@@ -360,30 +360,12 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
             if (connNotification.success) {
               const { Serial, Connected } = connNotification.data.Data;
 
-              // If a sensor just connected, automatically request temperature and battery readings
+              // Simply log the sensor connection status without automatically requesting readings
               if (Connected) {
-                console.log(
-                  `Sensor ${Serial} connected to gateway ${data.gatewayId}. Requesting initial readings.`
-                );
-
-                // Create a small delay to ensure connection is fully established before requesting readings
-                setTimeout(() => {
-                  const service = gatewayService.current;
-
-                  // Request temperature reading first
-                  const tempResult = service.takeDynamicTemperature(data.gatewayId, Serial);
-                  console.log(
-                    `Automatic temperature reading request for sensor ${Serial}: ${tempResult ? 'sent' : 'failed'}`
-                  );
-
-                  // Then request battery reading after a small delay
-                  setTimeout(() => {
-                    const battResult = service.takeDynamicBattery(data.gatewayId, Serial);
-                    console.log(
-                      `Automatic battery reading request for sensor ${Serial}: ${battResult ? 'sent' : 'failed'}`
-                    );
-                  }, 500);
-                }, 500);
+                console.log(`Sensor ${Serial} connected to gateway ${data.gatewayId}.`);
+                // Readings will be requested explicitly by the components when needed
+              } else {
+                console.log(`Sensor ${Serial} disconnected from gateway ${data.gatewayId}.`);
               }
             }
           } catch (error) {
