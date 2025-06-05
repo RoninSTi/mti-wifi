@@ -8,7 +8,7 @@
  */
 
 module.exports = {
-  async up(db, client) {
+  async up(db, _client) {
     console.log('Starting sensor-gateway association migration...');
 
     // Get all sensors that don't have a gateway associated
@@ -70,7 +70,7 @@ module.exports = {
     console.log(`Migration completed. Updated ${updatedCount} sensors with gateway associations.`);
   },
 
-  async down(db, client) {
+  async down(db, _client) {
     console.log('Rolling back sensor-gateway associations...');
 
     // Remove all gateway associations from sensors

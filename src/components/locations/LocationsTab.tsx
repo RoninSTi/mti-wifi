@@ -7,7 +7,7 @@ import { CreateLocationDialog } from './CreateLocationDialog';
 import { LocationDetails } from './LocationDetails';
 import { EditLocationDialog } from './EditLocationDialog';
 import { useLocations, useDeleteLocation, useLocation } from '@/hooks';
-import { Search, X, MapPin, Plus, Loader2 } from 'lucide-react';
+import { Search, X, MapPin, Plus } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';

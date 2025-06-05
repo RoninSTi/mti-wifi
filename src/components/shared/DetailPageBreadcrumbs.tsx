@@ -35,7 +35,9 @@ export function DetailPageBreadcrumbs({ className }: DetailPageBreadcrumbsProps)
   const pathname = usePathname();
 
   // Extract IDs from the URL to fetch entity names
-  const pathSegments = pathname ? pathname.split('/').filter(Boolean) : [];
+  const pathSegments = useMemo(() => {
+    return pathname ? pathname.split('/').filter(Boolean) : [];
+  }, [pathname]);
 
   // Extract IDs from path segments
   const ids = useMemo(() => {
@@ -72,7 +74,6 @@ export function DetailPageBreadcrumbs({ className }: DetailPageBreadcrumbsProps)
 
     // Build the breadcrumb items based on the URL structure
     const items: BreadcrumbItem[] = [];
-    const currentPath = '';
 
     // For organizations list page, return empty (we don't need breadcrumbs)
     if (pathSegments.length === 1 && pathSegments[0] === 'organizations') {

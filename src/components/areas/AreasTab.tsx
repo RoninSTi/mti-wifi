@@ -7,7 +7,7 @@ import { AreasTable } from './AreasTable';
 import { CreateAreaDialog } from './CreateAreaDialog';
 import { EditAreaDialog } from './EditAreaDialog';
 import { useAreas, useDeleteArea, useArea } from '@/hooks';
-import { Search, X, Grid3X3, Plus, Loader2 } from 'lucide-react';
+import { Search, X, Grid3X3, Plus } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';

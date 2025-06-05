@@ -162,7 +162,7 @@ async function seedOrganizationHierarchy(db) {
   });
   const location1Id = location1Result.insertedId;
 
-  const location2Result = await locationsCollection.insertOne({
+  await locationsCollection.insertOne({
     name: 'Warehouse',
     description: 'Storage and distribution center',
     organization: orgId,
@@ -173,7 +173,6 @@ async function seedOrganizationHierarchy(db) {
     createdAt: new Date(),
     updatedAt: new Date(),
   });
-  const location2Id = location2Result.insertedId;
 
   // Create areas
   const area1Result = await areasCollection.insertOne({

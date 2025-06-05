@@ -8,7 +8,6 @@ import { useEquipment, useDeleteEquipment } from '@/hooks';
 import { toast } from 'sonner';
 import { SensorsTable } from '@/components/sensors/SensorsTable';
 import { DeleteButton } from '@/components/ui/delete-button';
-import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
 import { Skeleton } from '@/components/ui/skeleton';

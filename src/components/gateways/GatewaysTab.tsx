@@ -34,7 +34,7 @@ export function GatewaysTab({ locationId, showSearch = true }: GatewaysTabProps)
   const [gatewayToDelete, setGatewayToDelete] = useState<string | null>(null);
 
   // Fetch gateways with React Query hook
-  const { gateways, isLoading, isError, error, pagination, refetch } = useGateways({
+  const { gateways, isLoading, isError, error, pagination } = useGateways({
     page,
     limit,
     q: searchQuery || undefined,

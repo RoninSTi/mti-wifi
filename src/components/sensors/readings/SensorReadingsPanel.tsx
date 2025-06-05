@@ -404,7 +404,11 @@ export function SensorReadingsPanel({ gatewayId, sensorSerial }: SensorReadingsP
       </CardFooter>
 
       {showHistorical && (
-        <SensorHistoricalReadings gatewayId={gatewayId} sensorSerial={sensorSerial} />
+        <SensorHistoricalReadings
+          gatewayId={gatewayId}
+          sensorSerial={sensorSerial}
+          initialLoad={true}
+        />
       )}
     </Card>
   );

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Server, Plus, Search, X, Loader2 } from 'lucide-react';
+import { Server, Plus, Search, X } from 'lucide-react';
 import { useEquipmentList, useDeleteEquipment } from '@/hooks';
 import { CreateEquipmentDialog } from '../equipment/CreateEquipmentDialog';
 import { EditEquipmentDialog } from '../equipment/EditEquipmentDialog';

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createApiSpan, createDatabaseSpan, addSpanAttributes } from '@/telemetry/utils';
 import { connectToDatabase } from '@/lib/db/mongoose';
 // Import models in order of dependencies to ensure proper registration
-import Organization from '@/models/Organization';
-import Location from '@/models/Location';
-import Area from '@/models/Area';
+import _Organization from '@/models/Organization';
+import _Location from '@/models/Location';
+import _Area from '@/models/Area';
 import Equipment from '@/models/Equipment';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth/auth-options';

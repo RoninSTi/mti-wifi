@@ -2,7 +2,7 @@
  * Migration to remove the uniqueness constraint from sensor names within equipment
  */
 module.exports = {
-  async up(db, client) {
+  async up(db, _client) {
     try {
       // Get all indexes to check if our target exists
       const indexes = await db.collection('sensors').listIndexes().toArray();
@@ -22,7 +22,7 @@ module.exports = {
     await db.collection('sensors').createIndex({ name: 1, equipment: 1 }, { background: true });
   },
 
-  async down(db, client) {
+  async down(db, _client) {
     try {
       // Drop the non-unique index if it exists
       await db.collection('sensors').dropIndex('name_1_equipment_1');

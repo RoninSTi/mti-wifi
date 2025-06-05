@@ -13,6 +13,7 @@ import {
   BatteryReading,
   getDynamicSensorsRequestSchema,
   dynamicSensorsResponseSchema,
+  dynamicSensorSchema,
   dynamicReadingsResponseSchema,
   dynamicTemperaturesResponseSchema,
   dynamicBatteriesResponseSchema,
@@ -139,8 +140,34 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
   const isMounted = useRef(true);
 
   // Set up event handlers
+  // Connection check intervals for connected sensors
+  const connectionCheckIntervals = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // We'll initialize these functions later with useCallback
+  const stopConnectionChecks = useRef<(gatewayId: string) => void>(() => {});
+  const startConnectionChecks = useRef<(gatewayId: string) => void>(() => {});
+  const requestConnectedSensorsRef = useRef<(gatewayId: string) => Promise<boolean>>(
+    async () => false
+  );
+
   useEffect(() => {
     const service = gatewayService.current;
+
+    // Internal function to request connected sensors
+    const getConnectedSensors = async (gatewayId: string) => {
+      const status = service.getStatus(gatewayId);
+      if (status !== GatewayConnectionStatus.AUTHENTICATED) {
+        console.warn(
+          `Cannot request connected sensors for gateway ${gatewayId}: Not authenticated (current status: ${status})`
+        );
+        return false;
+      }
+
+      console.log(`getConnectedSensors called for gateway ${gatewayId}`);
+      const result = service.getConnectedSensors(gatewayId);
+      console.log(`getConnectedSensors result: ${result ? 'SUCCESS' : 'FAILED'}`);
+      return result;
+    };
 
     // Status change handler
     const onStatusChange = (data: { gatewayId: string; status: GatewayConnectionStatus }) => {
@@ -151,6 +178,22 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
         newConnections.set(data.gatewayId, data.status);
         return { ...prev, connections: newConnections };
       });
+
+      // Start connection checks when a gateway is authenticated
+      if (data.status === GatewayConnectionStatus.AUTHENTICATED) {
+        // Initial connection check
+        console.log(
+          `Gateway ${data.gatewayId} authenticated - requesting connected sensors immediately`
+        );
+        getConnectedSensors(data.gatewayId);
+        // Start regular connection checks
+        console.log(`Starting regular connection checks for gateway ${data.gatewayId}`);
+        startConnectionChecks.current(data.gatewayId);
+      } else if (data.status === GatewayConnectionStatus.DISCONNECTED) {
+        // Stop connection checks when disconnected
+        console.log(`Gateway ${data.gatewayId} disconnected - stopping connection checks`);
+        stopConnectionChecks.current(data.gatewayId);
+      }
     };
 
     // Error handler
@@ -171,25 +214,62 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
       // Handle different message types based on their Type property
       switch (data.message.Type) {
         case 'RTN_DYN':
-          // Use Zod for validation specifically for RTN_DYN messages
-          const result = dynamicSensorsResponseSchema.safeParse(data.message);
-          if (result.success) {
-            // Safe to use - properly typed through Zod inference
-            // Create a deep copy to ensure state change is detected
-            setState(prev => {
-              const newSensors = new Map(prev.sensors);
+          try {
+            // Use the dynamicSensorsResponseSchema from types.ts to validate the data
+            const parseResult = dynamicSensorsResponseSchema.safeParse(data.message);
 
-              console.log(`Updating sensors list for gateway ${data.gatewayId}:`, {
-                sensorCount: result.data.Data.length,
-                connectedCount: result.data.Data.filter(
-                  s => s.Connected === true || s.Connected === 1
-                ).length,
-                timestamp: new Date().toISOString(),
-              });
+            if (parseResult.success) {
+              // Extract the sensors data using the validated schema
+              let sensorsArray: DynamicSensor[] = [];
 
-              newSensors.set(data.gatewayId, [...result.data.Data]);
-              return { ...prev, sensors: newSensors };
-            });
+              if (Array.isArray(parseResult.data.Data)) {
+                // Direct array format
+                sensorsArray = parseResult.data.Data;
+              } else if (typeof parseResult.data.Data === 'object') {
+                // Object format that might contain arrays
+                const possibleArrays = Object.values(parseResult.data.Data).filter(Array.isArray);
+                if (possibleArrays.length > 0) {
+                  // Validate the array elements using the schema
+                  const arrayData = possibleArrays[0];
+                  // Parse each array item through the schema
+                  const validItems = arrayData
+                    .map(item => {
+                      const result = dynamicSensorSchema.safeParse(item);
+                      return result.success ? result.data : null;
+                    })
+                    .filter((item): item is DynamicSensor => item !== null);
+
+                  sensorsArray = validItems;
+                }
+              }
+
+              if (sensorsArray.length > 0) {
+                setState(prev => {
+                  const newSensors = new Map(prev.sensors);
+
+                  // Process the validated sensors data
+                  const sensorsWithConnectionFlag = sensorsArray
+                    .filter(sensor => sensor.Serial !== undefined)
+                    .map(sensor => ({
+                      ...sensor, // Keep all original properties
+                      Connected: true, // Always mark as connected
+                    }));
+
+                  console.log(
+                    `Connected sensors for gateway ${data.gatewayId}:`,
+                    sensorsWithConnectionFlag.map(s => s.Serial)
+                  );
+
+                  // Save to state
+                  newSensors.set(data.gatewayId, sensorsWithConnectionFlag);
+                  return { ...prev, sensors: newSensors };
+                });
+              }
+            } else {
+              console.warn('RTN_DYN message has no usable sensor data:', data.message);
+            }
+          } catch (error) {
+            console.error('Error processing RTN_DYN message:', error);
           }
           break;
 
@@ -530,6 +610,9 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
       connections: service.getConnections(),
     }));
 
+    // Store the getConnectedSensors function in requestConnectedSensorsRef
+    requestConnectedSensorsRef.current = getConnectedSensors;
+
     // Cleanup on unmount
     return () => {
       isMounted.current = false;
@@ -621,28 +704,15 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
 
   // Request connected sensors function
   const requestConnectedSensors = useCallback(async (gatewayId: string) => {
-    const service = gatewayService.current;
-    const status = service.getStatus(gatewayId);
-
-    if (status !== GatewayConnectionStatus.AUTHENTICATED) {
-      console.warn(
-        `Cannot request connected sensors for gateway ${gatewayId}: Not authenticated (current status: ${status})`
-      );
-      return false;
-    }
-
-    return service.getConnectedSensors(gatewayId);
+    return requestConnectedSensorsRef.current(gatewayId);
   }, []);
 
-  // Check if a sensor is connected
+  // Check if a sensor is connected - simply if it's in the sensors array
   const isSensorConnected = useCallback(
     (gatewayId: string, serial: number) => {
       const sensors = getSensors(gatewayId);
-      // Find the sensor with the matching serial number
-      const sensor = sensors.find(s => s.Serial === serial);
-
-      // Return true if sensor exists and Connected is true or 1
-      return !!sensor && (sensor.Connected === true || sensor.Connected === 1);
+      // Simply check if the sensor exists in the array
+      return sensors.some(s => s.Serial === serial);
     },
     [getSensors]
   );
@@ -780,6 +850,79 @@ export function GatewayProvider({ children }: GatewayProviderProps) {
       requestDynamicBatteries,
     ]
   );
+
+  // Initialize connection check functions after all other functions are defined
+  useEffect(() => {
+    // Function to stop connection checks for a gateway
+    stopConnectionChecks.current = (gatewayId: string) => {
+      const interval = connectionCheckIntervals.current.get(gatewayId);
+      if (interval) {
+        console.log(`Stopping connection check interval for gateway ${gatewayId}`);
+        clearInterval(interval);
+        connectionCheckIntervals.current.delete(gatewayId);
+      }
+    };
+
+    // Function to start periodic connection checks for a gateway
+    startConnectionChecks.current = (gatewayId: string) => {
+      // Clear any existing interval
+      stopConnectionChecks.current(gatewayId);
+
+      console.log(`⚠️ SETTING UP connection polling interval for gateway ${gatewayId}`);
+
+      // First, do an immediate check
+      if (getStatus(gatewayId) === GatewayConnectionStatus.AUTHENTICATED) {
+        console.log(`Initial sensor connection check for gateway ${gatewayId}`);
+        requestConnectedSensorsRef.current(gatewayId);
+      }
+
+      // Create new interval to check connections every 5 seconds for better responsiveness
+      const interval = setInterval(() => {
+        try {
+          // Only check if the gateway is authenticated
+          const status = getStatus(gatewayId);
+          console.log(
+            `⏰ Connection check interval fired for gateway ${gatewayId}, status: ${status}`
+          );
+
+          if (status === GatewayConnectionStatus.AUTHENTICATED) {
+            console.log(`Running scheduled sensor connection check for gateway ${gatewayId}`);
+            requestConnectedSensorsRef.current(gatewayId).then(result => {
+              console.log(`Connection check request sent: ${result ? 'SUCCESS' : 'FAILED'}`);
+            });
+          } else {
+            console.log(
+              `Skipping connection check - gateway ${gatewayId} not authenticated (status: ${status})`
+            );
+          }
+        } catch (error) {
+          console.error(`Error in connection check interval for gateway ${gatewayId}:`, error);
+        }
+      }, 5000); // 5 seconds
+
+      connectionCheckIntervals.current.set(gatewayId, interval);
+
+      // Debug intervals
+      console.log(
+        `Active intervals after setup:`,
+        Array.from(connectionCheckIntervals.current.entries()).map(([id, _]) => id)
+      );
+    };
+
+    // Store a copy of the connectionCheckIntervals ref's current value to use in cleanup
+    const intervalsRef = connectionCheckIntervals;
+
+    // Clean up intervals on unmount
+    return () => {
+      const intervalsToCleanup = intervalsRef.current;
+      Array.from(intervalsToCleanup.keys()).forEach(gatewayId => {
+        const interval = intervalsToCleanup.get(gatewayId);
+        if (interval) {
+          clearInterval(interval);
+        }
+      });
+    };
+  }, [getStatus, requestConnectedSensors]);
 
   return <GatewayContext.Provider value={contextValue}>{children}</GatewayContext.Provider>;
 }

@@ -1,4 +1,4 @@
-import { GatewayReference, SensorResponse } from '@/app/api/sensors/schemas';
+import { SensorResponse } from '@/app/api/sensors/schemas';
 
 /**
  * Safely extracts a gateway ID from a sensor object

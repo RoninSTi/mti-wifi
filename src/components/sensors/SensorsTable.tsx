@@ -20,7 +20,6 @@ import {
   Edit,
   Trash,
   ActivitySquare,
-  Scan,
 } from 'lucide-react';
 import { CreateSensorDialog } from './CreateSensorDialog';
 import { EditSensorDialog } from './EditSensorDialog';
@@ -29,8 +28,6 @@ import { useSensors } from '@/hooks/useSensors';
 import { useDeleteSensor } from '@/hooks/useDeleteSensor';
 import { useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {

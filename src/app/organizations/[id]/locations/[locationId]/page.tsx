@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 import { GatewaysTab } from '@/components/gateways';
 import { AreasTab } from '@/components/areas';
 import { DeleteButton } from '@/components/ui/delete-button';
-import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import { DetailPageBreadcrumbs } from '@/components/shared';
 

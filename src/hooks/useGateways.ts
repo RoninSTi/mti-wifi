@@ -14,7 +14,7 @@ export interface UseGatewaysParams {
   name?: string;
   serialNumber?: string;
   status?: 'disconnected' | 'connected' | 'authenticated';
-  enabled?: boolean; // Explicitly control whether the query runs
+  _enabled?: boolean; // Explicitly control whether the query runs
 }
 
 export interface UseGatewaysResult {
@@ -39,7 +39,7 @@ export function useGateways({
   name,
   serialNumber,
   status,
-  enabled = true, // Default to true to always fetch unless explicitly disabled
+  _enabled = true, // Default to true to always fetch unless explicitly disabled
 }: UseGatewaysParams = {}): UseGatewaysResult {
   const queryKey = [
     'gateways',

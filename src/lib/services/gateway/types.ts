@@ -115,30 +115,33 @@ export type GetConnectedSensorsRequest = z.infer<typeof getConnectedSensorsReque
 /**
  * Dynamic sensor schema
  */
-export const dynamicSensorSchema = z.object({
-  Serial: z.number().int(),
-  Connected: z.number().or(z.boolean()),
-  AccessPoint: z.number().int(),
-  PartNum: z.string(),
-  ReadRate: z.number(),
-  GMode: z.string(),
-  FreqMode: z.number(),
-  Coupling: z.number(),
-  ReadPeriod: z.number(),
-  Samples: z.number(),
-  Fs: z.number(),
-  Fmax: z.number(),
-  HwVer: z.string(),
-  FmVer: z.string(),
-  Machine: z.string(),
-  Early: z.number(),
-  Crit: z.number(),
-  Nickname: z.string(),
-  Favorite: z.null(),
-  EarlyUnit: z.string(),
-  CritUnit: z.string(),
-  VelocityMode: z.null(),
-});
+// Make a more flexible sensor schema that can handle partial data
+export const dynamicSensorSchema = z
+  .object({
+    Serial: z.number().int(),
+    Connected: z.number().or(z.boolean()),
+    AccessPoint: z.number().int(),
+    PartNum: z.string(),
+    ReadRate: z.number(),
+    GMode: z.string(),
+    FreqMode: z.number(),
+    Coupling: z.number(),
+    ReadPeriod: z.number(),
+    Samples: z.number(),
+    Fs: z.number(),
+    Fmax: z.number(),
+    HwVer: z.string(),
+    FmVer: z.string(),
+    Machine: z.string().nullable().optional(),
+    Early: z.number().nullable().optional(),
+    Crit: z.number().nullable().optional(),
+    Nickname: z.string().optional(),
+    Favorite: z.null().optional(),
+    EarlyUnit: z.string().nullable().optional(),
+    CritUnit: z.string().nullable().optional(),
+    VelocityMode: z.null().optional(),
+  })
+  .passthrough(); // Allow any additional properties
 
 export type DynamicSensor = z.infer<typeof dynamicSensorSchema>;
 
@@ -175,14 +178,17 @@ export type SensorReadings = {
 };
 
 /**
- * Dynamic sensors response schema
+ * Dynamic sensors response schema - with flexible Data format
  */
 export const dynamicSensorsResponseSchema = baseMessageSchema.extend({
   Type: z.literal('RTN_DYN'),
   From: z.literal('SERV'),
   Target: z.literal('UI'),
-  // Exactly match the format with an array of sensors directly in Data
-  Data: z.array(dynamicSensorSchema),
+  // Make Data more flexible to handle different formats
+  Data: z.union([
+    z.array(dynamicSensorSchema), // Direct array format
+    z.object({}).passthrough(), // Object format that might contain an array
+  ]),
 });
 
 export type DynamicSensorsResponse = z.infer<typeof dynamicSensorsResponseSchema>;

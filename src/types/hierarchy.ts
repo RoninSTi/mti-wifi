@@ -7,7 +7,7 @@ const mongoIdSchema = z.any().transform(val => {
     if (val && typeof val.toHexString === 'function') return val.toHexString();
     if (val && typeof val.toString === 'function') return val.toString();
     return String(val);
-  } catch (error) {
+  } catch {
     return String(val);
   }
 });

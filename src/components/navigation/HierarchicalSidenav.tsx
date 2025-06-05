@@ -39,11 +39,9 @@ interface TreeNodeProps extends TreeNodeData {
 }
 
 const TreeNode = ({
-  id,
+  id: _,
   name,
   type,
-  status,
-  connected,
   children,
   level,
   isExpanded,

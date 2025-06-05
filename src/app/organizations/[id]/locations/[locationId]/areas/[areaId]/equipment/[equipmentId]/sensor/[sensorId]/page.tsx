@@ -33,13 +33,44 @@ export default function SensorReadingsPage() {
   // Use gateway connection hook for status badges (only if gatewayId exists)
   const gatewayConnection = useGatewayConnection(gatewayId || '');
 
-  // Check if sensor is connected (using same logic as realtime readings)
+  // Force a refresh of the connected sensors when the component mounts
+  React.useEffect(() => {
+    const checkSensor = async () => {
+      if (gatewayId && gatewayConnection.isAuthenticated) {
+        console.log('🔄 Forcing sensor connection check on page load');
+        await gatewayConnection.fetchConnectedSensors();
+
+        // Schedule another check after a brief delay
+        setTimeout(async () => {
+          if (gatewayConnection.isAuthenticated) {
+            console.log('🔄 Secondary sensor connection check');
+            await gatewayConnection.fetchConnectedSensors();
+          }
+        }, 1000);
+      }
+    };
+
+    checkSensor();
+  }, [
+    gatewayId,
+    gatewayConnection.isAuthenticated,
+    gatewayConnection.fetchConnectedSensors,
+    gatewayConnection,
+  ]);
+
+  // Check if sensor is connected by looking for it in the sensors list
   const isSensorConnected =
     gatewayId && sensorSerial
-      ? gatewayConnection.sensors.some(
-          s => s.Serial === sensorSerial && (s.Connected === true || s.Connected === 1)
-        )
+      ? gatewayConnection.sensors.some(s => s.Serial === sensorSerial)
       : false;
+
+  // Debug connection status
+  console.log(`Sensor connection check on sensor details page:`, {
+    sensorSerial,
+    allSensors: gatewayConnection.sensors.map(s => s.Serial),
+    isSensorConnected,
+    isAuthenticated: gatewayConnection.isAuthenticated,
+  });
 
   // Local state for tracking loading state of reading requests
   const [readingLoading, setReadingLoading] = React.useState({
@@ -54,7 +85,8 @@ export default function SensorReadingsPage() {
       return;
     }
 
-    if (!isSensorConnected || !sensorSerial) {
+    // If sensor serial exists, allow taking reading regardless of connection status
+    if (!sensorSerial) {
       return;
     }
 
@@ -142,6 +174,8 @@ export default function SensorReadingsPage() {
           readingLoading={readingLoading}
           isGatewayAuthenticated={gatewayConnection.isAuthenticated}
           isSensorConnected={isSensorConnected}
+          // Set this to trigger an initial data load
+          initialLoad={true}
         />
       ) : (
         <Card>

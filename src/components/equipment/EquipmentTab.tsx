@@ -7,7 +7,7 @@ import { CreateEquipmentDialog } from './CreateEquipmentDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useEquipmentList, useDeleteEquipment } from '@/hooks';
-import { Loader2, Search, Plus, RefreshCw } from 'lucide-react';
+import { Search, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TablePagination } from '@/components/ui/table-pagination';
@@ -18,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PaginationMeta } from '@/lib/pagination/types';
 
 interface EquipmentTabProps {
   areaId: string;

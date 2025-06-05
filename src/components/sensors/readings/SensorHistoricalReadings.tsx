@@ -1,27 +1,11 @@
 'use client';
 
 import { useGatewayConnection } from '@/lib/services/gateway/use-gateway-connection';
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Battery,
-  Thermometer,
-  Waves,
-  Calendar,
-  RefreshCw,
-  Sigma,
-  Zap,
-  TrendingUp,
-} from 'lucide-react';
+import { Battery, Thermometer, Waves, Calendar, Sigma, Zap, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import { DetailedVibrationReading } from '@/lib/services/gateway/types-vibration';
@@ -46,7 +30,7 @@ import {
 } from 'recharts';
 
 // Zod schema for props validation
-const sensorHistoricalReadingsPropsSchema = z.object({
+const _sensorHistoricalReadingsPropsSchema = z.object({
   gatewayId: z.string(),
   sensorSerial: z.number().int(),
   onTakeReading: z
@@ -63,10 +47,11 @@ const sensorHistoricalReadingsPropsSchema = z.object({
     .optional(),
   isGatewayAuthenticated: z.boolean().optional(),
   isSensorConnected: z.boolean().optional(),
+  initialLoad: z.boolean().optional(),
 });
 
 // Type inference from Zod schema
-type SensorHistoricalReadingsProps = z.infer<typeof sensorHistoricalReadingsPropsSchema>;
+type SensorHistoricalReadingsProps = z.infer<typeof _sensorHistoricalReadingsPropsSchema>;
 
 export function SensorHistoricalReadings({
   gatewayId,
@@ -74,7 +59,7 @@ export function SensorHistoricalReadings({
   onTakeReading,
   readingLoading,
   isGatewayAuthenticated,
-  isSensorConnected,
+  initialLoad,
 }: SensorHistoricalReadingsProps) {
   // Use the gateway connection hook to get state and methods
   const {
@@ -107,6 +92,17 @@ export function SensorHistoricalReadings({
   );
   const [chartMode, setChartMode] = useState<'waveform' | 'fft'>('waveform');
 
+  // Cache for processed waveforms to avoid recalculating
+  const waveformCache = useRef<{
+    velocityWaveforms: Map<string, VibrationWaveform>;
+    displacementWaveforms: Map<string, VibrationWaveform>;
+    fftResults: Map<string, FFTResult>;
+  }>({
+    velocityWaveforms: new Map(),
+    displacementWaveforms: new Map(),
+    fftResults: new Map(),
+  });
+
   // Get the historical readings data
   const batteryReadings = getBatteryData();
   const temperatureReadings = getTemperatureData();
@@ -120,7 +116,6 @@ export function SensorHistoricalReadings({
     serialString: sensorSerial.toString(),
     batteryReadingsKeys: Object.keys(batteryReadings),
     batteryReadingsCount: Object.keys(batteryReadings).length,
-    batteryReadings: batteryReadings,
     detailedVibrationReadingsCount: Object.keys(detailedVibrationReadings).length,
   });
 
@@ -131,7 +126,7 @@ export function SensorHistoricalReadings({
   });
 
   // Define a function to refresh all data types
-  const refreshAllData = useCallback(async () => {
+  const _refreshAllData = useCallback(async () => {
     if (!isAuthenticated) {
       toast.error('Gateway not authenticated');
       return;
@@ -183,14 +178,60 @@ export function SensorHistoricalReadings({
     fetchVibrationReadings,
   ]);
 
-  // Load historical data when component mounts
+  // Load data on initial load (only once)
+  const [initialLoadCompleted, setInitialLoadCompleted] = useState(false);
+
   useEffect(() => {
-    if (isAuthenticated) {
-      console.log('Component mounted - loading initial historical data for sensor:', sensorSerial);
-      refreshAllData();
+    // Only run this effect once when initialLoad is true and not yet completed
+    if (initialLoad && !initialLoadCompleted && isAuthenticated) {
+      console.log('Initial data load triggered');
+
+      (async () => {
+        setIsLoading({ battery: true, temperature: true, vibration: true });
+
+        try {
+          const options = {
+            serials: [sensorSerial],
+            start: dateRange.start,
+            end: dateRange.end,
+            max: 100,
+          };
+
+          console.log('Loading initial historical data with options:', options);
+
+          // Load all types of data in parallel but don't show toast
+          const [batteryResult, tempResult, vibResult] = await Promise.all([
+            fetchBatteryReadings(options),
+            fetchTemperatureReadings(options),
+            fetchVibrationReadings(options),
+          ]);
+
+          console.log('Initial load results:', {
+            battery: batteryResult,
+            temperature: tempResult,
+            vibration: vibResult,
+          });
+
+          // Intentionally NOT showing a toast notification for initial load
+          setInitialLoadCompleted(true);
+        } catch (error) {
+          console.error('Error during initial data load:', error);
+        } finally {
+          setIsLoading({ battery: false, temperature: false, vibration: false });
+        }
+      })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, gatewayId, sensorSerial]);
+  }, [
+    initialLoad,
+    initialLoadCompleted,
+    isAuthenticated,
+    sensorSerial,
+    dateRange.start,
+    dateRange.end,
+    fetchBatteryReadings,
+    fetchTemperatureReadings,
+    fetchVibrationReadings,
+  ]);
 
   // Filter readings for this sensor
   const serialString = sensorSerial.toString();
@@ -223,7 +264,9 @@ export function SensorHistoricalReadings({
     })
     .sort((a, b) => new Date(b.Time).getTime() - new Date(a.Time).getTime());
 
-  const filteredVibrationReadings = Object.values(vibrationReadings)
+  // Using detailed vibration readings instead of basic ones
+  // This code is kept for reference
+  const _filteredVibrationReadings = Object.values(vibrationReadings)
     .filter(r => {
       // Normalize both serials to strings for comparison
       const readingSerial = String(r.Serial);
@@ -493,6 +536,11 @@ export function SensorHistoricalReadings({
     }));
   };
 
+  // Generate a unique key for the current reading and axis
+  const getWaveformCacheKey = useCallback((readingId: number, axis: 'x' | 'y' | 'z') => {
+    return `${readingId}-${axis}`;
+  }, []);
+
   // Processing functions for vibration data
   const updateCurrentWaveform = useCallback(() => {
     if (!selectedVibrationReading) {
@@ -511,6 +559,8 @@ export function SensorHistoricalReadings({
 
     // Assume 1kHz sample rate (typical for vibration sensors)
     const sampleRate = 1000;
+
+    // Create the base acceleration waveform
     const waveform = vibrationArrayToWaveform(
       axisData,
       sampleRate,
@@ -518,18 +568,61 @@ export function SensorHistoricalReadings({
     );
 
     setCurrentWaveform(waveform);
+
+    // Clear any processed waveform data for the new selection
     setProcessedWaveform(null);
     setFFTResult(null);
     setWaveformType('acceleration');
     setChartMode('waveform');
-  }, [selectedVibrationReading, selectedAxis]);
+
+    // Check if we have cached processed data for this waveform
+    const cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, selectedAxis);
+
+    // Clear FFT result if exists for consistency
+    if (waveformCache.current.fftResults.has(cacheKey)) {
+      // We don't set it immediately to avoid extra renders
+      console.log(`Found cached FFT result for ${cacheKey}`);
+    }
+  }, [selectedVibrationReading, selectedAxis, getWaveformCacheKey]);
 
   const handleIntegration = useCallback(() => {
     const waveformToProcess = processedWaveform || currentWaveform;
-    if (!waveformToProcess) return;
+    if (!waveformToProcess || !selectedVibrationReading) return;
+
+    const cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, selectedAxis);
+    let integrated: VibrationWaveform;
 
     try {
-      const integrated = integrateWaveform(waveformToProcess);
+      // Check if we're integrating from acceleration to velocity
+      if (waveformType === 'acceleration') {
+        // Check if we have this velocity waveform cached
+        if (waveformCache.current.velocityWaveforms.has(cacheKey)) {
+          console.log('Using cached velocity waveform');
+          integrated = waveformCache.current.velocityWaveforms.get(cacheKey)!;
+        } else {
+          // Calculate and cache it
+          console.log('Calculating velocity waveform');
+          integrated = integrateWaveform(waveformToProcess);
+          waveformCache.current.velocityWaveforms.set(cacheKey, integrated);
+        }
+      }
+      // Check if we're integrating from velocity to displacement
+      else if (waveformType === 'velocity') {
+        // Check if we have this displacement waveform cached
+        if (waveformCache.current.displacementWaveforms.has(cacheKey)) {
+          console.log('Using cached displacement waveform');
+          integrated = waveformCache.current.displacementWaveforms.get(cacheKey)!;
+        } else {
+          // Calculate and cache it
+          console.log('Calculating displacement waveform');
+          integrated = integrateWaveform(waveformToProcess);
+          waveformCache.current.displacementWaveforms.set(cacheKey, integrated);
+        }
+      } else {
+        // Shouldn't happen but handle it anyway
+        throw new Error("Can't integrate from displacement");
+      }
+
       setProcessedWaveform(integrated);
 
       // Update waveform type
@@ -547,13 +640,27 @@ export function SensorHistoricalReadings({
         `Integration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
-  }, [currentWaveform, processedWaveform, waveformType]);
+  }, [
+    currentWaveform,
+    processedWaveform,
+    waveformType,
+    selectedVibrationReading,
+    selectedAxis,
+    getWaveformCacheKey,
+  ]);
 
   const handleDifferentiation = useCallback(() => {
     const waveformToProcess = processedWaveform || currentWaveform;
-    if (!waveformToProcess) return;
+    if (!waveformToProcess || !selectedVibrationReading) return;
+
+    // Unused but kept for consistency with other handlers
+    const _cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, selectedAxis);
 
     try {
+      // We don't cache differentiation results separately since they're essentially
+      // the original acceleration data when going from velocity -> acceleration
+      // This keeps the cache simpler
+      console.log('Calculating differentiated waveform');
       const differentiated = differentiateWaveform(waveformToProcess);
       setProcessedWaveform(differentiated);
 
@@ -572,33 +679,76 @@ export function SensorHistoricalReadings({
         `Differentiation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
-  }, [currentWaveform, processedWaveform, waveformType]);
+  }, [
+    currentWaveform,
+    processedWaveform,
+    waveformType,
+    selectedVibrationReading,
+    selectedAxis,
+    getWaveformCacheKey,
+  ]);
 
   const handleFFT = useCallback(async () => {
     const waveformToAnalyze = processedWaveform || currentWaveform;
-    if (!waveformToAnalyze) return;
+    if (!waveformToAnalyze || !selectedVibrationReading) return;
+
+    const cacheKey = getWaveformCacheKey(selectedVibrationReading.ID, selectedAxis);
 
     try {
-      const fft = await performFFT(waveformToAnalyze);
-      setFFTResult(fft);
-      setChartMode('fft');
-      toast.success('FFT analysis completed');
+      // Check if we have cached FFT results
+      if (waveformCache.current.fftResults.has(cacheKey)) {
+        console.log('Using cached FFT result');
+        const fft = waveformCache.current.fftResults.get(cacheKey)!;
+        setFFTResult(fft);
+        setChartMode('fft');
+        toast.success('FFT analysis loaded');
+      } else {
+        console.log('Calculating new FFT result');
+        // Show loading toast for better UX during calculation
+        const toastId = toast.loading('Calculating FFT...');
+
+        const fft = await performFFT(waveformToAnalyze);
+
+        // Cache the result
+        waveformCache.current.fftResults.set(cacheKey, fft);
+
+        // Update state and dismiss the loading toast
+        setFFTResult(fft);
+        setChartMode('fft');
+        toast.dismiss(toastId);
+        toast.success('FFT analysis completed');
+      }
     } catch (error) {
       toast.error(`FFT failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }, [currentWaveform, processedWaveform]);
+  }, [
+    currentWaveform,
+    processedWaveform,
+    selectedVibrationReading,
+    selectedAxis,
+    getWaveformCacheKey,
+  ]);
 
   const resetProcessing = useCallback(() => {
     setProcessedWaveform(null);
     setFFTResult(null);
     setWaveformType('acceleration');
     setChartMode('waveform');
+
+    // Note: We don't clear the cache here because the cached data might be used again
+    // if the user performs the same operations on the same data
   }, []);
 
   // Update waveform when selection changes
   useEffect(() => {
     updateCurrentWaveform();
-  }, [updateCurrentWaveform]);
+
+    // We need to clear the processed waveform and FFT result when changing selection
+    setProcessedWaveform(null);
+    setFFTResult(null);
+    setWaveformType('acceleration');
+    setChartMode('waveform');
+  }, [updateCurrentWaveform, selectedVibrationReading?.ID, selectedAxis]);
 
   // Render the vibration history table
   const renderVibrationHistory = () => {
@@ -958,9 +1108,7 @@ export function SensorHistoricalReadings({
                 <Button
                   size="sm"
                   onClick={() => onTakeReading(activeTab)}
-                  disabled={
-                    !isGatewayAuthenticated || !isSensorConnected || readingLoading?.[activeTab]
-                  }
+                  disabled={!isGatewayAuthenticated || readingLoading?.[activeTab]}
                   className="flex items-center gap-2"
                 >
                   {activeTab === 'battery' && <Zap className="h-4 w-4" />}

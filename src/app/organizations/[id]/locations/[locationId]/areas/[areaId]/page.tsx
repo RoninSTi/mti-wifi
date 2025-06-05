@@ -10,7 +10,6 @@ import { useArea, useDeleteArea } from '@/hooks';
 import { toast } from 'sonner';
 import { EquipmentTab } from '@/components/areas/EquipmentTab';
 import { DeleteButton } from '@/components/ui/delete-button';
-import { Card } from '@/components/ui/card';
 import { EntityMeta, EntityDescription } from '@/components/ui/entity-meta';
 import {
   AlertDialog,

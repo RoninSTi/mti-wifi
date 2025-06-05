@@ -450,11 +450,15 @@ export class GatewayService {
   /**
    * Get connected dynamic sensors
    * This sends a GET_DYN_CONNECTED command to the gateway, which will respond
-   * with a list of currently connected sensors. A sensor is connected if it's
-   * in this list and has Connected=1.
+   * with a list of currently connected sensors.
+   *
+   * IMPORTANT: If a sensor is in the response from this command,
+   * it is considered connected regardless of the Connected property value.
    */
   public getConnectedSensors(gatewayId: string): boolean {
     try {
+      console.log(`Sending GET_DYN_CONNECTED command to gateway ${gatewayId}`);
+
       // Use Zod to create and validate the request message
       const getConnectedSensorsRequest = getConnectedSensorsRequestSchema.parse({
         Type: 'GET_DYN_CONNECTED',
@@ -463,12 +467,15 @@ export class GatewayService {
         Data: {},
       });
 
-      return this.sendMessage(gatewayId, getConnectedSensorsRequest);
-    } catch (error) {
-      console.error(
-        'Invalid get connected sensors request format:',
-        error instanceof Error ? error.message : 'Unknown error'
+      // Send the command to get connected sensors list
+      const result = this.sendMessage(gatewayId, getConnectedSensorsRequest);
+      console.log(
+        `GET_DYN_CONNECTED command sent to gateway ${gatewayId}: ${result ? 'SUCCESS' : 'FAILED'}`
       );
+
+      return result;
+    } catch (error) {
+      console.error('Failed to send GET_DYN_CONNECTED command:', error);
       return false;
     }
   }
