@@ -19,6 +19,7 @@ import {
   getDynamicTemperaturesRequestSchema,
   getDynamicBatteriesRequestSchema,
   getConnectedSensorsRequestSchema,
+  getDynamicSensorsRequestSchema,
   AccessPointConnectionNotification,
   VibrationReadingStartedNotification,
   VibrationReadingCompleteNotification,
@@ -448,34 +449,22 @@ export class GatewayService {
   }
 
   /**
-   * Get connected dynamic sensors
-   * This sends a GET_DYN_CONNECTED command to the gateway, which will respond
-   * with a list of currently connected sensors.
-   *
-   * IMPORTANT: If a sensor is in the response from this command,
-   * it is considered connected regardless of the Connected property value.
+   * Get sensor list and connection status via GET_DYN command
    */
   public getConnectedSensors(gatewayId: string): boolean {
     try {
-      console.log(`Sending GET_DYN_CONNECTED command to gateway ${gatewayId}`);
-
-      // Use Zod to create and validate the request message
-      const getConnectedSensorsRequest = getConnectedSensorsRequestSchema.parse({
-        Type: 'GET_DYN_CONNECTED',
+      // Create the GET_DYN request with the proper schema
+      const getDynRequest = requestMessageSchema.parse({
+        Type: 'GET_DYN',
         From: 'UI',
         To: 'SERV',
         Data: {},
       });
 
-      // Send the command to get connected sensors list
-      const result = this.sendMessage(gatewayId, getConnectedSensorsRequest);
-      console.log(
-        `GET_DYN_CONNECTED command sent to gateway ${gatewayId}: ${result ? 'SUCCESS' : 'FAILED'}`
-      );
-
-      return result;
+      // Send the command through our proper messaging system
+      return this.sendMessage(gatewayId, getDynRequest);
     } catch (error) {
-      console.error('Failed to send GET_DYN_CONNECTED command:', error);
+      console.error('Failed to send GET_DYN command:', error);
       return false;
     }
   }
@@ -980,6 +969,13 @@ export class GatewayService {
 
       // Process any queued messages
       this.processMessageQueue(gatewayId);
+
+      // After authentication and subscription, get sensor list with GET_DYN
+      // Use the proper method from our service
+      console.log('Authentication successful - sending initial GET_DYN to get sensor status');
+      setTimeout(() => {
+        this.getConnectedSensors(gatewayId);
+      }, 300);
     } else {
       // Authentication failed
       const authError: GatewayConnectionError = {
@@ -1182,33 +1178,14 @@ export class GatewayService {
     // Clear any existing ping interval
     this.stopPingInterval(gatewayId);
 
-    // Create new ping interval
+    // We don't need to send any pings - WebSocket protocol handles keepalives
+    // but we'll keep a periodic check to detect disconnections
     const interval = setInterval(() => {
       const connection = this.connections.get(gatewayId);
       if (!connection || !connection.ws || connection.ws.readyState !== WebSocket.OPEN) {
+        console.log(`Ping interval detected gateway ${gatewayId} is disconnected`);
         this.stopPingInterval(gatewayId);
         return;
-      }
-
-      // Only send keepalive if authenticated
-      if (connection.status === GatewayConnectionStatus.AUTHENTICATED) {
-        // Send a GET_DYN request as a keepalive ping
-        // This is a valid command from the API documentation
-        try {
-          const getDynRequest = requestMessageSchema.parse({
-            Type: 'GET_DYN',
-            From: 'UI',
-            To: 'SERV',
-            Data: {},
-          });
-
-          this.sendMessage(gatewayId, getDynRequest);
-        } catch (error) {
-          console.error(
-            'Failed to create ping request:',
-            error instanceof Error ? error.message : 'Unknown error'
-          );
-        }
       }
     }, this.config.pingIntervalMs);
 

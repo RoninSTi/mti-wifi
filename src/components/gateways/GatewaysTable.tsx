@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { GatewayResponse } from '@/app/api/gateways/schemas';
 import { SensorResponse } from '@/app/api/sensors/schemas';
@@ -72,6 +72,20 @@ function GatewaySensorsDisplay({ gatewayId, isExpanded }: GatewaySensorsDisplayP
     enabled: isExpanded,
     limit: 100, // Get all sensors for this gateway
   });
+
+  // Use the gateway connection hook to get up-to-date connection status
+  const { sensors: gatewayLiveSensors = [] } = useGatewayConnection(gatewayId);
+
+  // Log connection status when expanded for debugging
+  useEffect(() => {
+    if (isExpanded && sensors.length > 0 && gatewayLiveSensors.length > 0) {
+      console.log('Connection status check:', {
+        gatewayId,
+        apiSensors: sensors.map(s => ({ id: s._id, serial: s.serial, connected: s.connected })),
+        liveSensors: gatewayLiveSensors.map(s => ({ serial: s.Serial, connected: s.Connected })),
+      });
+    }
+  }, [isExpanded, sensors, gatewayLiveSensors, gatewayId]);
 
   const handleSensorClick = (sensor: SensorResponse) => {
     if (
@@ -145,7 +159,6 @@ function GatewaySensorsDisplay({ gatewayId, isExpanded }: GatewaySensorsDisplayP
                   <TableHead>Area</TableHead>
                   <TableHead>Serial</TableHead>
                   <TableHead>Connection</TableHead>
-                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -181,27 +194,29 @@ function GatewaySensorsDisplay({ gatewayId, isExpanded }: GatewaySensorsDisplayP
                       {sensor.serial || 'N/A'}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={sensor.connected ? 'default' : 'secondary'}
-                        className={sensor.connected ? 'bg-green-500/10 text-green-500' : ''}
-                      >
-                        {sensor.connected ? 'Connected' : 'Disconnected'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          sensor.status === 'active'
-                            ? 'default'
-                            : sensor.status === 'warning'
-                              ? 'secondary'
-                              : sensor.status === 'error'
-                                ? 'destructive'
-                                : 'outline'
-                        }
-                      >
-                        {sensor.status}
-                      </Badge>
+                      <div className="flex items-center">
+                        {/* 
+                          Check connection status from both sources:
+                          1. The sensor's own connected property from the database
+                          2. The live connection data from the gateway service 
+                        */}
+                        {sensor.connected ||
+                        gatewayLiveSensors.some(
+                          s =>
+                            s.Serial === sensor.serial &&
+                            (s.Connected === 1 || s.Connected === true)
+                        ) ? (
+                          <>
+                            <Wifi className="h-4 w-4 text-green-500 mr-2" />
+                            <span>Connected</span>
+                          </>
+                        ) : (
+                          <>
+                            <WifiOff className="h-4 w-4 text-gray-400 mr-2" />
+                            <span className="text-muted-foreground">Disconnected</span>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
